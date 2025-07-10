@@ -297,6 +297,20 @@ class OpenAIDalle3(ComfyNodeABC):
                         "tooltip": "Image size",
                     },
                 ),
+                "image": (
+                    IO.IMAGE,
+                    {
+                        "default": None,
+                        "tooltip": "Optional reference image for image editing/variations.",
+                    },
+                ),
+                "mask": (
+                    IO.MASK,
+                    {
+                        "default": None,
+                        "tooltip": "Optional mask for inpainting (white areas will be replaced)",
+                    },
+                ),
             },
             "hidden": {
                 "auth_token": "AUTH_TOKEN_COMFY_ORG",
@@ -318,24 +332,67 @@ class OpenAIDalle3(ComfyNodeABC):
         style="natural",
         quality="standard",
         size="1024x1024",
+        image=None,
+        mask=None,
         unique_id=None,
         **kwargs,
     ):
         validate_string(prompt, strip_whitespace=False)
         model = "dall-e-3"
+        path = "/v1/images/generations"
+        content_type = "application/json"
+        request_class = OpenAIImageGenerationRequest
+        files = None
 
         # Extract OpenAI API key from kwargs and pass as auth_token
         openai_key = kwargs.get('comfy_api_key')
-        
-        # build the operation
+
+        # Handle image-to-image or inpainting for DALL-E 3
+        if image is not None:
+            path = "/v1/images/edits"
+            content_type = "multipart/form-data"
+            request_class = OpenAIImageEditRequest
+
+            # Process the input image
+            input_tensor = image.squeeze().cpu()
+            height, width, channels = input_tensor.shape
+            
+            if mask is not None:
+                # Inpainting mode - combine image and mask
+                if mask.shape[1:] != image.shape[1:-1]:
+                    raise Exception("Mask and Image must be the same size")
+                
+                rgba_tensor = torch.ones(height, width, 4, device="cpu")
+                rgba_tensor[:, :, :channels] = input_tensor
+                rgba_tensor[:, :, 3] = 1 - mask.squeeze().cpu()
+                
+                rgba_tensor = downscale_image_tensor(rgba_tensor.unsqueeze(0)).squeeze()
+                image_np = (rgba_tensor.numpy() * 255).astype(np.uint8)
+                img = Image.fromarray(image_np)
+            else:
+                # Image variation mode - just process the image
+                scaled_image = downscale_image_tensor(input_tensor.unsqueeze(0)).squeeze()
+                image_np = (scaled_image.numpy() * 255).astype(np.uint8)
+                img = Image.fromarray(image_np)
+
+            # Convert to bytes for upload
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format="PNG")
+            img_byte_arr.seek(0)
+            img_binary = img_byte_arr
+            img_binary.name = "image.png"
+            
+            files = {"image": img_binary}
+
+        # Build the operation
         operation = SynchronousOperation(
             endpoint=ApiEndpoint(
-                path="/v1/images/generations",
+                path=path,
                 method=HttpMethod.POST,
-                request_model=OpenAIImageGenerationRequest,
+                request_model=request_class,
                 response_model=OpenAIImageGenerationResponse,
             ),
-            request=OpenAIImageGenerationRequest(
+            request=request_class(
                 model=model,
                 prompt=prompt,
                 quality=quality,
@@ -343,6 +400,8 @@ class OpenAIDalle3(ComfyNodeABC):
                 style=style,
                 seed=seed,
             ),
+            files=files,
+            content_type=content_type,
             api_base="https://api.openai.com",
             auth_token=openai_key,  # This maps to Authorization: Bearer
             auth_kwargs={},  # Empty to avoid conflicts
