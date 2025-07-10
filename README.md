@@ -74,6 +74,8 @@ start_dream_layer.bat
 | **Closed-Source Model Support** | One-click swap to GPT-4o Image, Ideogram V3, Runway Gen-4, Recraft V3, and more |
 | **Local first** | Runs entirely on your GPU with no hosting fees, full privacy, and instant acceleration out of the box |
 
+
+
 ---
 
 ## Requirements

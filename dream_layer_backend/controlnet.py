@@ -21,7 +21,7 @@ def save_controlnet_image(image_data, unit_index):
             print(f"🔍 Image data starts with: {image_data[:50]}...")
         
         # Get ComfyUI input directory - use absolute path
-        input_dir = "/Users/najeebkhan/dreamLayer/dream_layer_v1/ComfyUI/input"
+        input_dir = os.path.join("DreamLayer", "ComfyUI", "input")
         print(f"📁 Target directory: {input_dir}")
         
         # Create input directory if it doesn't exist
@@ -89,7 +89,7 @@ def create_test_controlnet_image():
     """
     try:
         # Get ComfyUI input directory - use absolute path
-        input_dir = "/Users/najeebkhan/dreamLayer/dream_layer_v1/ComfyUI/input"
+        input_dir = os.path.join("DreamLayer", "ComfyUI", "input")
         print(f"📁 Creating test image in: {input_dir}")
         
         # Create input directory if it doesn't exist

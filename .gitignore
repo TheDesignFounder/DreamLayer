@@ -201,3 +201,6 @@ dream_layer_backend/served_images/
 
 # macOS
 .DS_Store
+ 
+#VSCode
+.vscode/

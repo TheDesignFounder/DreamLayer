@@ -10,6 +10,29 @@ from dream_layer_backend_utils.update_custom_workflow import find_save_node
 # Global constants
 COMFY_API_URL = "http://127.0.0.1:8188"
 SERVED_IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'served_images')
+
+# Sampler name mapping from frontend to ComfyUI
+SAMPLER_NAME_MAP = {
+    'Euler': 'euler',
+    'Euler a': 'euler_ancestral',
+    'LMS': 'lms',
+    'Heun': 'heun',
+    'DPM2': 'dpm_2',
+    'DPM2 a': 'dpm_2_ancestral',
+    'DPM++ 2S a': 'dpmpp_2s_ancestral',
+    'DPM++ 2M': 'dpmpp_2m',
+    'DPM++ SDE': 'dpmpp_sde',
+    'DPM fast': 'dpm_fast',
+    'DPM adaptive': 'dpm_adaptive',
+    'LMS Karras': 'lms',
+    'DPM2 Karras': 'dpm_2',
+    'DPM2 a Karras': 'dpm_2_ancestral',
+    'DPM++ 2S a Karras': 'dpmpp_2s_ancestral',
+    'DPM++ 2M Karras': 'dpmpp_2m',
+    'DPM++ SDE Karras': 'dpmpp_sde',
+    'DDIM': 'ddim',
+    'PLMS': 'plms'
+}
 os.makedirs(SERVED_IMAGES_DIR, exist_ok=True)
 
 def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int = 300) -> List[Dict[str, Any]]:
@@ -120,7 +143,7 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
         for i in range(iterations):
             # Increment seed for variation
             import copy
-            from txt2img_server import increment_seed_in_workflow
+            from txt2img_workflow import increment_seed_in_workflow
             current_workflow = increment_seed_in_workflow(copy.deepcopy(workflow), i) if i > 0 else workflow
             
             # Send to ComfyUI

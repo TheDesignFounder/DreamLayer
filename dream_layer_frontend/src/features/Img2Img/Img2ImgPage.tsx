@@ -15,6 +15,8 @@ import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
+import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+
 import {
   Accordion,
   AccordionContent,
@@ -119,6 +121,18 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       const formData = new FormData();
       formData.append('image', inputImage.file);
 
+
+      // Prepare ControlNet data for API
+      let preparedControlNet = null;
+      if (controlNetConfig && validateControlNetConfig(controlNetConfig)) {
+        try {
+          preparedControlNet = await prepareControlNetForAPI(controlNetConfig);
+          console.log('Prepared ControlNet for API:', preparedControlNet);
+        } catch (error) {
+          console.error('Error preparing ControlNet for API:', error);
+        }
+      }
+
       // Prepare the request data
       const requestData = {
         ...coreSettings,
@@ -126,7 +140,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
         custom_workflow: customWorkflow,
         lora: selectedLora,
         // Only include controlnet if it's properly configured
-        ...(controlNetConfig && { controlnet: controlNetConfig })
+        ...(preparedControlNet && { controlnet: preparedControlNet })
       };
 
       console.log('Sending img2img request with data:', requestData);

@@ -1,53 +1,108 @@
+import json
+import random
+import os
+import json
 from dream_layer_backend_utils.workflow_loader import load_workflow
 from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow
 from dream_layer_backend_utils.update_custom_workflow import override_workflow 
-from controlnet import save_controlnet_image, create_test_controlnet_image
-import json
-import os
+from dream_layer_backend_utils.update_custom_workflow import update_custom_workflow, validate_custom_workflow
+from shared_utils import SAMPLER_NAME_MAP
+from controlnet import save_controlnet_image
+
+
+def increment_seed_in_workflow(workflow, increment):
+    """Increment seed in workflow for batch generation - handles both ComfyUI and closed-source workflows"""
+    try:
+        # First try to find KSampler node (for ComfyUI workflows)
+        for node_id, node_data in workflow.get('prompt', {}).items():
+            if node_data.get('class_type') == 'KSampler':
+                current_seed = node_data.get('inputs', {}).get('seed', 0)
+                node_data['inputs']['seed'] = current_seed + increment
+                print(f"🎲 Incremented KSampler seed: {current_seed} -> {current_seed + increment}")
+                return workflow
+        
+        # If no KSampler found, try closed-source model nodes (DALL-E, BFL, Ideogram)
+        closed_source_nodes = ['OpenAIDalle3', 'OpenAIDalle2', 'FluxProImageNode', 'FluxProUltraImageNode', 'FluxDevImageNode', 'IdeogramV3']
+        for node_id, node_data in workflow.get('prompt', {}).items():
+            if node_data.get('class_type') in closed_source_nodes:
+                current_seed = node_data.get('inputs', {}).get('seed', 0)
+                new_seed = current_seed + increment
+                node_data['inputs']['seed'] = new_seed
+                print(f"🎲 Incremented {node_data.get('class_type')} seed: {current_seed} -> {new_seed}")
+                return workflow
+        
+        print("⚠️ No seed node found to increment")
+        
+    except Exception as e:
+        print(f"Error incrementing seed: {e}")
+    return workflow
+
 
 def transform_to_txt2img_workflow(data):
     """
     Transform frontend data to ComfyUI txt2img workflow
+    Combines advanced ControlNet functionality with smallFeatures improvements
     """
     try:
         print("\n🔄 Transforming txt2img workflow:")
         print("-" * 40)
         print(f"📊 Data keys: {list(data.keys())}")
         
-        # Extract core settings from top-level data
-        # Handle seed validation - ensure it's a positive integer
-        seed = data.get('seed', 0)
+        # Extract and validate core parameters with smallFeatures improvements
+        prompt = data.get('prompt', '')
+        negative_prompt = data.get('negative_prompt', '')
+        
+        # Dimension validation
+        width = max(64, min(2048, int(data.get('width', 512))))
+        height = max(64, min(2048, int(data.get('height', 512))))
+        
+        # Batch parameters with validation (from smallFeatures)
+        batch_size = max(1, min(8, int(data.get('batch_size', 1))))  # Clamp between 1 and 8
+        print(f"\nBatch size: {batch_size}")
+        
+        # Sampling parameters with validation
+        steps = max(1, min(150, int(data.get('steps', 20))))
+        cfg_scale = max(1.0, min(20.0, float(data.get('cfg_scale', 7.0))))
+        
+        # Get sampler name and map it to ComfyUI format (from smallFeatures)
+        frontend_sampler = data.get('sampler_name', 'euler')
+        sampler_name = SAMPLER_NAME_MAP.get(frontend_sampler, 'euler')
+        print(f"\nMapping sampler name: {frontend_sampler} -> {sampler_name}")
+        
+        scheduler = data.get('scheduler', 'normal')
+        
+        # Handle seed - enhanced from smallFeatures for -1 values
         try:
-            seed = int(seed)
+            seed = int(data.get('seed', 0))
             if seed < 0:
-                import random
-                seed = random.randint(1, 2**31 - 1)
+                seed = random.randint(0, 2**32 - 1)  # Generate random seed between 0 and 2^32-1
         except (ValueError, TypeError):
-            import random
-            seed = random.randint(1, 2**31 - 1)
+            seed = random.randint(0, 2**32 - 1)
         
         # Handle model name validation
         model_name = data.get('model_name', 'juggernautXL_v8Rundiffusion.safetensors')
         
-        # Check if it's a closed-source model (DALL-E, FLUX, etc.)
-        closed_source_models = ['dall-e-3', 'dall-e-2', 'flux-pro', 'flux-dev']
+        # Check if it's a closed-source model (DALL-E, FLUX, Ideogram, etc.)
+        closed_source_models = ['dall-e-3', 'dall-e-2', 'flux-pro', 'flux-dev', 'ideogram-v3']
         
         if model_name in closed_source_models:
-            # For closed-source models, we'll use the workflow loader to handle them
             print(f"🎨 Using closed-source model: {model_name}")
         
+        print(f"\nUsing model: {model_name}")
+        
         core_generation_settings = {
-            'prompt': data.get('prompt', ''),
-            'negative_prompt': data.get('negative_prompt', ''),
-            'width': data.get('width', 512),
-            'height': data.get('height', 512),
-            'batch_size': data.get('batch_size', 1),
-            'steps': data.get('steps', 20),
-            'cfg_scale': data.get('cfg_scale', 7.0),
-            'sampler_name': data.get('sampler_name', 'euler'),
-            'scheduler': data.get('scheduler', 'normal'),
+            'prompt': prompt,
+            'negative_prompt': negative_prompt,
+            'width': width,
+            'height': height,
+            'batch_size': batch_size,
+            'steps': steps,
+            'cfg_scale': cfg_scale,
+            'sampler_name': sampler_name,
+            'scheduler': scheduler,
             'seed': seed,
-            'ckpt_name': model_name
+            'ckpt_name': model_name,
+            'denoise': 1.0
         }
         print(f"🎯 Core settings: {core_generation_settings}")
         
@@ -105,11 +160,12 @@ def transform_to_txt2img_workflow(data):
         print(f"🔧 Use Tiling: {use_tiling}")
         
         # Create workflow request for the loader
-        # Map model names to workflow types
         if model_name in ['dall-e-3', 'dall-e-2']:
             workflow_model_type = 'dalle'
         elif model_name in ['flux-pro', 'flux-dev']:
             workflow_model_type = 'bfl'
+        elif 'ideogram' in model_name.lower():  # Added check for ideogram models
+            workflow_model_type = 'ideogram'
         else:
             workflow_model_type = 'local'
         
@@ -124,15 +180,28 @@ def transform_to_txt2img_workflow(data):
         
         # Load workflow using the workflow loader
         workflow = load_workflow(workflow_request)
-        
         print(f"✅ Workflow loaded successfully")
         
         # Inject API keys if needed (for DALL-E, FLUX, etc.)
         workflow = inject_api_keys_into_workflow(workflow)
         print(f"✅ API keys injected")
         
-        # Apply overrides
-        workflow = override_workflow(workflow, core_generation_settings)
+        # Custom workflow support from smallFeatures
+        custom_workflow = data.get('custom_workflow')
+        if custom_workflow and validate_custom_workflow(custom_workflow):
+            print("Custom workflow detected, updating with current parameters...")
+            try:
+                workflow = update_custom_workflow(workflow, custom_workflow)
+                print("Successfully updated custom workflow with current parameters")
+            except Exception as e:
+                print(f"Error updating custom workflow: {str(e)}")
+                print("Falling back to default workflow override")
+                workflow = override_workflow(workflow, core_generation_settings)
+        else:
+            # Apply overrides to loaded workflow
+            workflow = override_workflow(workflow, core_generation_settings)
+            print("No valid custom workflow provided, using default workflow with overrides")
+        
         print(f"✅ Core settings applied")
         
         # Apply LoRA parameters if enabled
@@ -166,6 +235,7 @@ def transform_to_txt2img_workflow(data):
             workflow = inject_refiner_parameters(workflow, refiner_data)
         
         print(f"✅ Workflow transformation complete")
+        print(f"📋 Generated workflow: {json.dumps(workflow, indent=2)}")
         return workflow
         
     except Exception as e:
