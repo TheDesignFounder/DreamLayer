@@ -204,3 +204,7 @@ dream_layer_backend/served_images/
  
 #VSCode
 .vscode/
+
+#Tooling node
+node_modules
+package-lock.json

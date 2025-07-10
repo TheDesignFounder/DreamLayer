@@ -81,7 +81,7 @@ start_python_server() {
     
     # Start the server in background
     cd dream_layer_backend
-    python "$server_file" > "../$log_file" 2>&1 &
+    python3 "$server_file" > "../$log_file" 2>&1 &
     local pid=$!
     cd ..
     
@@ -146,7 +146,7 @@ main() {
     cd "$SCRIPT_DIR"
     
     # Check if Python is available
-    if ! command -v python &> /dev/null; then
+    if ! command -v python3 &> /dev/null; then
         print_error "Python is not installed or not in PATH"
         exit 1
     fi
