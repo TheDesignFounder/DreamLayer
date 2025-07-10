@@ -29,11 +29,13 @@ Learn how to use DreamLayer AI effectively with API examples, workflow managemen
 ### Core Endpoints
 
 #### Get Available Models
+
 ```bash
 curl -X GET http://localhost:5000/api/models
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -53,26 +55,31 @@ curl -X GET http://localhost:5000/api/models
 ```
 
 #### Get LoRA Models
+
 ```bash
 curl -X GET http://localhost:5000/api/lora-models
 ```
 
 #### Get Upscaler Models
+
 ```bash
 curl -X GET http://localhost:5000/api/upscaler-models
 ```
 
 #### Get ControlNet Models
+
 ```bash
 curl -X GET http://localhost:5000/api/controlnet/models
 ```
 
 #### Fetch Random Prompts
+
 ```bash
 curl -X GET http://localhost:5000/api/fetch-prompt
 ```
 
 **Response:**
+
 ```json
 {
   "positive": "A majestic dragon soaring through clouds",
@@ -83,12 +90,14 @@ curl -X GET http://localhost:5000/api/fetch-prompt
 ### File Operations
 
 #### Upload ControlNet Image
+
 ```bash
 curl -X POST http://localhost:5000/api/upload-controlnet-image \
   -F "image=@path/to/your/image.png"
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -97,6 +106,7 @@ curl -X POST http://localhost:5000/api/upload-controlnet-image \
 ```
 
 #### Send Image to img2img
+
 ```bash
 curl -X POST http://localhost:5000/api/send-to-img2img \
   -H "Content-Type: application/json" \
@@ -104,6 +114,7 @@ curl -X POST http://localhost:5000/api/send-to-img2img \
 ```
 
 #### Send Image to Extras
+
 ```bash
 curl -X POST http://localhost:5000/api/send-to-extras \
   -H "Content-Type: application/json" \
@@ -111,6 +122,7 @@ curl -X POST http://localhost:5000/api/send-to-extras \
 ```
 
 #### Show Image in Folder
+
 ```bash
 curl -X POST http://localhost:5000/api/show-in-folder \
   -H "Content-Type: application/json" \
@@ -120,6 +132,7 @@ curl -X POST http://localhost:5000/api/show-in-folder \
 ### Settings Management
 
 #### Configure Paths
+
 ```bash
 curl -X POST http://localhost:5000/api/settings/paths \
   -H "Content-Type: application/json" \
@@ -167,7 +180,7 @@ import requests
 
 # DALL-E 3 generation
 def generate_dalle3(prompt, api_key):
-    response = requests.post('https://api.openai.com/v1/images/generations', 
+    response = requests.post('https://api.openai.com/v1/images/generations',
         headers={'Authorization': f'Bearer {api_key}'},
         json={
             'model': 'dall-e-3',
@@ -213,7 +226,7 @@ response = requests.post('http://localhost:8188/prompt', json={
 # Upload ControlNet image
 with open('control_image.png', 'rb') as f:
     files = {'image': f}
-    response = requests.post('http://localhost:5000/api/upload-controlnet-image', 
+    response = requests.post('http://localhost:5000/api/upload-controlnet-image',
                            files=files)
 
 controlnet_image = response.json()['filename']
@@ -222,6 +235,54 @@ controlnet_image = response.json()['filename']
 workflow['controlnet']['image'] = controlnet_image
 workflow['controlnet']['strength'] = 0.8
 ```
+
+### Inpainting with Mask Upload
+
+DreamLayer supports inpainting with both drawn masks and uploaded mask files:
+
+#### Upload Mask File
+
+1. **Navigate to Inpaint mode** in the toolbar
+2. **Upload your mask** using the mask upload drop-zone (PNG files ≤ 10 MB)
+3. **Preview the mask** - A 128px thumbnail will be displayed
+4. **Generate** - The mask will be attached as `mask=file` in the multipart payload
+
+**Mask Format Requirements:**
+
+- **File type**: PNG only
+- **Size limit**: Maximum 10 MB
+- **Color format**: Black and white (white = keep, black = inpaint)
+- **Resolution**: Any size (will be automatically scaled)
+
+#### API Usage for Mask Upload
+
+```python
+import requests
+
+# Upload mask for inpainting
+with open('mask.png', 'rb') as mask_file:
+    files = {
+        'image': ('input_image.png', open('input_image.png', 'rb'), 'image/png'),
+        'mask': ('mask.png', mask_file, 'image/png')
+    }
+
+    data = {
+        'prompt': 'A beautiful landscape',
+        'negative_prompt': 'blurry, low quality',
+        'denoising_strength': 0.75
+    }
+
+    response = requests.post('http://localhost:5000/api/img2img',
+                           files=files, data=data)
+
+    print(f"Inpainting result: {response.json()}")
+```
+
+#### Draw Mask (Alternative)
+
+- Use the **Draw Mask** button to manually create masks
+- Draw directly on the image to define areas for inpainting
+- Supports brush size adjustment and undo functionality
 
 ## 🎨 Workflow Management
 
@@ -393,4 +454,4 @@ except Exception as e:
 
 ---
 
-*For more advanced usage, see the [API Reference](api_reference.md) and [Architecture Guide](architecture.md).* 
+_For more advanced usage, see the [API Reference](api_reference.md) and [Architecture Guide](architecture.md)._

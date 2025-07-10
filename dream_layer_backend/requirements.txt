@@ -3,3 +3,12 @@ flask-cors>=4.0.0
 pillow>=10.0.0
 requests>=2.31.0
 python-dotenv>=1.0.0 
+pyyaml 
+safetensors 
+einops
+psutil
+tqdm
+transformers
+scipy
+torchsde
+aiohttp

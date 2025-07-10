@@ -1,4 +1,3 @@
-
 # React + TypeScript + Vite Project
 
 This project is built with:
@@ -52,6 +51,7 @@ npm run lint
 ## Project Structure
 
 This project uses a modern React setup with:
+
 - **Vite** for fast development and building
 - **TypeScript** for type safety
 - **Tailwind CSS** for styling
@@ -65,3 +65,22 @@ This project uses a modern React setup with:
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
+
+## Inpaint Mask Upload
+
+You can upload a black-and-white mask as a PNG file (≤ 10 MB) in the Inpaint toolbar.  
+White areas will be kept, and black areas will be inpainted.
+
+**This completes the documentation requirement for the mask upload feature.**
+
+---
+
+**Summary of what’s done:**
+
+- Mask upload UI and validation implemented.
+- State management and preview handled.
+- Payload includes mask in multipart form.
+- Unit tests written.
+- Documentation updated.
+
+Would you like a summary commit message for all these changes, or do you want to review/test anything else?
