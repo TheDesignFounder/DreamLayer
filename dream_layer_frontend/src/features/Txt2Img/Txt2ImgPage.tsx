@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import Accordion from '@/components/Accordion';
 import PromptInput from '@/components/PromptInput';
 import RenderSettings from '@/components/RenderSettings';
@@ -28,7 +28,13 @@ interface Txt2ImgPageProps {
   onTabChange: (tabId: string) => void;
 }
 
-const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange }) => {
+export interface Txt2ImgPageRef {
+  handleGenerate: () => void;
+  handleCancel: () => void;
+  isGenerating: boolean;
+}
+
+const Txt2ImgPage = forwardRef<Txt2ImgPageRef, Txt2ImgPageProps>(({ selectedModel, onTabChange }, ref) => {
   const [activeSubTab, setActiveSubTab] = useState("generation");
   const [coreSettings, setCoreSettings] = useState<Txt2ImgCoreSettings>({
     ...defaultTxt2ImgSettings,
@@ -47,6 +53,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   useEffect(() => {
     updateCoreSettings({ model_name: selectedModel });
   }, [selectedModel]);
+
 
   const updateCoreSettings = (updates: Partial<Txt2ImgCoreSettings>) => {
     setCoreSettings(prev => ({ ...prev, ...updates }));
@@ -288,6 +295,13 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     }
   };
 
+  // Expose methods via ref for keyboard shortcuts
+  useImperativeHandle(ref, () => ({
+    handleGenerate: handleGenerateImage,
+    handleCancel: handleGenerateImage, // Same function handles both generate and cancel
+    isGenerating
+  }), [isGenerating]);
+
   const getAccordionTitle = () => {
     switch (activeSubTab) {
       case "checkpoints":
@@ -525,6 +539,8 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
       )}
     </div>
   );
-};
+});
+
+Txt2ImgPage.displayName = 'Txt2ImgPage';
 
 export default Txt2ImgPage;

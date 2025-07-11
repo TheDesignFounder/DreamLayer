@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import NavBar from '@/components/NavBar';
 import ModelSelector from '@/components/ModelSelector';
 import TabsNav from '@/components/Navigation/TabsNav';
@@ -9,12 +9,17 @@ import { PNGInfoPage } from '@/features/PNGInfo';
 import { ConfigurationsPage } from '@/features/Configurations';
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
+import { useGlobalKeyboardShortcuts } from '@/hooks/useGlobalKeyboardShortcuts';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("txt2img");
   const [selectedModel, setSelectedModel] = useState<string>("v1-5-pruned-emaonly-fp16.safetensors");
   const clearTxt2ImgImages = useTxt2ImgGalleryStore(state => state.clearImages);
   const clearImg2ImgImages = useImg2ImgGalleryStore(state => state.clearImages);
+  
+  // Refs to access child component methods
+  const txt2imgRef = useRef<{ handleGenerate: () => void; handleCancel: () => void; isGenerating: boolean }>(null);
+  const img2imgRef = useRef<{ handleGenerate: () => void; handleCancel: () => void; isGenerating: boolean }>(null);
 
   const handleTabChange = (tabId: string) => {
     // Clear both stores when switching tabs
@@ -27,12 +32,47 @@ const Index = () => {
     setSelectedModel(modelName);
   };
 
+  // Keyboard shortcut handlers
+  const handleGenerate = () => {
+    if (activeTab === "txt2img" && txt2imgRef.current) {
+      txt2imgRef.current.handleGenerate();
+    } else if (activeTab === "img2img" && img2imgRef.current) {
+      img2imgRef.current.handleGenerate();
+    }
+  };
+
+  const handleOpenSettings = () => {
+    handleTabChange("configurations");
+  };
+
+  const handleCancel = () => {
+    if (activeTab === "txt2img" && txt2imgRef.current) {
+      txt2imgRef.current.handleCancel();
+    } else if (activeTab === "img2img" && img2imgRef.current) {
+      img2imgRef.current.handleCancel();
+    }
+  };
+
+  // Get current generation state
+  const isGenerating = 
+    (activeTab === "txt2img" && txt2imgRef.current?.isGenerating) ||
+    (activeTab === "img2img" && img2imgRef.current?.isGenerating) ||
+    false;
+
+  // Register global keyboard shortcuts
+  useGlobalKeyboardShortcuts({
+    onGenerate: handleGenerate,
+    onOpenSettings: handleOpenSettings,
+    onCancel: handleCancel,
+    isGenerating
+  });
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "txt2img":
-        return <Txt2ImgPage selectedModel={selectedModel} onTabChange={handleTabChange} />;
+        return <Txt2ImgPage ref={txt2imgRef} selectedModel={selectedModel} onTabChange={handleTabChange} />;
       case "img2img":
-        return <Img2ImgPage selectedModel={selectedModel} onTabChange={handleTabChange} />;
+        return <Img2ImgPage ref={img2imgRef} selectedModel={selectedModel} onTabChange={handleTabChange} />;
       case "extras":
         return <ExtrasPage />;
       case "pnginfo":

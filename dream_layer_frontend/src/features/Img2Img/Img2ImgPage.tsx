@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import ImageUploader from '@/components/ImageUploader';
 import AdvancedSettings from '@/components/AdvancedSettings';
 import ExternalExtensions from '@/components/ExternalExtensions';
@@ -33,7 +33,13 @@ interface Img2ImgPageProps {
   onTabChange: (tabId: string) => void;
 }
 
-const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange }) => {
+export interface Img2ImgPageRef {
+  handleGenerate: () => void;
+  handleCancel: () => void;
+  isGenerating: boolean;
+}
+
+const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedModel, onTabChange }, ref) => {
   const [activeSubTab, setActiveSubTab] = useState("generation");
   const [activeImg2ImgTool, setActiveImg2ImgTool] = useState("img2img");
   const [batchCount, setBatchCount] = useState(1);
@@ -64,6 +70,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     setIsLoaded(true);
     console.log("Img2ImgPage component mounted");
   }, []);
+
 
   const handleSubTabChange = (tabId: string) => {
     setActiveSubTab(tabId);
@@ -207,6 +214,13 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       setIsGenerating(false);
     }
   };
+
+  // Expose methods via ref for keyboard shortcuts
+  useImperativeHandle(ref, () => ({
+    handleGenerate: handleGenerateImage,
+    handleCancel: handleGenerateImage, // Same function handles both generate and cancel
+    isGenerating
+  }), [isGenerating]);
 
   const getSectionTitle = () => {
     switch (activeSubTab) {
@@ -452,6 +466,8 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       </div>
     </div>
   );
-};
+});
+
+Img2ImgPage.displayName = 'Img2ImgPage';
 
 export default Img2ImgPage;
