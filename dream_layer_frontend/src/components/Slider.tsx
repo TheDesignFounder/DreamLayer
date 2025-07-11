@@ -41,6 +41,11 @@ const Slider = ({
     }
   }, []);
 
+  // Update internal state when defaultValue prop changes (for reset functionality)
+  useEffect(() => {
+    setValue(defaultValue);
+  }, [defaultValue]);
+
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between">

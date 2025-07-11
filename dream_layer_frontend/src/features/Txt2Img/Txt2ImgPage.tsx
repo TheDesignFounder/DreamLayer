@@ -21,6 +21,7 @@ import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import useLoraStore from '@/stores/useLoraStore';
 import { LoraRequest } from '@/types/lora';
+import { sliderGroupDefaults } from '@/utils/resetDefaults';
 
 interface Txt2ImgPageProps {
   selectedModel: string;
@@ -128,6 +129,43 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const handleRefinerSwitchAtChange = (value: number) => {
     updateCoreSettings({ refiner_switch_at: value });
+  };
+
+  // Reset functions for different accordion groups
+  const handleResetCoreGeneration = () => {
+    const defaults = sliderGroupDefaults.coreGeneration;
+    updateCoreSettings({
+      cfg_scale: defaults.cfg_scale,
+      steps: defaults.steps,
+      width: defaults.width,
+      height: defaults.height,
+      batch_size: defaults.batch_size,
+      batch_count: defaults.batch_count,
+    });
+  };
+
+  const handleResetAdvancedSettings = () => {
+    const defaults = sliderGroupDefaults.advancedSettings;
+    updateCoreSettings({
+      codeformer_weight: defaults.codeformer_weight,
+      gfpgan_weight: defaults.gfpgan_weight,
+      tile_size: defaults.tile_size,
+      tile_overlap: defaults.tile_overlap,
+      refiner_switch_at: defaults.refiner_switch_at,
+      // Reset boolean settings to defaults too
+      restore_faces: false,
+      tiling: false,
+      hires_fix: false,
+      refiner_enabled: false,
+    });
+  };
+
+  const handleResetSamplingSettings = () => {
+    const defaults = sliderGroupDefaults.samplingSettings;
+    updateCoreSettings({
+      cfg_scale: defaults.cfg_scale,
+      steps: defaults.steps,
+    });
   };
 
   const handleCopyPrompts = () => {
@@ -418,13 +456,24 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
             <SubTabNavigation />
           </div>
           
-          <Accordion title={getAccordionTitle()} number="1" defaultOpen={true}>
+          <Accordion 
+            title={getAccordionTitle()} 
+            number="1" 
+            defaultOpen={true}
+            showResetButton={activeSubTab === "generation"}
+            onReset={activeSubTab === "generation" ? handleResetCoreGeneration : undefined}
+          >
             {renderActiveSubTabContent()}
           </Accordion>
           
           {activeSubTab === "generation" && (
             <>
-              <Accordion title="Advanced Optional Settings" number="2">
+              <Accordion 
+                title="Advanced Optional Settings" 
+                number="2"
+                showResetButton={true}
+                onReset={handleResetAdvancedSettings}
+              >
                 <AdvancedSettings 
                   restoreFaces={coreSettings.restore_faces}
                   onRestoreFacesChange={handleRestoreFacesChange}
@@ -451,7 +500,11 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
                 />
               </Accordion>
               
-              <Accordion title="External Extensions & Add-ons" number="3">
+              <Accordion 
+                title="External Extensions & Add-ons" 
+                number="3"
+                showResetButton={false}
+              >
                 <ExternalExtensions 
                   isImg2ImgTab={false} 
                   onControlNetChange={handleControlNetChange}
