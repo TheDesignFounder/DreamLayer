@@ -12,6 +12,8 @@ import OutputQuantity from '@/components/OutputQuantity';
 import GenerationID from '@/components/GenerationID';
 import ImagePreview from '@/components/tabs/img2img/ImagePreview';
 import ProgressIndicator from '@/components/ProgressIndicator';
+import BatchJobCreator from '@/components/BatchJobCreator';
+import BatchProcessingManager from '@/components/BatchProcessingManager';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
@@ -409,9 +411,14 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
               >
                 {isGenerating ? 'Interrupt' : 'Generate Image'}
               </Button>
-              {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                Save Settings
-              </button>}
+              <BatchJobCreator
+                currentPrompt={coreSettings.prompt}
+                currentNegativePrompt={coreSettings.negative_prompt}
+                currentSettings={coreSettings}
+                type="img2img"
+                inputImage={inputImage?.url}
+              />
+              <BatchProcessingManager />
             </div>
           </div>
           

@@ -12,6 +12,8 @@ import CheckpointBrowser from '@/components/checkpoint/CheckpointBrowser';
 import LoraBrowser from '@/components/lora/LoraBrowser';
 import CustomWorkflowBrowser from '@/components/custom-workflow/CustomWorkflowBrowser';
 import ProgressIndicator from '@/components/ProgressIndicator';
+import BatchJobCreator from '@/components/BatchJobCreator';
+import BatchProcessingManager from '@/components/BatchProcessingManager';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useProgressTracking } from '@/hooks/useProgressTracking';
 import { Copy } from "lucide-react";
@@ -335,9 +337,13 @@ const Txt2ImgPage = forwardRef<Txt2ImgPageRef, Txt2ImgPageProps>(({ selectedMode
       >
         {isGenerating ? 'Interrupt' : 'Generate Image'}
       </Button>
-      {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-        Save Settings
-      </button>}
+      <BatchJobCreator
+        currentPrompt={coreSettings.prompt}
+        currentNegativePrompt={coreSettings.negative_prompt}
+        currentSettings={coreSettings}
+        type="txt2img"
+      />
+      <BatchProcessingManager />
     </div>
   );
 
