@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ImageResult, CoreGenerationSettings, defaultCoreSettings } from '@/types/generationSettings';
+import { useImageHistoryStore } from './useImageHistoryStore';
 
 interface InputImage {
   url: string;
@@ -34,9 +35,15 @@ export const useImg2ImgGalleryStore = create<Img2ImgGalleryState>((set) => ({
   inputImage: null,
   coreSettings: defaultCoreSettings,
   customWorkflow: null,
-  addImages: (newImages) => set((state) => ({
-    images: [...newImages, ...state.images]
-  })),
+  addImages: (newImages) => {
+    set((state) => ({
+      images: [...newImages, ...state.images]
+    }));
+    
+    // Add to history store
+    const { addImg2ImgToHistory } = useImageHistoryStore.getState();
+    addImg2ImgToHistory(newImages);
+  },
   clearImages: () => set((state) => ({
     images: [],
     isLoading: state.isLoading // Preserve the current loading state

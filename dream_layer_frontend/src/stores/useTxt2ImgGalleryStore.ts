@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ImageResult } from '@/types/imageResult';
+import { useImageHistoryStore } from './useImageHistoryStore';
 
 interface Txt2ImgGalleryState {
   images: ImageResult[];
@@ -10,13 +11,19 @@ interface Txt2ImgGalleryState {
   setLoading: (loading: boolean) => void;
 }
 
-export const useTxt2ImgGalleryStore = create<Txt2ImgGalleryState>((set) => ({
+export const useTxt2ImgGalleryStore = create<Txt2ImgGalleryState>((set, get) => ({
   images: [],
   isLoading: false,
-  addImages: (newImages) => set((state) => ({
-    images: [...newImages, ...state.images],
-    isLoading: false
-  })),
+  addImages: (newImages) => {
+    set((state) => ({
+      images: [...newImages, ...state.images],
+      isLoading: false
+    }));
+    
+    // Add to history store
+    const { addTxt2ImgToHistory } = useImageHistoryStore.getState();
+    addTxt2ImgToHistory(newImages);
+  },
   clearImages: () => set({ images: [], isLoading: false }),
   removeImage: (id) => set((state) => ({
     images: state.images.filter(img => img.id !== id)
