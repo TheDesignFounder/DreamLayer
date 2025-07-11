@@ -565,12 +565,14 @@ def get_demo_workflow():
             "message": f"Failed to load demo workflow: {str(e)}"
         }), 500
 
-@app.route('/api/lora/merge', methods=['POST', 'OPTIONS'])
+@app.route('/api/lora/merge', methods=['OPTIONS'])
+def merge_lora_api_options():
+    """Handle CORS preflight for LoRA merge endpoint"""
+    return '', 200
+
+@app.route('/api/lora/merge', methods=['POST'])
 def merge_lora_api():
     """API endpoint for LoRA merging"""
-    # Handle OPTIONS request for CORS
-    if request.method == 'OPTIONS':
-        return '', 200
     
     try:
         data = request.json
@@ -643,12 +645,14 @@ def merge_lora_api():
             "message": f"LoRA merge failed: {str(e)}"
         }), 500
 
-@app.route('/api/lora/test', methods=['POST', 'OPTIONS'])
+@app.route('/api/lora/test', methods=['OPTIONS'])
+def test_lora_merge_api_options():
+    """Handle CORS preflight for LoRA test endpoint"""
+    return '', 200
+
+@app.route('/api/lora/test', methods=['POST'])
 def test_lora_merge_api():
     """API endpoint to test LoRA merging with dummy files"""
-    # Handle OPTIONS request for CORS
-    if request.method == 'OPTIONS':
-        return '', 200
     
     try:
         # Import required functions
@@ -678,26 +682,46 @@ def test_lora_merge_api():
             # Test merge
             success = merge_lora_with_base(base_path, lora_path, output_path, alpha=0.8, device='cpu')
             
-            if success and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                output_size = os.path.getsize(output_path) / (1024 * 1024)  # Size in MB
-                return jsonify({
-                    "status": "success",
-                    "message": "LoRA merge test completed successfully",
-                    "test_passed": True,
-                    "output_size_mb": round(output_size, 2),
-                    "details": {
-                        "base_size_mb": round(os.path.getsize(base_path) / (1024 * 1024), 2),
-                        "lora_size_mb": round(os.path.getsize(lora_path) / (1024 * 1024), 2),
-                        "merged_size_mb": round(output_size, 2),
-                        "alpha_used": 0.8
-                    }
-                })
-            else:
+            # Validate merge results
+            merge_successful = success
+            output_exists = os.path.exists(output_path)
+            output_has_content = output_exists and os.path.getsize(output_path) > 0
+            
+            if not merge_successful:
                 return jsonify({
                     "status": "error",
-                    "message": "LoRA merge test failed",
+                    "message": "LoRA merge operation failed",
                     "test_passed": False
                 }), 500
+                
+            if not output_exists:
+                return jsonify({
+                    "status": "error",
+                    "message": "LoRA merge completed but output file not found",
+                    "test_passed": False
+                }), 500
+                
+            if not output_has_content:
+                return jsonify({
+                    "status": "error",
+                    "message": "LoRA merge completed but output file is empty",
+                    "test_passed": False
+                }), 500
+            
+            # Success case - calculate file sizes
+            output_size = os.path.getsize(output_path) / (1024 * 1024)  # Size in MB
+            return jsonify({
+                "status": "success",
+                "message": "LoRA merge test completed successfully",
+                "test_passed": True,
+                "output_size_mb": round(output_size, 2),
+                "details": {
+                    "base_size_mb": round(os.path.getsize(base_path) / (1024 * 1024), 2),
+                    "lora_size_mb": round(os.path.getsize(lora_path) / (1024 * 1024), 2),
+                    "merged_size_mb": round(output_size, 2),
+                    "alpha_used": 0.8
+                }
+            })
                 
         finally:
             # Clean up temp files

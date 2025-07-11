@@ -62,9 +62,12 @@ const ComfyUINode: React.FC<ComfyUINodeProps> = ({ data, selected }) => {
               <span className="text-gray-600 dark:text-gray-400 truncate pr-2">
                 {key}:
               </span>
-              <span className="text-gray-900 dark:text-gray-100 font-mono text-right max-w-[120px] truncate">
-                {typeof value === 'object' 
-                  ? JSON.stringify(value).slice(0, 20) + '...'
+              <span
+                className="text-gray-900 dark:text-gray-100 font-mono text-right max-w-[120px] truncate"
+                title={typeof value === 'object' ? JSON.stringify(value) : undefined}
+              >
+                {typeof value === 'object'
+                  ? '[object]'
                   : String(value).slice(0, 20) + (String(value).length > 20 ? '...' : '')
                 }
               </span>

@@ -90,8 +90,8 @@ export function parseComfyUIWorkflow(workflow: ComfyUIWorkflow): WorkflowGraph {
     const comfyNode = workflow.prompt[nodeId];
     const connections = extractConnections(nodeId, comfyNode.inputs);
     
-    connections.forEach((connection, index) => {
-      const edgeId = `${connection.source}-${nodeId}-${index}`;
+    connections.forEach((connection) => {
+      const edgeId = `${connection.source}-${nodeId}-${connection.inputKey}-${connection.outputIndex}`;
       const edge: ReactFlowEdge = {
         id: edgeId,
         source: connection.source,

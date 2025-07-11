@@ -281,10 +281,7 @@ def merge_lora_weights_simple(base_path: str, lora_path: str, output_path: str,
         logger.info("Using simple weight merge approach")
         
         # Handle device selection
-        if device == "auto":
-            actual_device = "cuda" if torch.cuda.is_available() else "cpu"
-        else:
-            actual_device = device
+        actual_device = "cuda" if torch.cuda.is_available() else "cpu" if device == "auto" else device
         
         logger.info(f"Using device: {actual_device}")
         
@@ -323,11 +320,8 @@ def merge_lora_weights_simple(base_path: str, lora_path: str, output_path: str,
         for layer_name, lora_pair in lora_pairs.items():
             if 'down' in lora_pair and 'up' in lora_pair:
                 # Find corresponding weight in base model
-                base_key = None
-                for key in base_weights.keys():
-                    if layer_name in key and 'weight' in key:
-                        base_key = key
-                        break
+                base_key = next((key for key in base_weights.keys() 
+                               if layer_name in key and 'weight' in key), None)
                 
                 if base_key and base_key in base_weights:
                     try:
@@ -378,8 +372,7 @@ def merge_lora_weights_simple(base_path: str, lora_path: str, output_path: str,
                         continue
         
         # Save merged weights
-        output_dir = os.path.dirname(output_path)
-        if output_dir:  # Only create directory if output_path has a directory component
+        if output_dir := os.path.dirname(output_path):  # Only create directory if output_path has a directory component
             os.makedirs(output_dir, exist_ok=True)
         save_file(merged_weights, output_path)
         
@@ -470,6 +463,16 @@ def create_dummy_lora(path: str, size_mb: float = 0.1):
     save_file(dummy_lora, path)
     logger.info(f"Created dummy LoRA: {path} ({os.path.getsize(path) / (1024*1024):.2f} MB)")
 
+def _handle_merge_result(success: bool, output_path: str, context: str = "merge") -> None:
+    """Handle the result of a LoRA merge operation."""
+    if success:
+        logger.info(f"LoRA {context} completed successfully")
+        print(f"✅ Successfully merged LoRA into: {output_path}")
+    else:
+        logger.error(f"LoRA {context} failed")
+        print(f"❌ LoRA {context} failed. Check logs for details.")
+        sys.exit(1)
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(description='DreamLayer LoRA Auto-Merge Utility')
@@ -506,13 +509,7 @@ def main():
             alpha=args.alpha,
             device=args.device
         )
-        if success:
-            logger.info("LoRA merge completed successfully")
-            print(f"✅ Successfully merged LoRA into: {args.output_model}")
-        else:
-            logger.error("LoRA merge failed")
-            print("❌ LoRA merge failed. Check logs for details.")
-            sys.exit(1)
+        _handle_merge_result(success, args.output_model, "merge")
     
     elif args.command == 'test':
         logger.info("Running test with dummy checkpoints")
@@ -531,15 +528,13 @@ def main():
             create_dummy_lora(str(lora_path))
             
             # Test merge
-            success = merge_lora_with_base(
+            if (success := merge_lora_with_base(
                 str(base_path),
                 str(lora_path),
                 str(output_path),
                 alpha=0.8,
                 device='cpu'  # Use CPU for testing
-            )
-            
-            if success and output_path.exists() and output_path.stat().st_size > 0:
+            )) and output_path.exists() and output_path.stat().st_size > 0:
                 logger.info(f"✅ Test passed! Output file size: {output_path.stat().st_size} bytes")
                 print(f"✅ Test passed! Created merged model: {output_path}")
                 print(f"   File size: {output_path.stat().st_size / (1024*1024):.2f} MB")
