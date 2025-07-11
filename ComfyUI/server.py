@@ -643,15 +643,25 @@ class PromptServer():
                 progress_info['queue_pending'] = []
             else:
                 # Calculate progress based on completed vs total tasks
-                # For now, we'll use a simple heuristic: if there are running tasks, progress is 50%
-                # If there are only pending tasks, progress is 0%
-                # This can be enhanced later with more sophisticated progress tracking
-                if len(running_queue) > 0:
-                    progress_info['percent'] = 50
-                    progress_info['status'] = 'running'
-                else:
+                # Get total tasks processed (completed + currently running + pending)
+                completed_tasks = len(self.prompt_queue.history)
+                total_processed = completed_tasks + total_tasks
+                
+                if total_processed == 0:
                     progress_info['percent'] = 0
                     progress_info['status'] = 'pending'
+                else:
+                    # Calculate percentage based on completed tasks
+                    progress_percent = min(100, int((completed_tasks / total_processed) * 100))
+                    
+                    if len(running_queue) > 0:
+                        progress_info['status'] = 'running'
+                        # Add some progress for currently running tasks
+                        progress_percent = min(95, progress_percent + 25)
+                    else:
+                        progress_info['status'] = 'pending'
+                    
+                    progress_info['percent'] = progress_percent
                 
                 progress_info['queue_running'] = running_queue
                 progress_info['queue_pending'] = pending_queue

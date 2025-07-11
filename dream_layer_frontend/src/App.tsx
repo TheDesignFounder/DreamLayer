@@ -8,13 +8,14 @@ import { SWRConfig } from "swr";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { ProgressBar } from "./components/ProgressBar";
+import { fetcher } from "./utils/api";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <SWRConfig
     value={{
-      fetcher: (url: string) => fetch(url).then(res => res.json()),
+      fetcher,
     }}
   >
     <QueryClientProvider client={queryClient}>

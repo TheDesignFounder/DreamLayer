@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
-
-interface ProgressData {
-  percent: number;
-  status: 'pending' | 'running' | 'complete';
-  queue_running: any[];
-  queue_pending: any[];
-}
-
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+import { fetcher } from '../utils/api';
+import { ProgressData } from '../types/queue';
 
 export const ProgressBar = () => {
   const [isVisible, setIsVisible] = useState(false);
