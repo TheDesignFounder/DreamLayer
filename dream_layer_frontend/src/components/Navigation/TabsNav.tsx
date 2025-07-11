@@ -4,12 +4,14 @@ import {
   ImageIcon, 
   Settings, 
   GalleryHorizontal,
-  History
+  History,
+  Film
 } from "lucide-react";
 
 const tabs = [
   { id: "txt2img", label: "Txt2Img", icon: FileText },
   { id: "img2img", label: "Img2Img", icon: ImageIcon },
+  { id: "pika", label: "Pika Frame", icon: Film },
   { id: "extras", label: "Extras", icon: GalleryHorizontal },
   { id: "history", label: "History", icon: History },
   { id: "pnginfo", label: "PNG Info", icon: FileText },

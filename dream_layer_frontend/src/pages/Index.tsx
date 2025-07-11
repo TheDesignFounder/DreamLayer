@@ -8,6 +8,7 @@ import ExtrasPage from '@/features/Extras';
 import { PNGInfoPage } from '@/features/PNGInfo';
 import { ConfigurationsPage } from '@/features/Configurations';
 import HistoryPage from '@/pages/HistoryPage';
+import { PikaPage } from '@/features/Pika';
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 import { useGlobalKeyboardShortcuts } from '@/hooks/useGlobalKeyboardShortcuts';
@@ -82,6 +83,8 @@ const Index = () => {
         return <ConfigurationsPage />;
       case "history":
         return <HistoryPage onTabChange={handleTabChange} />;
+      case "pika":
+        return <PikaPage onTabChange={handleTabChange} />;
       default:
         return <Txt2ImgPage selectedModel={selectedModel} onTabChange={handleTabChange} />;
     }

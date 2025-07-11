@@ -3,35 +3,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Futuristic animations and effects */
-@keyframes neon-glow {
-  0%, 100% { box-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor; }
-  50% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor; }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
+/* Modern animations and effects */
 @keyframes slide-in {
   from { transform: translateY(-10px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
-@keyframes hologram {
-  0%, 100% { transform: translateY(0) rotateX(0deg); }
-  50% { transform: translateY(-2px) rotateX(1deg); }
-}
-
-.neon-text {
-  text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+@keyframes subtle-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
 }
 
 .glass-morphism {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(59, 130, 246, 0.05);
+}
+
+.dark .glass-morphism {
+  background: rgba(59, 130, 246, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
 }
 
 .cyber-grid {
@@ -43,78 +37,91 @@
 
 .holographic-border {
   border: 1px solid transparent;
-  background: linear-gradient(45deg, #3b82f6, #8b5cf6, #06b6d4, #3b82f6) border-box;
+  background: linear-gradient(45deg, #3b82f6, #60a5fa, #93c5fd, #3b82f6) border-box;
   border-radius: 8px;
+}
+
+.dark .holographic-border {
+  background: linear-gradient(45deg, #3b82f6, #1d4ed8, #2563eb, #3b82f6) border-box;
 }
 
 @layer base {
   :root {
-    --background: 220 15% 12%; /* Deep dark blue background */
-    --foreground: 240 100% 95%;
+    /* Light theme with white and blue combination */
+    --background: 0 0% 100%; /* Pure white background */
+    --foreground: 222.2 84% 4.9%; /* Dark text */
 
-    --card: 220 15% 15%;
-    --card-foreground: 240 100% 95%;
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 222.2 84% 4.9%; /* Dark text on cards */
 
-    --popover: 220 15% 18%;
-    --popover-foreground: 240 100% 95%;
+    --popover: 0 0% 100%; /* White popover */
+    --popover-foreground: 222.2 84% 4.9%; /* Dark text on popover */
 
-    --primary: 217 91% 60%; /* Bright blue */
-    --primary-foreground: 240 10% 8%;
+    --primary: 217 91% 60%; /* Bright blue primary */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
 
-    --secondary: 220 15% 20%;
-    --secondary-foreground: 240 100% 90%;
+    --secondary: 210 40% 96%; /* Very light blue-gray */
+    --secondary-foreground: 222.2 47.4% 11.2%; /* Dark text on secondary */
 
-    --muted: 220 15% 20%;
-    --muted-foreground: 240 20% 60%;
+    --muted: 210 40% 96%; /* Light blue-gray for muted elements */
+    --muted-foreground: 215.4 16.3% 46.9%; /* Muted text */
 
-    --accent: 271 91% 65%; /* Purple accent */
-    --accent-foreground: 240 10% 8%;
+    --accent: 210 40% 96%; /* Light blue accent */
+    --accent-foreground: 222.2 47.4% 11.2%; /* Dark text on accent */
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 240 100% 95%;
+    --destructive: 0 84.2% 60.2%; /* Red for destructive actions */
+    --destructive-foreground: 0 0% 100%; /* White text on destructive */
 
-    --border: 220 20% 25%;
-    --input: 220 20% 22%;
-    --ring: 217 91% 60%;
+    --border: 214.3 31.8% 91.4%; /* Light gray borders */
+    --input: 214.3 31.8% 91.4%; /* Light gray input backgrounds */
+    --ring: 217 91% 60%; /* Blue focus rings */
 
     --radius: 0.75rem;
     
-    /* Futuristic color palette */
-    --cyber-blue: 217 91% 60%;
-    --cyber-purple: 271 91% 65%;
-    --cyber-teal: 180 100% 50%;
-    --cyber-pink: 320 100% 75%;
-    --neon-green: 120 100% 50%;
+    /* Light theme color palette */
+    --cyber-blue: 217 91% 60%; /* Primary blue */
+    --cyber-light-blue: 210 100% 95%; /* Very light blue */
+    --cyber-white: 0 0% 100%; /* Pure white */
+    --cyber-gray: 210 20% 98%; /* Very light gray */
+    --accent-blue: 220 91% 65%; /* Accent blue */
   }
 
   .dark {
-    --background: 222.2 84% 4.9%; /* #0F172A */
+    /* Dark theme (black and blue) */
+    --background: 220 30% 4%; /* Very dark black with subtle blue tint */
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 220 30% 6%; /* Dark black cards with blue tint */
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 220 30% 8%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217.2 91.2% 59.8%; /* #3B82F6 */
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 217 91% 60%; /* Bright blue */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 220 30% 10%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 220 30% 10%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 217 91% 60%; /* Blue accent */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 215 28% 26%;
-    --input: 215 28% 26%;
-    --ring: 217 91% 59%;
+    --border: 220 40% 15%;
+    --input: 220 40% 12%;
+    --ring: 217 91% 60%;
+    
+    /* Dark theme color palette - black and blue focused */
+    --cyber-blue: 217 91% 60%;
+    --cyber-dark-blue: 220 80% 40%;
+    --cyber-black: 220 30% 4%;
+    --cyber-gray: 220 30% 10%;
+    --accent-blue: 217 91% 60%;
   }
 }
 
@@ -145,15 +152,39 @@
     @apply bg-card rounded-lg shadow-[0px_4px_24px_rgba(51,51,51,0.15)] p-6 border border-border glass-morphism;
   }
   
-  .futuristic-glow {
-    animation: neon-glow 2s ease-in-out infinite alternate;
+  .subtle-hover {
+    @apply hover:scale-[1.02] transition-all duration-300;
   }
   
-  .cyber-button {
-    @apply glass-morphism holographic-border hover:scale-105 transition-all duration-300;
+  .modern-button {
+    @apply glass-morphism hover:scale-105 transition-all duration-300;
   }
   
   .data-grid {
     @apply cyber-grid bg-card/30 backdrop-blur-sm;
+  }
+  
+  /* Light theme specific styles */
+  .light-shadow {
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1), 0 2px 4px -1px rgba(59, 130, 246, 0.06);
+  }
+  
+  .dark .light-shadow {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Override cyber-grid for light theme */
+  .cyber-grid {
+    background-image: 
+      linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  
+  .dark .cyber-grid {
+    background-image: 
+      linear-gradient(rgba(59, 130, 246, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59, 130, 246, 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
   }
 }
