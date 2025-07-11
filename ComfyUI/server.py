@@ -625,6 +625,39 @@ class PromptServer():
             queue_info['queue_pending'] = current_queue[1]
             return web.json_response(queue_info)
 
+        @routes.get("/queue/progress")
+        async def get_queue_progress(request):
+            progress_info = {}
+            current_queue = self.prompt_queue.get_current_queue_volatile()
+            running_queue = current_queue[0]
+            pending_queue = current_queue[1]
+            
+            # Calculate progress based on queue status
+            total_tasks = len(running_queue) + len(pending_queue)
+            
+            if total_tasks == 0:
+                # No tasks in queue, progress is complete
+                progress_info['percent'] = 100
+                progress_info['status'] = 'complete'
+                progress_info['queue_running'] = []
+                progress_info['queue_pending'] = []
+            else:
+                # Calculate progress based on completed vs total tasks
+                # For now, we'll use a simple heuristic: if there are running tasks, progress is 50%
+                # If there are only pending tasks, progress is 0%
+                # This can be enhanced later with more sophisticated progress tracking
+                if len(running_queue) > 0:
+                    progress_info['percent'] = 50
+                    progress_info['status'] = 'running'
+                else:
+                    progress_info['percent'] = 0
+                    progress_info['status'] = 'pending'
+                
+                progress_info['queue_running'] = running_queue
+                progress_info['queue_pending'] = pending_queue
+            
+            return web.json_response(progress_info)
+
         @routes.post("/prompt")
         async def post_prompt(request):
             logging.info("got prompt")

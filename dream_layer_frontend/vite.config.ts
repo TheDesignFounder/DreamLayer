@@ -8,6 +8,16 @@ export default defineConfig({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/queue': {
+        target: 'http://localhost:8188',
+        changeOrigin: true,
+      },
+      '/api': {
+        target: 'http://localhost:8188',
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react(),
