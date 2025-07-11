@@ -222,4 +222,17 @@ def serve_image_endpoint(filename):
         }), 500
 
 if __name__ == '__main__':
+    import argparse
+    from shared_utils import set_max_disk_gb, DEFAULT_MAX_DISK_GB
+    
+    parser = argparse.ArgumentParser(description='DreamLayer Image2Image Server')
+    parser.add_argument('--max-disk-gb', type=float, default=DEFAULT_MAX_DISK_GB,
+                        help=f'Maximum disk space allowed in GB (default: {DEFAULT_MAX_DISK_GB})')
+    
+    args = parser.parse_args()
+    
+    # Set the disk quota
+    set_max_disk_gb(args.max_disk_gb)
+    
+    print(f"💾 Disk quota: {args.max_disk_gb}GB")
     app.run(host='0.0.0.0', port=5004, debug=True) 

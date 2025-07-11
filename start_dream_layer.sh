@@ -204,6 +204,9 @@ main() {
     print_status "Starting frontend development server..."
     cd dream_layer_frontend
     
+    # Ensure correct Node.js version is used
+    export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+    
     # Check if node_modules exists, if not install dependencies
     if [ ! -d "node_modules" ]; then
         print_status "Installing frontend dependencies..."

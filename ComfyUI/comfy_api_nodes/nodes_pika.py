@@ -761,6 +761,190 @@ class PikaStartEndFrameNode2_2(PikaNodeBase):
         return self.execute_task(initial_operation, auth_kwargs=kwargs, node_id=unique_id)
 
 
+class PikaFrameNode(ComfyNodeABC):
+    """Pika 2.2 Single Frame Node - Generates a stylized still frame from video-generation API."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": (
+                    IO.IMAGE,
+                    {"tooltip": "The input image to generate a stylized still frame from"},
+                ),
+                "prompt_text": (
+                    IO.STRING,
+                    {"multiline": True, "default": "high quality, photorealistic"},
+                ),
+                "negative_prompt": (
+                    IO.STRING,
+                    {"multiline": True, "default": "blurry, low quality"},
+                ),
+                "seed": (
+                    IO.INT,
+                    {"default": 0, "min": 0, "max": 0xFFFFFFFF, "control_after_generate": True},
+                ),
+                "resolution": (
+                    ["1080p", "720p"],
+                    {"default": "1080p"},
+                ),
+                "motion_strength": (
+                    IO.FLOAT,
+                    {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.1, 
+                     "tooltip": "Motion strength for future video generation (currently unused for single frame)"},
+                ),
+            },
+            "hidden": {
+                "auth_token": "AUTH_TOKEN_COMFY_ORG",
+                "comfy_api_key": "API_KEY_COMFY_ORG",
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate_frame"
+    CATEGORY = "api node/video/Pika"
+    API_NODE = True
+    DESCRIPTION = "Generate a stylized still frame using Pika 2.2 API (extracts first frame from minimum duration video). Exposes motion_strength for future video upgrades."
+
+    def generate_frame(
+        self,
+        image: torch.Tensor,
+        prompt_text: str,
+        negative_prompt: str,
+        seed: int,
+        resolution: str,
+        motion_strength: float,
+        unique_id: str,
+        **kwargs,
+    ) -> tuple[torch.Tensor]:
+        """Generate a single stylized frame from the Pika API."""
+        
+        # Convert image to BytesIO
+        image_bytes_io = tensor_to_bytesio(image)
+        image_bytes_io.seek(0)
+
+        pika_files = {"image": ("image.png", image_bytes_io, "image/png")}
+
+        # Prepare request for single frame generation (minimum duration)
+        pika_request_data = PikaBodyGenerate22I2vGenerate22I2vPost(
+            promptText=prompt_text,
+            negativePrompt=negative_prompt,
+            seed=seed,
+            resolution=resolution,
+            duration=5,  # Minimum duration (extract first frame)
+        )
+
+        initial_operation = SynchronousOperation(
+            endpoint=ApiEndpoint(
+                path=PATH_IMAGE_TO_VIDEO,
+                method=HttpMethod.POST,
+                request_model=PikaBodyGenerate22I2vGenerate22I2vPost,
+                response_model=PikaGenerateResponse,
+            ),
+            request=pika_request_data,
+            files=pika_files,
+            content_type="multipart/form-data",
+            auth_kwargs=kwargs,
+        )
+
+        # Execute initial request
+        initial_response = initial_operation.execute()
+        if not is_valid_initial_response(initial_response):
+            error_msg = f"Pika frame request failed. Code: {initial_response.code}, Message: {initial_response.message}"
+            logging.error(error_msg)
+            raise PikaApiError(error_msg)
+
+        # Poll for completion
+        task_id = initial_response.video_id
+        polling_operation = PollingOperation(
+            poll_endpoint=ApiEndpoint(
+                path=f"{PATH_VIDEO_GET}/{task_id}",
+                method=HttpMethod.GET,
+                request_model=EmptyRequest,
+                response_model=PikaVideoResponse,
+            ),
+            completed_statuses=["finished"],
+            failed_statuses=["failed", "cancelled"],
+            status_extractor=lambda response: (
+                response.status.value if response.status else None
+            ),
+            progress_extractor=lambda response: (
+                response.progress if hasattr(response, "progress") else None
+            ),
+            auth_kwargs=kwargs,
+            result_url_extractor=lambda response: (
+                response.url if hasattr(response, "url") else None
+            ),
+            node_id=unique_id,
+            estimated_duration=30
+        )
+        
+        final_response = polling_operation.execute()
+        if not is_valid_video_response(final_response):
+            error_msg = f"Pika frame task {task_id} failed to return valid response."
+            logging.error(error_msg)
+            raise PikaApiError(error_msg)
+
+        # Download and extract single frame
+        video_url = str(final_response.url)
+        logging.info("Pika frame task %s succeeded. URL: %s", task_id, video_url)
+
+        # Extract single frame to PNG
+        frame_tensor = self._extract_single_frame_to_png(video_url)
+        
+        # Verify exactly one frame was extracted
+        if frame_tensor.shape[0] != 1:
+            error_msg = f"Expected exactly 1 frame, got {frame_tensor.shape[0]} frames"
+            logging.error(error_msg)
+            raise PikaApiError(error_msg)
+
+        logging.info("Successfully extracted single frame as PNG")
+        return (frame_tensor,)
+
+    def _extract_single_frame_to_png(self, video_url: str) -> torch.Tensor:
+        """Extract the first frame from video URL and convert to PNG tensor."""
+        import requests
+        from PIL import Image
+        import cv2
+        import tempfile
+        import os
+        
+        # Download video to temporary file
+        response = requests.get(video_url)
+        response.raise_for_status()
+        
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_video:
+            temp_video.write(response.content)
+            temp_video_path = temp_video.name
+        
+        try:
+            # Extract first frame using OpenCV
+            cap = cv2.VideoCapture(temp_video_path)
+            ret, frame = cap.read()
+            cap.release()
+            
+            if not ret:
+                raise PikaApiError("Failed to extract frame from video")
+            
+            # Convert BGR to RGB
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Convert to PIL Image
+            pil_image = Image.fromarray(frame_rgb)
+            
+            # Convert to tensor (format: BHWC)
+            image_np = np.array(pil_image).astype(np.float32) / 255.0
+            frame_tensor = torch.from_numpy(image_np).unsqueeze(0)  # Add batch dimension
+            
+            return frame_tensor
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_video_path):
+                os.unlink(temp_video_path)
+
+
 NODE_CLASS_MAPPINGS = {
     "PikaImageToVideoNode2_2": PikaImageToVideoV2_2,
     "PikaTextToVideoNode2_2": PikaTextToVideoNodeV2_2,
@@ -769,6 +953,7 @@ NODE_CLASS_MAPPINGS = {
     "Pikaswaps": PikaSwapsNode,
     "Pikaffects": PikaffectsNode,
     "PikaStartEndFrameNode2_2": PikaStartEndFrameNode2_2,
+    "PikaFrameNode": PikaFrameNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -779,4 +964,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Pikaswaps": "Pika Swaps (Video Object Replacement)",
     "Pikaffects": "Pikaffects (Video Effects)",
     "PikaStartEndFrameNode2_2": "Pika Start and End Frame to Video",
+    "PikaFrameNode": "Pika Frame (Single Frame Generation)",
 }

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(./install_mac_dependencies.sh:*)",
+      "Bash(source:*)",
+      "Bash(rm:*)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(python3 -m pytest tests-unit/comfy_api_nodes_test/pika_frame_test.py::TestPikaFrameNode::test_input_types_structure -v)",
+      "Bash(python3:*)"
+    ],
+    "deny": []
+  }
+}

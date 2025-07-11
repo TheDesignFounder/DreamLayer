@@ -25,34 +25,26 @@ export const ThemeToggle = () => {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm font-medium text-muted-foreground">
-        {isDarkMode ? "Dark" : "Light"}
-      </span>
-      <button
-        onClick={toggleTheme}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-          isDarkMode ? "bg-primary" : "bg-gray-200"
-        }`}
-        aria-label="Toggle theme"
+    <button
+      onClick={toggleTheme}
+      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 hover:scale-105 ${
+        isDarkMode ? "bg-slate-700 shadow-inner" : "bg-slate-200 shadow-inner"
+      }`}
+      aria-label={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
+      title={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
+    >
+      <span className="sr-only">Toggle theme</span>
+      <span
+        className={`${
+          isDarkMode ? "translate-x-7" : "translate-x-1"
+        } inline-block h-6 w-6 transform rounded-full bg-white transition-all duration-200 ease-in-out shadow-lg flex items-center justify-center`}
       >
-        <span className="sr-only">Toggle theme</span>
-        <span
-          className={`${
-            isDarkMode ? "translate-x-6" : "translate-x-1"
-          } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-        />
-        <span className="absolute right-1.5 top-1/2 -translate-y-1/2">
-          {isDarkMode && (
-            <Moon className="h-3 w-3 text-white" />
-          )}
-        </span>
-        <span className="absolute left-1.5 top-1/2 -translate-y-1/2">
-          {!isDarkMode && (
-            <Sun className="h-3 w-3 text-gray-500" />
-          )}
-        </span>
-      </button>
-    </div>
+        {isDarkMode ? (
+          <Moon className="h-4 w-4 text-slate-600" />
+        ) : (
+          <Sun className="h-4 w-4 text-yellow-500" />
+        )}
+      </span>
+    </button>
   );
 };

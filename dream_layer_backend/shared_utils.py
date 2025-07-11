@@ -11,6 +11,10 @@ from dream_layer_backend_utils.update_custom_workflow import find_save_node
 COMFY_API_URL = "http://127.0.0.1:8188"
 SERVED_IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'served_images')
 
+# Disk quota configuration (default 20GB)
+DEFAULT_MAX_DISK_GB = 20
+_max_disk_gb = DEFAULT_MAX_DISK_GB
+
 # Sampler name mapping from frontend to ComfyUI
 SAMPLER_NAME_MAP = {
     'Euler': 'euler',
@@ -34,6 +38,75 @@ SAMPLER_NAME_MAP = {
     'PLMS': 'plms'
 }
 os.makedirs(SERVED_IMAGES_DIR, exist_ok=True)
+
+def set_max_disk_gb(max_gb: float) -> None:
+    """Set the maximum disk usage limit in GB."""
+    global _max_disk_gb
+    _max_disk_gb = max_gb
+    print(f"💾 Disk quota set to {max_gb}GB")
+
+def get_max_disk_gb() -> float:
+    """Get the current maximum disk usage limit in GB."""
+    return _max_disk_gb
+
+def check_disk_space() -> Dict[str, Any]:
+    """Check if there's enough disk space available.
+    
+    Returns:
+        Dict with 'available' (bool), 'free_gb' (float), 'limit_gb' (float), 
+        and optionally 'error' (str) if check failed.
+    """
+    try:
+        # Get disk usage for the served images directory
+        statvfs = shutil.disk_usage(SERVED_IMAGES_DIR)
+        free_bytes = statvfs.free
+        free_gb = free_bytes / (1024**3)  # Convert bytes to GB
+        
+        limit_gb = get_max_disk_gb()
+        available = free_gb >= limit_gb
+        
+        return {
+            'available': available,
+            'free_gb': round(free_gb, 2),
+            'limit_gb': limit_gb,
+            'free_bytes': free_bytes
+        }
+    except Exception as e:
+        return {
+            'available': False,
+            'free_gb': 0,
+            'limit_gb': get_max_disk_gb(),
+            'error': str(e)
+        }
+
+def check_disk_quota_before_output() -> Optional[Dict[str, Any]]:
+    """Check disk quota before creating output. Returns error response if quota exceeded.
+    
+    Returns:
+        None if space is available, or error dict with HTTP 507 status if quota exceeded.
+    """
+    disk_info = check_disk_space()
+    
+    if not disk_info['available']:
+        error_msg = f"Insufficient disk space. Available: {disk_info['free_gb']}GB, Required: {disk_info['limit_gb']}GB"
+        
+        # Log the quota breach
+        print(f"❌ DISK QUOTA EXCEEDED: {error_msg}")
+        
+        return {
+            "status": "error",
+            "error_code": "DISK_QUOTA_EXCEEDED", 
+            "message": error_msg,
+            "disk_info": {
+                "free_gb": disk_info['free_gb'],
+                "limit_gb": disk_info['limit_gb'],
+                "available": disk_info['available']
+            }
+        }, 507  # HTTP 507 Insufficient Storage
+    
+    # Log successful disk check
+    print(f"✅ Disk space OK: {disk_info['free_gb']}GB free (limit: {disk_info['limit_gb']}GB)")
+    return None
 
 def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int = 300) -> List[Dict[str, Any]]:
     """
@@ -121,6 +194,12 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
     Send workflow to ComfyUI and handle the response
     This is a shared function used by both txt2img and img2img servers
     """
+    # Check disk quota before processing
+    quota_check = check_disk_quota_before_output()
+    if quota_check is not None:
+        # Return error response with HTTP 507 status
+        return quota_check[0]  # The error dict
+    
     try:
         from dream_layer_backend_utils.workflow_loader import analyze_workflow
         workflow_info = analyze_workflow(workflow)
