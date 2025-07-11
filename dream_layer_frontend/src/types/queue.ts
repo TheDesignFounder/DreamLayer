@@ -11,9 +11,18 @@ export interface QueueItem {
   outputs_to_execute?: string[];
 }
 
+export interface TaskProgress {
+  prompt_id: string;
+  current_step: number;
+  total_steps: number;
+  step_name?: string;
+  percent: number;
+}
+
 export interface ProgressData {
   percent: number;
-  status: 'pending' | 'running' | 'complete';
+  status: 'pending' | 'running' | 'complete' | 'idle';
   queue_running: QueueItem[];
   queue_pending: QueueItem[];
+  task_details: TaskProgress[];
 } 

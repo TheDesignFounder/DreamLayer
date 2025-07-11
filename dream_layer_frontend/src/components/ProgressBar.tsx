@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import useSWR from 'swr';
+import useSWR, { mutate } from 'swr';
 import { fetcher } from '../utils/api';
 import { ProgressData } from '../types/queue';
 
@@ -16,22 +16,43 @@ export const ProgressBar = () => {
     }
   );
 
+  // Clear cache on component mount to handle page refreshes
+  useEffect(() => {
+    // Clear any stale cache data when component mounts
+    mutate('/queue/progress', undefined, false);
+  }, []);
+
   useEffect(() => {
     if (error) {
       setIsVisible(false);
       return;
     }
+
     if (data) {
-      // Hide if complete
-      if (data.percent === 100 || data.status === 'complete') {
+      const isIdle = data.status === 'idle';
+      const isComplete = data.status === 'complete';
+      const hasTasks = data.queue_running.length > 0 || data.queue_pending.length > 0;
+
+      // Hide if idle, or if no tasks and complete
+      if (isIdle || (!hasTasks && isComplete)) {
         setIsVisible(false);
+        setTimeout(() => {
+          mutate('/queue/progress', undefined, false);
+        }, 1000);
         return;
       }
-      // Show progress bar when there are tasks in queue
-      const hasTasks = data.queue_running.length > 0 || data.queue_pending.length > 0;
+
+      // Show the bar if there are tasks, even if percent is 0
       setIsVisible(hasTasks);
     }
   }, [data, error]);
+
+  // Clear cache on component unmount
+  useEffect(() => {
+    return () => {
+      mutate('/queue/progress', undefined, false);
+    };
+  }, []);
 
   if (!isVisible) {
     return null;
