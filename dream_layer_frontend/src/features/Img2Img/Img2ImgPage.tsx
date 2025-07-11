@@ -281,6 +281,8 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
               value={coreSettings.prompt}
               onChange={(value) => handlePromptChange(value)}
               required={true}
+              showTemplateSelector={true}
+              negativePrompt={coreSettings.negative_prompt}
             />
             <PromptInput 
               label="b) Negative Prompt"

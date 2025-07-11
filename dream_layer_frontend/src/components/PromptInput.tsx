@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fetchRandomPrompt } from "@/services/modelService";
+import PromptTemplateSelector from './PromptTemplateSelector';
+import { PromptTemplate } from '@/types/promptTemplate';
 
 interface PromptInputProps {
   label: string;
@@ -10,7 +12,9 @@ interface PromptInputProps {
   showAddRandom?: boolean;
   value: string;
   onChange: (value: string) => void;
-  required?: boolean; // New required prop
+  required?: boolean;
+  showTemplateSelector?: boolean;
+  negativePrompt?: string;
 }
 
 const PromptInput: React.FC<PromptInputProps> = ({
@@ -21,7 +25,9 @@ const PromptInput: React.FC<PromptInputProps> = ({
   showAddRandom = true,
   value,
   onChange,
-  required = false
+  required = false,
+  showTemplateSelector = false,
+  negativePrompt = ""
 }) => {
   const handleAddRandom = async () => {
     try {
@@ -38,6 +44,10 @@ const PromptInput: React.FC<PromptInputProps> = ({
     }
   };
 
+  const handleTemplateSelect = (template: PromptTemplate) => {
+    onChange(template.prompt);
+  };
+
   // Check if field is required and empty
   const isRequiredAndEmpty = required && (!value || value.trim() === '');
 
@@ -48,14 +58,23 @@ const PromptInput: React.FC<PromptInputProps> = ({
           {label}
           {required && <span className="ml-1 text-red-500">*</span>}
         </label>
-        {showAddRandom && (
-          <button 
-            onClick={handleAddRandom}
-            className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground"
-          >
-            Add Random
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {showTemplateSelector && !negative && (
+            <PromptTemplateSelector 
+              onSelectTemplate={handleTemplateSelect}
+              currentPrompt={value}
+              currentNegativePrompt={negativePrompt}
+            />
+          )}
+          {showAddRandom && (
+            <button 
+              onClick={handleAddRandom}
+              className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground"
+            >
+              Add Random
+            </button>
+          )}
+        </div>
       </div>
       <textarea
         className={cn(
