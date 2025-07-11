@@ -120,13 +120,12 @@ def inject_controlnet_into_workflow(workflow: Dict[str, Any], controlnet_data: D
     if not units:
         return workflow
     
-    # For now, we'll handle the first enabled unit
-    # TODO: Support multiple ControlNet units
+    # Support multiple ControlNet units
     enabled_units = [unit for unit in units if unit.get('enabled')]
     if not enabled_units:
         return workflow
     
-    unit = enabled_units[0]  # Use first enabled unit
+    print(f"Processing {len(enabled_units)} enabled ControlNet units")
     
     # Find the KSampler node to modify its connections
     ksampler_node = None
@@ -152,49 +151,63 @@ def inject_controlnet_into_workflow(workflow: Dict[str, Any], controlnet_data: D
     if negative_input and isinstance(negative_input, list) and len(negative_input) > 0:
         negative_node = str(negative_input[0])
     
-    # Add ControlNet nodes to the workflow
-    next_node_id = str(max([int(k) for k in workflow['prompt'].keys() if k.isdigit()]) + 1)
+    # Get next available node ID
+    next_node_id = max([int(k) for k in workflow['prompt'].keys() if k.isdigit()]) + 1
     
-    # Add ControlNet Loader
-    controlnet_loader_id = next_node_id
-    workflow['prompt'][controlnet_loader_id] = {
-        "class_type": "ControlNetLoader",
-        "inputs": {
-            "control_net_name": unit.get('model', 'diffusion_pytorch_model.safetensors')
+    # Process each ControlNet unit and chain them together
+    current_positive = positive_node
+    current_negative = negative_node
+    
+    for i, unit in enumerate(enabled_units):
+        logger.info(f"Processing ControlNet unit {i+1}/{len(enabled_units)}: {unit.get('control_type', 'unknown')}")
+        
+        # Add ControlNet Loader for this unit
+        controlnet_loader_id = str(next_node_id)
+        workflow['prompt'][controlnet_loader_id] = {
+            "class_type": "ControlNetLoader",
+            "inputs": {
+                "control_net_name": unit.get('model', 'diffusion_pytorch_model.safetensors')
+            }
         }
-    }
-    
-    # Add ControlNet Load Image node for the ControlNet input image
-    next_node_id = str(int(next_node_id) + 1)
-    controlnet_load_image_id = next_node_id
-    workflow['prompt'][controlnet_load_image_id] = {
-        "class_type": "LoadImage",
-        "inputs": {
-            "image": os.path.join(comfy_input_dir, unit.get('input_image_path', ''))
+        next_node_id += 1
+        
+        # Add ControlNet Load Image node for this unit's input image
+        controlnet_load_image_id = str(next_node_id)
+        workflow['prompt'][controlnet_load_image_id] = {
+            "class_type": "LoadImage",
+            "inputs": {
+                "image": unit.get('input_image_path', '')
+            }
         }
-    }
-    
-    # Add ControlNet Apply Advanced
-    next_node_id = str(int(next_node_id) + 1)
-    controlnet_apply_id = next_node_id
-    workflow['prompt'][controlnet_apply_id] = {
-        "class_type": "ControlNetApplyAdvanced",
-        "inputs": {
-            "positive": [positive_node, 0] if positive_node else ["6", 0],
-            "negative": [negative_node, 0] if negative_node else ["7", 0],
-            "control_net": [controlnet_loader_id, 0],
-            "image": [controlnet_load_image_id, 0],  # Use the ControlNet image
-            "strength": unit.get('weight', 1.0),
-            "start_percent": unit.get('guidance_start', 0.0),
-            "end_percent": unit.get('guidance_end', 1.0)
+        next_node_id += 1
+        
+        # Add ControlNet Apply Advanced for this unit
+        controlnet_apply_id = str(next_node_id)
+        workflow['prompt'][controlnet_apply_id] = {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": [current_positive, 0] if current_positive else ["6", 0],
+                "negative": [current_negative, 0] if current_negative else ["7", 0],
+                "control_net": [controlnet_loader_id, 0],
+                "image": [controlnet_load_image_id, 0],
+                "strength": unit.get('weight', 1.0),
+                "start_percent": unit.get('guidance_start', 0.0),
+                "end_percent": unit.get('guidance_end', 1.0)
+            }
         }
-    }
+        next_node_id += 1
+        
+        # Chain the units: output of current unit becomes input to next unit
+        current_positive = controlnet_apply_id
+        current_negative = controlnet_apply_id
+        
+        logger.info(f"Added ControlNet unit {i+1}: {unit.get('control_type', 'unknown')} with model {unit.get('model', 'default')}")
     
-    # Update KSampler to use ControlNet output
-    workflow['prompt'][ksampler_node]['inputs']['positive'] = [controlnet_apply_id, 0]
-    workflow['prompt'][ksampler_node]['inputs']['negative'] = [controlnet_apply_id, 1]
+    # Update KSampler to use the final ControlNet output
+    workflow['prompt'][ksampler_node]['inputs']['positive'] = [current_positive, 0]
+    workflow['prompt'][ksampler_node]['inputs']['negative'] = [current_negative, 1]
     
-    logger.info(f"Injected ControlNet into workflow with unit: {unit.get('control_type', 'unknown')}")
+    logger.info(f"Successfully injected {len(enabled_units)} ControlNet units into workflow")
     return workflow
 
 def validate_controlnet_config(controlnet_data: Dict[str, Any]) -> bool:

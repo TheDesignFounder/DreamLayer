@@ -7,7 +7,7 @@ from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_work
 from dream_layer_backend_utils.update_custom_workflow import override_workflow 
 from dream_layer_backend_utils.update_custom_workflow import update_custom_workflow, validate_custom_workflow
 from shared_utils import SAMPLER_NAME_MAP
-from controlnet import save_controlnet_image
+from controlnet import save_controlnet_image, create_test_controlnet_image
 
 
 def increment_seed_in_workflow(workflow, increment):
@@ -318,126 +318,226 @@ def inject_controlnet_parameters(workflow, controlnet_data):
             print("No ControlNet units provided")
             return workflow
         
-        # For now, handle the first unit (can be extended for multiple units)
-        unit = units[0]
+        # Handle multiple ControlNet units - filter enabled units
+        enabled_units = [unit for unit in units if unit.get('enabled', False)]
+        if not enabled_units:
+            print("No enabled ControlNet units found")
+            return workflow
         
-        # Find ControlNet nodes in the workflow
+        print(f"Processing {len(enabled_units)} enabled ControlNet units")
+        
+        # Find ControlNet nodes in the workflow  
         prompt = workflow.get('prompt', {})
         
-        # Update ControlNetLoader node
-        for node_id, node_data in prompt.items():
-            if node_data.get('class_type') == 'ControlNetLoader':
-                if unit.get('model'):
-                    node_data['inputs']['control_net_name'] = unit['model']
-                    print(f"Updated ControlNet model: {unit['model']}")
-                break
-        
-        # Update SetUnionControlNetType node if it exists
-        for node_id, node_data in prompt.items():
-            if node_data.get('class_type') == 'SetUnionControlNetType':
-                if unit.get('control_type'):
-                    # Map frontend control types to Union ControlNet types
-                    control_type_mapping = {
-                        'openpose': 'openpose',
-                        'canny': 'canny/lineart/anime_lineart/mlsd',
-                        'depth': 'depth',
-                        'normal': 'normal',
-                        'segment': 'segment',
-                        'tile': 'tile',
-                        'repaint': 'repaint'
-                    }
-                    union_type = control_type_mapping.get(unit['control_type'], 'openpose')
-                    node_data['inputs']['type'] = union_type
-                    print(f"Updated Union ControlNet type: {union_type}")
-                break
-        
-        # Update ControlNetApplyAdvanced node
-        for node_id, node_data in prompt.items():
-            if node_data.get('class_type') == 'ControlNetApplyAdvanced':
-                inputs = node_data.get('inputs', {})
-                
-                # Update strength (weight)
-                if unit.get('weight') is not None:
-                    inputs['strength'] = unit['weight']
-                    print(f"Updated ControlNet strength: {unit['weight']}")
-                
-                # Update guidance start/end
-                if unit.get('guidance_start') is not None:
-                    inputs['start_percent'] = unit['guidance_start']
-                    print(f"Updated guidance start: {unit['guidance_start']}")
-                
-                if unit.get('guidance_end') is not None:
-                    inputs['end_percent'] = unit['guidance_end']
-                    print(f"Updated guidance end: {unit['guidance_end']}")
-                
-                break
-        
-        # Handle input image if provided
-        print(f"🎯 Checking ControlNet image for unit {unit.get('unit_index', 0)}")
-        print(f"🔍 Unit keys: {list(unit.keys())}")
-        print(f"🔍 Unit input_image value: {unit.get('input_image')}")
-        print(f"🔍 Unit input_image type: {type(unit.get('input_image'))}")
-        print(f"🔍 Unit input_image is None: {unit.get('input_image') is None}")
-        print(f"🔍 Unit input_image is empty string: {unit.get('input_image') == ''}")
-        print(f"🔍 Unit input_image truthy: {bool(unit.get('input_image'))}")
-        
-        input_image_value = unit.get('input_image')
-        if input_image_value is not None and input_image_value != '':
-            print(f"🎯 Processing ControlNet image for unit {unit.get('unit_index', 0)}")
-            print(f"📊 Input image data type: {type(unit['input_image'])}")
+        # If only one unit, use the template-based approach
+        if len(enabled_units) == 1:
+            unit = enabled_units[0]
             
-            # Check if it's a filename (already uploaded) or base64 data
-            input_image = unit['input_image']
+            # Update ControlNetLoader node
+            for node_id, node_data in prompt.items():
+                if node_data.get('class_type') == 'ControlNetLoader':
+                    if unit.get('model'):
+                        node_data['inputs']['control_net_name'] = unit['model']
+                        print(f"Updated ControlNet model: {unit['model']}")
+                    break
             
-            if isinstance(input_image, str):
-                # Check if it looks like a filename (not base64)
-                if not input_image.startswith('data:image') and not input_image.startswith('/9j/') and len(input_image) < 1000:
-                    # It's likely a filename
-                    print(f"📁 Using provided filename: {input_image}")
-                    saved_filename = input_image
-                else:
-                    # It's base64 data, save it
-                    print(f"📏 Input image data length: {len(input_image)}")
-                    print(f"🔍 Input image starts with: {input_image[:100]}...")
-                    print("🔄 Converting base64 to file...")
-                    saved_filename = save_controlnet_image(input_image, unit.get('unit_index', 0))
-                    print(f"🔍 Save function returned: {saved_filename}")
-            else:
-                print(f"❌ Unsupported input image type: {type(input_image)}")
-                saved_filename = None
+            # Update SetUnionControlNetType node if it exists
+            for node_id, node_data in prompt.items():
+                if node_data.get('class_type') == 'SetUnionControlNetType':
+                    if unit.get('control_type'):
+                        # Map frontend control types to Union ControlNet types
+                        control_type_mapping = {
+                            'openpose': 'openpose',
+                            'canny': 'canny/lineart/anime_lineart/mlsd',
+                            'depth': 'depth',
+                            'normal': 'normal',
+                            'segment': 'segment',
+                            'tile': 'tile',
+                            'repaint': 'repaint'
+                        }
+                        union_type = control_type_mapping.get(unit['control_type'], 'openpose')
+                        node_data['inputs']['type'] = union_type
+                        print(f"Updated Union ControlNet type: {union_type}")
+                    break
             
-            if saved_filename:
-                print(f"✅ Image filename: {saved_filename}")
-                # Find LoadImage node and update it
-                print(f"🔍 Looking for LoadImage node in workflow...")
-                print(f"🔍 Available nodes:")
-                for node_id, node_data in prompt.items():
-                    print(f"   Node {node_id}: {node_data.get('class_type', 'Unknown')}")
-                
-                for node_id, node_data in prompt.items():
-                    if node_data.get('class_type') == 'LoadImage':
-                        old_image = node_data['inputs'].get('image', 'None')
-                        node_data['inputs']['image'] = saved_filename
-                        print(f"🔄 Updated LoadImage node {node_id}:")
-                        print(f"   Old image: {old_image}")
-                        print(f"   New image: {saved_filename}")
-                        break
-                else:
-                    print("❌ Warning: No LoadImage node found in workflow")
-            else:
-                print("❌ Failed to process ControlNet input image, creating test image")
-                create_test_controlnet_image()
+            # Update ControlNetApplyAdvanced node
+            for node_id, node_data in prompt.items():
+                if node_data.get('class_type') == 'ControlNetApplyAdvanced':
+                    inputs = node_data.get('inputs', {})
+                    
+                    # Update strength (weight)
+                    if unit.get('weight') is not None:
+                        inputs['strength'] = unit['weight']
+                        print(f"Updated ControlNet strength: {unit['weight']}")
+                    
+                    # Update guidance start/end
+                    if unit.get('guidance_start') is not None:
+                        inputs['start_percent'] = unit['guidance_start']
+                        print(f"Updated guidance start: {unit['guidance_start']}")
+                    
+                    if unit.get('guidance_end') is not None:
+                        inputs['end_percent'] = unit['guidance_end']
+                        print(f"Updated guidance end: {unit['guidance_end']}")
+                    
+                    break
+        
+        # For multiple units, build a chain dynamically
         else:
-            print("ℹ️ No ControlNet input image provided - using existing test image")
-            print("🔍 Unit keys:", list(unit.keys()))
-            print("🔍 Unit input_image value:", unit.get('input_image'))
-            # Don't create a new test image if one already exists
-            test_image_path = "/Users/najeebkhan/dreamLayer/dream_layer_v1/ComfyUI/input/controlnet_input.png"
+            print("Multiple ControlNet units detected - building dynamic chain")
+            
+            # Find original positive/negative conditioning nodes
+            original_positive = None
+            original_negative = None
+            for node_id, node_data in prompt.items():
+                if node_data.get('class_type') == 'CLIPTextEncode':
+                    inputs = node_data.get('inputs', {})
+                    if 'positive' in inputs.get('text', '').lower() or node_id == '4':
+                        original_positive = node_id
+                    elif 'negative' in inputs.get('text', '').lower() or node_id == '5':
+                        original_negative = node_id
+            
+            # Get next available node ID
+            max_node_id = max([float(k) for k in prompt.keys() if k.replace('.', '').isdigit()])
+            next_node_id = int(max_node_id) + 1
+            
+            # Build ControlNet chain
+            current_positive = original_positive
+            current_negative = original_negative
+            
+            for i, unit in enumerate(enabled_units):
+                print(f"Adding ControlNet unit {i+1}/{len(enabled_units)}: {unit.get('control_type', 'unknown')}")
+                
+                # Add ControlNet Loader
+                loader_id = str(next_node_id)
+                prompt[loader_id] = {
+                    "class_type": "ControlNetLoader", 
+                    "inputs": {
+                        "control_net_name": unit.get('model', 'diffusion_pytorch_model.safetensors')
+                    }
+                }
+                next_node_id += 1
+                
+                # Add SetUnionControlNetType
+                union_id = str(next_node_id) + '.5'
+                control_type_mapping = {
+                    'openpose': 'openpose',
+                    'canny': 'canny/lineart/anime_lineart/mlsd', 
+                    'depth': 'depth',
+                    'normal': 'normal',
+                    'segment': 'segment',
+                    'tile': 'tile',
+                    'repaint': 'repaint'
+                }
+                union_type = control_type_mapping.get(unit.get('control_type'), 'openpose')
+                prompt[union_id] = {
+                    "class_type": "SetUnionControlNetType",
+                    "inputs": {
+                        "control_net": [loader_id, 0],
+                        "type": union_type
+                    }
+                }
+                next_node_id += 1
+                
+                # Add LoadImage for this unit
+                load_image_id = str(next_node_id)
+                prompt[load_image_id] = {
+                    "class_type": "LoadImage",
+                    "inputs": {
+                        "image": "controlnet_input.png"  # Will be updated later with actual image
+                    }
+                }
+                next_node_id += 1
+                
+                # Add ControlNetApplyAdvanced
+                apply_id = str(next_node_id)
+                prompt[apply_id] = {
+                    "class_type": "ControlNetApplyAdvanced",
+                    "inputs": {
+                        "positive": [current_positive, 0] if current_positive else ["4", 0],
+                        "negative": [current_negative, 0] if current_negative else ["5", 0],
+                        "control_net": [union_id, 0],
+                        "image": [load_image_id, 0],
+                        "strength": unit.get('weight', 0.8),
+                        "start_percent": unit.get('guidance_start', 0.0),
+                        "end_percent": unit.get('guidance_end', 1.0)
+                    }
+                }
+                next_node_id += 1
+                
+                # Chain for next unit
+                current_positive = apply_id
+                current_negative = apply_id
+                
+                print(f"Added ControlNet unit {i+1} with model {unit.get('model', 'default')}")
+            
+            # Update KSampler to use final ControlNet output
+            for node_id, node_data in prompt.items():
+                if node_data.get('class_type') == 'KSampler':
+                    node_data['inputs']['positive'] = [current_positive, 0]
+                    node_data['inputs']['negative'] = [current_negative, 1] 
+                    print(f"Updated KSampler to use final ControlNet output from node {current_positive}")
+                    break
+            
+            print(f"Successfully built ControlNet chain with {len(enabled_units)} units")
+        
+        # Handle input images for all enabled units
+        print(f"🎯 Processing images for {len(enabled_units)} ControlNet units")
+        
+        # Collect all LoadImage nodes to update them
+        load_image_nodes = []
+        for node_id, node_data in prompt.items():
+            if node_data.get('class_type') == 'LoadImage':
+                load_image_nodes.append(node_id)
+        
+        print(f"🔍 Found {len(load_image_nodes)} LoadImage nodes: {load_image_nodes}")
+        
+        # Process each enabled unit's image
+        for i, unit in enumerate(enabled_units):
+            print(f"🎯 Processing image for unit {i+1}: {unit.get('control_type', 'unknown')}")
+            
+            input_image_value = unit.get('input_image')
+            if input_image_value is not None and input_image_value != '':
+                print(f"📊 Unit {i+1} input image type: {type(input_image_value)}")
+                
+                # Check if it's a filename (already uploaded) or base64 data
+                input_image = unit['input_image']
+                
+                if isinstance(input_image, str):
+                    # Check if it looks like a filename (not base64)
+                    if not input_image.startswith('data:image') and not input_image.startswith('/9j/') and len(input_image) < 1000:
+                        # It's likely a filename
+                        print(f"📁 Unit {i+1} using filename: {input_image}")
+                        saved_filename = input_image
+                    else:
+                        # It's base64 data, save it
+                        print(f"🔄 Unit {i+1} converting base64 to file...")
+                        saved_filename = save_controlnet_image(input_image, unit.get('unit_index', i))
+                        print(f"✅ Unit {i+1} saved as: {saved_filename}")
+                else:
+                    print(f"❌ Unit {i+1} unsupported image type: {type(input_image)}")
+                    saved_filename = None
+                
+                # Update the corresponding LoadImage node
+                if saved_filename and i < len(load_image_nodes):
+                    node_id = load_image_nodes[i]
+                    old_image = prompt[node_id]['inputs'].get('image', 'None')
+                    prompt[node_id]['inputs']['image'] = saved_filename
+                    print(f"🔄 Updated LoadImage node {node_id}: {old_image} -> {saved_filename}")
+                else:
+                    print(f"❌ Warning: Could not find LoadImage node for unit {i+1}")
+            else:
+                print(f"ℹ️ Unit {i+1} has no input image - will use default")
+        
+        # Ensure at least one image exists for ControlNet
+        if not any(unit.get('input_image') for unit in enabled_units):
+            print("📁 No ControlNet images provided, checking for default test image...")
+            # Create test image if none exists
+            test_image_path = os.path.join(os.path.dirname(__file__), "..", "..", "ComfyUI", "input", "controlnet_input.png")
             if not os.path.exists(test_image_path):
-                print("📁 Test image not found, creating one...")
+                print("📁 Creating default test image...")
                 create_test_controlnet_image()
             else:
-                print(f"✅ Test image exists: {test_image_path}")
+                print(f"✅ Default test image exists: {test_image_path}")
         
         print("ControlNet parameters injected successfully")
         return workflow
