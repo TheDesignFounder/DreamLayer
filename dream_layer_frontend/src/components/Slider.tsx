@@ -69,7 +69,7 @@ const Slider = ({
             <span className="mx-1 text-muted-foreground">Max: {max}</span>
             <input
               type="number"
-              className={`rounded-md border border-input bg-background px-2 py-1 text-right text-xs ${inputWidth}`}
+              className={`rounded-md border border-input bg-background px-2 py-1 text-right text-xs ${inputWidth} glass-morphism transition-all duration-300 hover:shadow-md focus:shadow-lg`}
               min={min}
               max={max}
               step={step || (min < 1 ? 0.1 : 1)}

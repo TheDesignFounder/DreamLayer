@@ -23,14 +23,14 @@ interface TabsNavProps {
 
 const TabsNav = ({ activeTab, onTabChange }: TabsNavProps) => {
   return (
-    <div className="mb-6 overflow-x-auto border-b border-border">
+    <div className="mb-6 overflow-x-auto border-b border-border glass-morphism rounded-t-lg">
       <div className="flex min-w-max px-2">
         {tabs.filter(tab => tab.id !== 'pnginfo').map((tab) => (
           <button
             key={tab.id}
-            className={`relative py-3 px-5 text-sm font-medium transition-colors hover:text-foreground flex items-center gap-2 ${
+            className={`relative py-3 px-5 text-sm font-medium transition-all duration-300 hover:text-foreground flex items-center gap-2 rounded-t-lg hover:bg-primary/10 hover:scale-105 ${
               tab.id === activeTab
-                ? "text-primary border-b-2 border-primary"
+                ? "text-primary border-b-2 border-primary bg-primary/5"
                 : "text-muted-foreground"
             }`}
             onClick={() => onTabChange(tab.id)}

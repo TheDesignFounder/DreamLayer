@@ -3,37 +3,88 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Futuristic animations and effects */
+@keyframes neon-glow {
+  0%, 100% { box-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor; }
+  50% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes slide-in {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes hologram {
+  0%, 100% { transform: translateY(0) rotateX(0deg); }
+  50% { transform: translateY(-2px) rotateX(1deg); }
+}
+
+.neon-text {
+  text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+}
+
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.cyber-grid {
+  background-image: 
+    linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.holographic-border {
+  border: 1px solid transparent;
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6, #06b6d4, #3b82f6) border-box;
+  border-radius: 8px;
+}
+
 @layer base {
   :root {
-    --background: 0 0% 98%; /* #FAFAFA */
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 15% 12%; /* Deep dark blue background */
+    --foreground: 240 100% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 220 15% 15%;
+    --card-foreground: 240 100% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 15% 18%;
+    --popover-foreground: 240 100% 95%;
 
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 217 91% 60%; /* Bright blue */
+    --primary-foreground: 240 10% 8%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 15% 20%;
+    --secondary-foreground: 240 100% 90%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 15% 20%;
+    --muted-foreground: 240 20% 60%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 271 91% 65%; /* Purple accent */
+    --accent-foreground: 240 10% 8%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 240 100% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --border: 220 20% 25%;
+    --input: 220 20% 22%;
+    --ring: 217 91% 60%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+    
+    /* Futuristic color palette */
+    --cyber-blue: 217 91% 60%;
+    --cyber-purple: 271 91% 65%;
+    --cyber-teal: 180 100% 50%;
+    --cyber-pink: 320 100% 75%;
+    --neon-green: 120 100% 50%;
   }
 
   .dark {
@@ -91,6 +142,18 @@
   }
   
   .content-container {
-    @apply bg-card rounded-lg shadow-[0px_4px_24px_rgba(51,51,51,0.15)] p-6 border border-border;
+    @apply bg-card rounded-lg shadow-[0px_4px_24px_rgba(51,51,51,0.15)] p-6 border border-border glass-morphism;
+  }
+  
+  .futuristic-glow {
+    animation: neon-glow 2s ease-in-out infinite alternate;
+  }
+  
+  .cyber-button {
+    @apply glass-morphism holographic-border hover:scale-105 transition-all duration-300;
+  }
+  
+  .data-grid {
+    @apply cyber-grid bg-card/30 backdrop-blur-sm;
   }
 }

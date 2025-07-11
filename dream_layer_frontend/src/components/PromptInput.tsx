@@ -69,7 +69,7 @@ const PromptInput: React.FC<PromptInputProps> = ({
           {showAddRandom && (
             <button 
               onClick={handleAddRandom}
-              className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground"
+              className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground glass-morphism transition-all duration-300 hover:scale-105"
             >
               Add Random
             </button>
@@ -78,7 +78,7 @@ const PromptInput: React.FC<PromptInputProps> = ({
       </div>
       <textarea
         className={cn(
-          "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 glass-morphism transition-all duration-300 hover:shadow-lg focus:shadow-xl",
           negative ? 'text-red-500' : '',
           isRequiredAndEmpty ? 'ring-2 ring-red-500' : ''
         )}

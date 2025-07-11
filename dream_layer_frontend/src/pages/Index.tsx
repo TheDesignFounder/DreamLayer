@@ -91,9 +91,11 @@ const Index = () => {
     <div className="flex min-h-screen flex-col bg-background">
       <NavBar />
       <div className="container mx-auto max-w-7xl px-4 py-6">
-        <ModelSelector onModelSelect={handleModelSelect} />
+        <div className="glass-morphism rounded-lg p-4 mb-4 border border-primary/20">
+          <ModelSelector onModelSelect={handleModelSelect} />
+        </div>
         <h2 className="mb-2 mt-6 text-lg font-medium text-foreground">Generation Modules</h2>
-        <div className="bg-card rounded-lg shadow-[0px_4px_24px_rgba(51,51,51,0.15)] p-6 border border-border">
+        <div className="bg-card rounded-lg shadow-[0px_4px_24px_rgba(51,51,51,0.15)] p-6 border border-border glass-morphism hover:shadow-2xl transition-all duration-300">
           <TabsNav activeTab={activeTab} onTabChange={handleTabChange} />
           {renderTabContent()}
         </div>
