@@ -34,6 +34,20 @@ NODE_TO_API_KEY_MAPPING = {
     "IdeogramV1": "IDEOGRAM_API_KEY",
     "IdeogramV2": "IDEOGRAM_API_KEY",
     "IdeogramV3": "IDEOGRAM_API_KEY",
+    
+    # Gemini Nodes
+    "GeminiImageNode": "GEMINI_API_KEY",
+    "GeminiTextNode": "GEMINI_API_KEY",
+    "GeminiVisionNode": "GEMINI_API_KEY",
+    "GeminiProNode": "GEMINI_API_KEY",
+    "GeminiFlashNode": "GEMINI_API_KEY",
+    
+    # Anthropic Nodes  
+    "AnthropicClaudeNode": "ANTHROPIC_API_KEY",
+    "AnthropicSonnetNode": "ANTHROPIC_API_KEY",
+    "AnthropicHaikuNode": "ANTHROPIC_API_KEY",
+    "AnthropicOpusNode": "ANTHROPIC_API_KEY",
+    "ClaudeImageNode": "ANTHROPIC_API_KEY",
 }
 
 # Mapping of environment variable names to ComfyUI extra_data keys
@@ -41,9 +55,9 @@ ENV_KEY_TO_EXTRA_DATA_MAPPING = {
     "BFL_API_KEY": "api_key_comfy_org",
     "OPENAI_API_KEY": "api_key_comfy_org",
     "IDEOGRAM_API_KEY": "api_key_comfy_org",
-    # Future additions:
-    # "GEMINI_API_KEY": "api_key_gemini",
-    # "ANTHROPIC_API_KEY": "api_key_anthropic",
+    # New API integrations:
+    "GEMINI_API_KEY": "api_key_gemini",
+    "ANTHROPIC_API_KEY": "api_key_anthropic",
 }
 
 def read_api_keys_from_env() -> Dict[str, str]:
@@ -116,29 +130,50 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
                 required_env_key = NODE_TO_API_KEY_MAPPING[class_type]
                 needed_env_keys.add(required_env_key)
                 print(f"[DEBUG] Found {class_type} node - needs {required_env_key}")
-    # Decide which key to use for api_key_comfy_org
-    api_key_comfy_org = None
+    # Inject all needed API keys into extra_data
     print(f"[DEBUG] needed_env_keys: {needed_env_keys}")
     print(f"[DEBUG] all_api_keys keys: {all_api_keys.keys()}")
-    if needed_env_keys:
-        # If we have multiple keys that map to api_key_comfy_org, choose one
-        # Priority: BFL_API_KEY first, then OPENAI_API_KEY, then IDEOGRAM_API_KEY
-        if "BFL_API_KEY" in needed_env_keys and "BFL_API_KEY" in all_api_keys:
-            api_key_comfy_org = all_api_keys["BFL_API_KEY"]
-            print(f"[DEBUG] Using BFL_API_KEY for api_key_comfy_org")
-        elif "OPENAI_API_KEY" in needed_env_keys and "OPENAI_API_KEY" in all_api_keys:
-            api_key_comfy_org = all_api_keys["OPENAI_API_KEY"]
-            print(f"[DEBUG] Using OPENAI_API_KEY for api_key_comfy_org")
-        elif "IDEOGRAM_API_KEY" in needed_env_keys and "IDEOGRAM_API_KEY" in all_api_keys:
-            api_key_comfy_org = all_api_keys["IDEOGRAM_API_KEY"]
-            print(f"[DEBUG] Using IDEOGRAM_API_KEY for api_key_comfy_org")
-        else:
-            print(f"[DEBUG] No available API keys for needed services: {needed_env_keys}")
     
-    # Add the chosen key to extra_data
-    if api_key_comfy_org:
-        workflow_with_keys["extra_data"]["api_key_comfy_org"] = api_key_comfy_org
-        print(f"[DEBUG] Injected api_key_comfy_org into workflow")
+    keys_injected = 0
+    
+    if needed_env_keys:
+        # Group keys by their destination in extra_data
+        comfy_org_keys = []
+        other_keys = []
+        
+        for env_key in needed_env_keys:
+            if env_key in all_api_keys:
+                extra_data_key = ENV_KEY_TO_EXTRA_DATA_MAPPING[env_key]
+                if extra_data_key == "api_key_comfy_org":
+                    comfy_org_keys.append(env_key)
+                else:
+                    other_keys.append((env_key, extra_data_key))
+        
+        # Handle api_key_comfy_org (choose one with priority)
+        if comfy_org_keys:
+            # Priority: BFL_API_KEY first, then OPENAI_API_KEY, then IDEOGRAM_API_KEY
+            chosen_key = None
+            if "BFL_API_KEY" in comfy_org_keys:
+                chosen_key = "BFL_API_KEY"
+            elif "OPENAI_API_KEY" in comfy_org_keys:
+                chosen_key = "OPENAI_API_KEY"
+            elif "IDEOGRAM_API_KEY" in comfy_org_keys:
+                chosen_key = "IDEOGRAM_API_KEY"
+            
+            if chosen_key:
+                workflow_with_keys["extra_data"]["api_key_comfy_org"] = all_api_keys[chosen_key]
+                print(f"[DEBUG] Using {chosen_key} for api_key_comfy_org")
+                keys_injected += 1
+        
+        # Handle dedicated API keys (Gemini, Anthropic, etc.)
+        for env_key, extra_data_key in other_keys:
+            workflow_with_keys["extra_data"][extra_data_key] = all_api_keys[env_key]
+            print(f"[DEBUG] Injected {env_key} as {extra_data_key}")
+            keys_injected += 1
+    
+    # Summary
+    if keys_injected > 0:
+        print(f"[DEBUG] Successfully injected {keys_injected} API key(s) into workflow")
     else:
         print("[DEBUG] No API keys needed for this workflow")
     

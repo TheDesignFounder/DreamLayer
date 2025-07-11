@@ -30,6 +30,19 @@ API_KEY_TO_MODELS = {
     ],
     "IDEOGRAM_API_KEY": [
         {"id": "ideogram-v3", "name": "Ideogram V3", "filename": "ideogram-v3"},
+    ],
+    "GEMINI_API_KEY": [
+        {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro", "filename": "gemini-1.5-pro"},
+        {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "filename": "gemini-1.5-flash"},
+        {"id": "gemini-pro-vision", "name": "Gemini Pro Vision", "filename": "gemini-pro-vision"},
+        {"id": "gemini-exp-1206", "name": "Gemini Experimental", "filename": "gemini-exp-1206"},
+    ],
+    "ANTHROPIC_API_KEY": [
+        {"id": "claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "filename": "claude-3.5-sonnet"},
+        {"id": "claude-3.5-haiku", "name": "Claude 3.5 Haiku", "filename": "claude-3.5-haiku"},
+        {"id": "claude-3-opus", "name": "Claude 3 Opus", "filename": "claude-3-opus"},
+        {"id": "claude-3-sonnet", "name": "Claude 3 Sonnet", "filename": "claude-3-sonnet"},
+        {"id": "claude-3-haiku", "name": "Claude 3 Haiku", "filename": "claude-3-haiku"},
     ]
 }
 
