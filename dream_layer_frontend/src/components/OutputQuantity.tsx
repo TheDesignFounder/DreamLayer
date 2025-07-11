@@ -44,6 +44,7 @@ const OutputQuantity: React.FC<OutputQuantityProps> = ({
         defaultValue={4}
         label={getBatchSizeLabel()}
         onChange={handleBatchSizeChange}
+        tooltipKey="batchSize"
       />
     </div>
   );

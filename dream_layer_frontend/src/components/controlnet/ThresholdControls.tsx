@@ -3,6 +3,7 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { preprocessorsWithThresholds } from "./controlnet-data";
 import { Slider } from "@/components/ui/slider";
+import SliderTooltip from "@/components/SliderTooltip";
 
 interface ThresholdControlsProps {
   unitIndex: number;
@@ -38,8 +39,9 @@ const ThresholdControls: React.FC<ThresholdControlsProps> = ({
       
       <div className="mb-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium">
+          <div className="text-sm font-medium flex items-center gap-2">
             <span>Threshold A</span>
+            <SliderTooltip tooltipKey="thresholdA" />
           </div>
           <div className="flex items-center text-xs">
             <span className="mr-1 text-muted-foreground">Min: 0</span>
@@ -68,8 +70,9 @@ const ThresholdControls: React.FC<ThresholdControlsProps> = ({
       
       <div className="mb-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium">
+          <div className="text-sm font-medium flex items-center gap-2">
             <span>Threshold B</span>
+            <SliderTooltip tooltipKey="thresholdB" />
           </div>
           <div className="flex items-center text-xs">
             <span className="mr-1 text-muted-foreground">Min: 0</span>

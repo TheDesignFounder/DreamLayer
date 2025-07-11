@@ -19,6 +19,7 @@ const InpaintingMaskSettings = () => {
         label="a) Mask Blur | <span class='text-gray-500'>Optimal Level: 4-8</span>"
         onChange={setMaskBlur}
         step={1}
+        tooltipKey="maskBlur"
       />
       
       <div className="space-y-3">
@@ -78,6 +79,7 @@ const InpaintingMaskSettings = () => {
         label="e) Only Masked Padding, Pixel | <span class='text-gray-500'>Optimal Level: 32px</span>"
         onChange={setOnlyMaskedPadding}
         step={1}
+        tooltipKey="onlyMaskedPadding"
       />
     </div>
   );

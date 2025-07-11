@@ -84,6 +84,7 @@ const HiresFixSettings: React.FC<HiresFixSettingsProps> = ({
             label="Upscale"
             onChange={(value) => setUpscaleFactor(value)}
             inputWidth="w-16"
+            tooltipKey="upscaleFactor"
           />
         </div>
       ) : (
@@ -131,6 +132,7 @@ const HiresFixSettings: React.FC<HiresFixSettingsProps> = ({
           label={`c) Hires Steps | <span style='color: #64748B;'>Optimal Level: ${currentUpscaler.optimalHiresSteps}</span>`}
           onChange={(value) => setHiresSteps(value)}
           inputWidth="w-16"
+          tooltipKey="hiresSteps"
         />
       </div>
       
@@ -143,6 +145,7 @@ const HiresFixSettings: React.FC<HiresFixSettingsProps> = ({
           label={`d) Denoising Strength | <span style='color: #64748B;'>Optimal Accuracy: ${currentUpscaler.optimalDenoisingStrength}</span>`}
           onChange={(value) => setDenoisingStrength(value)}
           inputWidth="w-16"
+          tooltipKey="hiresDenoising"
         />
       </div>
     </>

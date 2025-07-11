@@ -42,6 +42,7 @@ const ControlParameters: React.FC<ControlParametersProps> = ({
         label="Control Weight"
         onChange={setWeight}
         inputWidth="w-16"
+        tooltipKey="controlWeight"
       />
       
       {/* Guidance Start/End in a grid */}
@@ -54,6 +55,7 @@ const ControlParameters: React.FC<ControlParametersProps> = ({
           label="Starting Control Step"
           onChange={setGuidanceStart}
           inputWidth="w-16"
+          tooltipKey="guidanceStart"
         />
         
         <Slider
@@ -64,6 +66,7 @@ const ControlParameters: React.FC<ControlParametersProps> = ({
           label="Ending Control Step"
           onChange={setGuidanceEnd}
           inputWidth="w-16"
+          tooltipKey="guidanceEnd"
         />
       </div>
       
@@ -76,6 +79,7 @@ const ControlParameters: React.FC<ControlParametersProps> = ({
         label="Resolution"
         onChange={setResolution}
         inputWidth="w-16"
+        tooltipKey="processorRes"
       />
     </div>
   );
