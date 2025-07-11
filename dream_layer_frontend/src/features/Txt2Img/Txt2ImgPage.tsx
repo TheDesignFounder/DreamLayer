@@ -378,6 +378,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
               placeholder="Enter your prompt here"
               value={coreSettings.prompt}
               onChange={(value) => handlePromptChange(value)}
+              required={true}
             />
             <PromptInput 
               label="b) Negative Prompt"
@@ -386,6 +387,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
               placeholder="Enter negative prompt here"
               value={coreSettings.negative_prompt}
               onChange={(value) => handlePromptChange(value, true)}
+              required={false}
             />
             
             <RenderSettings 

@@ -10,6 +10,7 @@ interface PromptInputProps {
   showAddRandom?: boolean;
   value: string;
   onChange: (value: string) => void;
+  required?: boolean; // New required prop
 }
 
 const PromptInput: React.FC<PromptInputProps> = ({
@@ -19,7 +20,8 @@ const PromptInput: React.FC<PromptInputProps> = ({
   negative = false,
   showAddRandom = true,
   value,
-  onChange
+  onChange,
+  required = false
 }) => {
   const handleAddRandom = async () => {
     try {
@@ -36,10 +38,16 @@ const PromptInput: React.FC<PromptInputProps> = ({
     }
   };
 
+  // Check if field is required and empty
+  const isRequiredAndEmpty = required && (!value || value.trim() === '');
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-foreground">{label}</label>
+        <label className="text-sm font-medium text-foreground">
+          {label}
+          {required && <span className="ml-1 text-red-500">*</span>}
+        </label>
         {showAddRandom && (
           <button 
             onClick={handleAddRandom}
@@ -50,14 +58,17 @@ const PromptInput: React.FC<PromptInputProps> = ({
         )}
       </div>
       <textarea
-        className={`w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-          negative ? 'text-red-500' : ''
-        }`}
+        className={cn(
+          "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          negative ? 'text-red-500' : '',
+          isRequiredAndEmpty ? 'ring-2 ring-red-500' : ''
+        )}
         rows={3}
         maxLength={maxLength}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        required={required}
       />
     </div>
   );
