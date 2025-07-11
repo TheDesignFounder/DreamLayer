@@ -3,7 +3,7 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { preprocessorsWithThresholds } from "./controlnet-data";
 import { Slider } from "@/components/ui/slider";
-import SliderTooltip from "@/components/SliderTooltip";
+import { SliderTooltip } from "@/components/SliderTooltip";
 
 interface ThresholdControlsProps {
   unitIndex: number;
