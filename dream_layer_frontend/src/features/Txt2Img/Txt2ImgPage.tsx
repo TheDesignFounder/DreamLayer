@@ -11,7 +11,9 @@ import ImagePreview from '@/components/tabs/txt2img/ImagePreview';
 import CheckpointBrowser from '@/components/checkpoint/CheckpointBrowser';
 import LoraBrowser from '@/components/lora/LoraBrowser';
 import CustomWorkflowBrowser from '@/components/custom-workflow/CustomWorkflowBrowser';
+import ProgressIndicator from '@/components/ProgressIndicator';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useProgressTracking } from '@/hooks/useProgressTracking';
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -48,6 +50,7 @@ const Txt2ImgPage = forwardRef<Txt2ImgPageRef, Txt2ImgPageProps>(({ selectedMode
   const controlNetConfig = useControlNetStore(state => state.controlNetConfig);
   const { setControlNetConfig } = useControlNetStore();
   const loraConfig = useLoraStore(state => state.loraConfig);
+  const { progressState, startProgress, updateProgress, completeProgress, resetProgress } = useProgressTracking();
 
   // Add effect to update model when selectedModel prop changes
   useEffect(() => {
@@ -193,6 +196,7 @@ const Txt2ImgPage = forwardRef<Txt2ImgPageRef, Txt2ImgPageProps>(({ selectedMode
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
+      resetProgress();
       setIsGenerating(false);
       setLoading(false);
       return;
@@ -213,6 +217,7 @@ const Txt2ImgPage = forwardRef<Txt2ImgPageRef, Txt2ImgPageProps>(({ selectedMode
     try {
       setIsGenerating(true);
       setLoading(true);
+      startProgress();
       
       console.log("ControlNetConfig at generate time:", JSON.stringify(controlNetConfig, null, 2));
       
@@ -235,6 +240,9 @@ const Txt2ImgPage = forwardRef<Txt2ImgPageRef, Txt2ImgPageProps>(({ selectedMode
         });
       }
       console.log('ControlNet config being sent:', JSON.stringify(controlNetConfig, null, 2));
+      
+      updateProgress(15, 'Sending request to server...');
+      
       const response = await fetch('http://localhost:5001/api/txt2img', {
         method: 'POST',
         headers: {
@@ -251,6 +259,8 @@ const Txt2ImgPage = forwardRef<Txt2ImgPageRef, Txt2ImgPageProps>(({ selectedMode
         console.error('Error response:', errorText);
         throw new Error(`Failed to generate image: ${errorText}`);
       }
+      
+      updateProgress(30, 'Processing response...');
 
       const data = await response.json();
       console.log('Response data:', data);
@@ -282,13 +292,16 @@ const Txt2ImgPage = forwardRef<Txt2ImgPageRef, Txt2ImgPageProps>(({ selectedMode
         });
         
         console.log('Adding images to gallery:', images);
+        updateProgress(90, 'Finalizing images...');
         addImages(images);
+        completeProgress();
       } else {
         console.error('No generated_images in response:', data);
         throw new Error('No images were generated');
       }
     } catch (error) {
       console.error('Error details:', error);
+      resetProgress();
     } finally {
       setLoading(false);
       setIsGenerating(false);
@@ -467,6 +480,15 @@ const Txt2ImgPage = forwardRef<Txt2ImgPageRef, Txt2ImgPageProps>(({ selectedMode
           </div>
           
           {isMobile && <MobileImagePreview />}
+          
+          <ProgressIndicator 
+            isGenerating={progressState.isGenerating}
+            progress={progressState.progress}
+            status={progressState.status}
+            eta={progressState.eta}
+            currentStep={progressState.currentStep}
+            totalSteps={progressState.totalSteps}
+          />
           
           <div className="mb-[18px]">
             <SubTabNavigation />

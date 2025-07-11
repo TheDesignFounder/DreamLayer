@@ -11,11 +11,13 @@ import SizingSettings from '@/components/SizingSettings';
 import OutputQuantity from '@/components/OutputQuantity';
 import GenerationID from '@/components/GenerationID';
 import ImagePreview from '@/components/tabs/img2img/ImagePreview';
+import ProgressIndicator from '@/components/ProgressIndicator';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+import { useProgressTracking } from '@/hooks/useProgressTracking';
 
 import {
   Accordion,
@@ -46,6 +48,7 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
   const [batchSize, setBatchSize] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const { progressState, startProgress, updateProgress, completeProgress, resetProgress } = useProgressTracking();
   
   // ControlNet configuration will be managed by useControlNetStore
   
@@ -111,6 +114,7 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
+      resetProgress();
       setIsGenerating(false);
       setLoading(false);
       return;
@@ -123,8 +127,10 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
 
     setIsGenerating(true);
     setLoading(true);
+    startProgress();
 
     try {
+      updateProgress(15, 'Preparing image data...');
       const formData = new FormData();
       formData.append('image', inputImage.file);
 
@@ -155,6 +161,8 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
       console.log('ControlNet config is null?', controlNetConfig === null);
       console.log('ControlNet config is enabled?', controlNetConfig?.enabled);
 
+      updateProgress(30, 'Sending request to server...');
+      
       // Send the request data as JSON in the body
       const response = await fetch('http://localhost:5004/api/img2img', {
         method: 'POST',
@@ -168,6 +176,8 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      updateProgress(50, 'Processing response...');
+      
       const data = await response.json();
       console.log('Img2img response:', data);
 
@@ -179,6 +189,7 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
         
         testImage.onload = () => {
           console.log('Test image loaded successfully:', firstImageUrl);
+          updateProgress(90, 'Finalizing images...');
           const images = data.comfy_response.generated_images.map((img: any) => ({
             id: `${Date.now()}-${Math.random()}`,
             url: img.url,
@@ -190,6 +201,7 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
           
           console.log('Adding images to store:', images);
           addImages(images);
+          completeProgress();
           setLoading(false);
           setIsGenerating(false);
         };
@@ -210,6 +222,7 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
       }
     } catch (error) {
       console.error('Error in handleGenerateImage:', error);
+      resetProgress();
       setLoading(false);
       setIsGenerating(false);
     }
@@ -399,6 +412,15 @@ const Img2ImgPage = forwardRef<Img2ImgPageRef, Img2ImgPageProps>(({ selectedMode
               </button>}
             </div>
           </div>
+          
+          <ProgressIndicator 
+            isGenerating={progressState.isGenerating}
+            progress={progressState.progress}
+            status={progressState.status}
+            eta={progressState.eta}
+            currentStep={progressState.currentStep}
+            totalSteps={progressState.totalSteps}
+          />
           
           <div className="mb-[18px]">
             <SubTabNavigation 
