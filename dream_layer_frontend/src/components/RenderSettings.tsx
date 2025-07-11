@@ -340,6 +340,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
           label={getStepsLabel()}
           sublabel=""
           onChange={handleStepsChange}
+          tooltipKey="samplingSteps"
         />
       </div>
       
@@ -351,6 +352,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
           label={getCfgLabel()}
           sublabel=""
           onChange={handleCfgChange}
+          tooltipKey="cfgScale"
         />
       </div>
 
@@ -364,6 +366,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             defaultValue={0.55}
             label="d) Denoising Strength | <span style='color: #64748B;'>Optimal 0.4-0.7</span>"
             sublabel=""
+            tooltipKey="denoisingStrength"
           />
         </div>
       )}

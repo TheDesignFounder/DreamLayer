@@ -58,6 +58,7 @@ const FaceRestorationSettings: React.FC<FaceRestorationSettingsProps> = ({
             label="b) CodeFormer Weight"
             onChange={(value) => setCodeformerWeight(value)}
             inputWidth="w-16"
+            tooltipKey="codeformerWeight"
           />
         </div>
       )}
@@ -72,6 +73,7 @@ const FaceRestorationSettings: React.FC<FaceRestorationSettingsProps> = ({
             label="b) GFPGAN Weight"
             onChange={(value) => setGfpganWeight(value)}
             inputWidth="w-16"
+            tooltipKey="gfpganWeight"
           />
         </div>
       )}

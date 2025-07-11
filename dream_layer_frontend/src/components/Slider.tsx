@@ -1,6 +1,8 @@
 
 import { useState, useEffect } from "react";
 import { Slider as ShadcnSlider } from "@/components/ui/slider";
+import { SliderTooltip } from "@/components/SliderTooltip";
+import { getTooltipContent } from "@/utils/tooltipDefinitions";
 
 interface SliderProps {
   min: number;
@@ -12,6 +14,7 @@ interface SliderProps {
   onChange?: (value: number) => void;
   hideInput?: boolean;
   step?: number;
+  tooltipKey?: string; // Key to look up tooltip content
 }
 
 const Slider = ({
@@ -24,6 +27,7 @@ const Slider = ({
   onChange,
   hideInput = false,
   step,
+  tooltipKey,
 }: SliderProps) => {
   const [value, setValue] = useState(defaultValue);
 
@@ -46,13 +50,17 @@ const Slider = ({
     setValue(defaultValue);
   }, [defaultValue]);
 
+  // Get tooltip content if tooltipKey is provided
+  const tooltipContent = tooltipKey ? getTooltipContent(tooltipKey as any) : null;
+
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between">
         {label && (
-          <div className="text-sm font-medium">
+          <div className="text-sm font-medium flex items-center">
             <span dangerouslySetInnerHTML={{ __html: label }} />
             {sublabel && <span className="ml-1 text-xs text-muted-foreground">{sublabel}</span>}
+            {tooltipContent && <SliderTooltip content={tooltipContent} className="ml-2" />}
           </div>
         )}
         {!hideInput && (

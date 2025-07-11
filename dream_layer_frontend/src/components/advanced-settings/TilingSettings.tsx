@@ -1,5 +1,6 @@
 import React from "react";
 import { Slider } from "@/components/ui/slider";
+import CustomSlider from "@/components/Slider";
 
 interface TilingSettingsProps {
   tileSize?: number;
@@ -31,16 +32,14 @@ const TilingSettings: React.FC<TilingSettingsProps> = ({
       
       <div className="space-y-4">
         <div>
-          <label className="text-sm font-medium mb-2 block">
-            Tile Size: {tileSize}px
-          </label>
-          <Slider
+          <CustomSlider
             min={64}
             max={1024}
             step={32}
-            defaultValue={[tileSize]}
-            onValueChange={handleTileSizeChange}
-            className="w-full"
+            defaultValue={tileSize}
+            label="Tile Size"
+            onChange={(value) => setTileSize?.(value)}
+            tooltipKey="tileSize"
           />
           <div className="text-xs text-muted-foreground mt-1">
             Size of each tile. Larger tiles use more memory but may produce better results.
@@ -48,16 +47,14 @@ const TilingSettings: React.FC<TilingSettingsProps> = ({
         </div>
         
         <div>
-          <label className="text-sm font-medium mb-2 block">
-            Overlap: {overlap}px
-          </label>
-          <Slider
+          <CustomSlider
             min={0}
             max={256}
             step={32}
-            defaultValue={[overlap]}
-            onValueChange={handleOverlapChange}
-            className="w-full"
+            defaultValue={overlap}
+            label="Overlap"
+            onChange={(value) => setOverlap?.(value)}
+            tooltipKey="tileOverlap"
           />
           <div className="text-xs text-muted-foreground mt-1">
             Overlap between tiles. Higher overlap reduces seams but uses more memory.

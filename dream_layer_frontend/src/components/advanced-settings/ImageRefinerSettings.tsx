@@ -75,6 +75,7 @@ const ImageRefinerSettings: React.FC<ImageRefinerSettingsProps> = ({
           label={getOptimalSwitchLabel()}
           onChange={(value) => setRefineSwitchAt(value)}
           inputWidth="w-16"
+          tooltipKey="refinerSwitchAt"
         />
         <div className="mt-0 ml-2 text-sm text-muted-foreground">
           Choose when the image generation switches from the Base Model to the Refiner Model.
