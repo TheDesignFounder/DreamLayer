@@ -153,6 +153,56 @@ All contributions code, docs, art, tutorials—are welcome!
 
 ---
 
+## 🔧 LoRA Auto-Merge Utility
+
+DreamLayer includes a powerful LoRA auto-merge utility that allows you to merge LoRA adapters with base Stable Diffusion models locally.
+
+### Quick Usage
+
+```bash
+# Merge a LoRA with a base model
+./dreamlayer merge-lora base.safetensors lora.safetensors output.safetensors
+
+# With custom alpha (strength)
+./dreamlayer merge-lora base.safetensors lora.safetensors output.safetensors --alpha 0.8
+
+# Force CPU usage
+./dreamlayer merge-lora base.safetensors lora.safetensors output.safetensors --device cpu
+```
+
+### Features
+
+- **Local Processing**: All merging happens on your machine, no cloud dependencies
+- **Multiple Formats**: Supports .safetensors checkpoints and LoRA files
+- **Flexible Strength**: Adjustable alpha parameter for LoRA strength
+- **Smart Fallback**: Automatically falls back to simple weight merge if full pipeline loading fails
+- **GPU/CPU Support**: Automatic device detection with manual override option
+
+### Testing
+
+```bash
+# Run built-in test with dummy files
+./dreamlayer test-lora
+
+# Verify the test creates a merged model > 0 bytes
+```
+
+### Requirements
+
+The LoRA merge utility requires:
+- `torch >= 2.0.0`
+- `diffusers >= 0.24.0`
+- `safetensors >= 0.4.2`
+- `transformers >= 4.28.1`
+
+These are automatically installed when you run the installation scripts.
+
+### Technical Details
+
+The utility uses diffusers library for LoRA merging with automatic fallback to direct weight manipulation. It supports both convolutional and linear layers, handling proper tensor reshaping for different layer types.
+
+---
+
 ## 📚 Documentation
 
 Full docs will ship with the first code release.

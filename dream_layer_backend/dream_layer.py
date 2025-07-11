@@ -111,7 +111,7 @@ CORS(app, resources={
     r"/api/*": {
         "origins": ["http://localhost:8080"],
         "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"],
+        "allow_headers": ["Content-Type", "Authorization"],
         "expose_headers": ["Content-Type"],
         "supports_credentials": True
     }
@@ -481,6 +481,234 @@ def get_controlnet_models_endpoint():
         return jsonify({
             "status": "error",
             "message": f"Failed to fetch ControlNet models: {str(e)}"
+        }), 500
+
+@app.route('/api/demo-workflow', methods=['GET'])
+def get_demo_workflow():
+    """Get demo workflow for the graph viewer"""
+    try:
+        # Try to load the core generation workflow
+        workflows_dir = os.path.join(os.path.dirname(__file__), 'workflows', 'txt2img')
+        demo_workflow_path = os.path.join(workflows_dir, 'core_generation_workflow.json')
+        
+        if os.path.exists(demo_workflow_path):
+            with open(demo_workflow_path, 'r') as f:
+                workflow_data = json.load(f)
+            return jsonify(workflow_data)
+        else:
+            # Return a simple demo workflow if file doesn't exist
+            demo_workflow = {
+                "prompt": {
+                    "1": {
+                        "class_type": "CheckpointLoaderSimple",
+                        "inputs": {
+                            "ckpt_name": "demo_model.safetensors"
+                        }
+                    },
+                    "2": {
+                        "class_type": "CLIPTextEncode",
+                        "inputs": {
+                            "clip": ["1", 1],
+                            "text": "beautiful landscape, highly detailed"
+                        }
+                    },
+                    "3": {
+                        "class_type": "CLIPTextEncode",
+                        "inputs": {
+                            "clip": ["1", 1],
+                            "text": "blurry, low quality, deformed"
+                        }
+                    },
+                    "4": {
+                        "class_type": "EmptyLatentImage",
+                        "inputs": {
+                            "width": 512,
+                            "height": 512,
+                            "batch_size": 1
+                        }
+                    },
+                    "5": {
+                        "class_type": "KSampler",
+                        "inputs": {
+                            "model": ["1", 0],
+                            "positive": ["2", 0],
+                            "negative": ["3", 0],
+                            "latent_image": ["4", 0],
+                            "seed": 42,
+                            "steps": 20,
+                            "cfg": 7.0,
+                            "sampler_name": "euler",
+                            "scheduler": "normal",
+                            "denoise": 1.0
+                        }
+                    },
+                    "6": {
+                        "class_type": "VAEDecode",
+                        "inputs": {
+                            "samples": ["5", 0],
+                            "vae": ["1", 2]
+                        }
+                    },
+                    "7": {
+                        "class_type": "SaveImage",
+                        "inputs": {
+                            "filename_prefix": "demo_output",
+                            "images": ["6", 0]
+                        }
+                    }
+                }
+            }
+            return jsonify(demo_workflow)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to load demo workflow: {str(e)}"
+        }), 500
+
+@app.route('/api/lora/merge', methods=['POST', 'OPTIONS'])
+def merge_lora_api():
+    """API endpoint for LoRA merging"""
+    # Handle OPTIONS request for CORS
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.json
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No JSON data provided"
+            }), 400
+        
+        base_model = data.get('base_model')
+        lora_model = data.get('lora_model') 
+        output_name = data.get('output_name', 'merged_model.safetensors')
+        alpha = data.get('alpha', 1.0)
+        
+        if not base_model or not lora_model:
+            return jsonify({
+                "status": "error",
+                "message": "base_model and lora_model are required"
+            }), 400
+        
+        # Import the LoRA merge function
+        try:
+            from lora_merge import merge_lora_with_base
+        except ImportError:
+            return jsonify({
+                "status": "error",
+                "message": "LoRA merge utility not available. Please install required dependencies."
+            }), 500
+        
+        # Prepare file paths
+        models_dir = os.path.join(parent_dir, 'models')
+        base_path = os.path.join(models_dir, 'checkpoints', base_model)
+        lora_path = os.path.join(models_dir, 'loras', lora_model)
+        output_path = os.path.join(models_dir, 'checkpoints', output_name)
+        
+        # Check if input files exist
+        if not os.path.exists(base_path):
+            return jsonify({
+                "status": "error", 
+                "message": f"Base model not found: {base_model}"
+            }), 404
+            
+        if not os.path.exists(lora_path):
+            return jsonify({
+                "status": "error",
+                "message": f"LoRA model not found: {lora_model}"
+            }), 404
+        
+        # Perform the merge
+        success = merge_lora_with_base(base_path, lora_path, output_path, alpha=alpha, device="auto")
+        
+        if success:
+            output_size = os.path.getsize(output_path) / (1024 * 1024)  # Size in MB
+            return jsonify({
+                "status": "success",
+                "message": "LoRA merge completed successfully",
+                "output_file": output_name,
+                "output_size_mb": round(output_size, 2),
+                "alpha": alpha
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "LoRA merge failed. Check server logs for details."
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"LoRA merge failed: {str(e)}"
+        }), 500
+
+@app.route('/api/lora/test', methods=['POST', 'OPTIONS'])
+def test_lora_merge_api():
+    """API endpoint to test LoRA merging with dummy files"""
+    # Handle OPTIONS request for CORS
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        # Import required functions
+        try:
+            from lora_merge import create_dummy_checkpoint, create_dummy_lora, merge_lora_with_base
+        except ImportError:
+            return jsonify({
+                "status": "error",
+                "message": "LoRA merge utility not available. Please install required dependencies."
+            }), 500
+        
+        import tempfile
+        import shutil
+        
+        # Create temporary directory
+        temp_dir = tempfile.mkdtemp(prefix='lora_test_')
+        
+        try:
+            # Create dummy files
+            base_path = os.path.join(temp_dir, 'test_base.safetensors')
+            lora_path = os.path.join(temp_dir, 'test_lora.safetensors')
+            output_path = os.path.join(temp_dir, 'test_merged.safetensors')
+            
+            create_dummy_checkpoint(base_path, size_mb=0.5)
+            create_dummy_lora(lora_path, size_mb=0.05)
+            
+            # Test merge
+            success = merge_lora_with_base(base_path, lora_path, output_path, alpha=0.8, device='cpu')
+            
+            if success and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                output_size = os.path.getsize(output_path) / (1024 * 1024)  # Size in MB
+                return jsonify({
+                    "status": "success",
+                    "message": "LoRA merge test completed successfully",
+                    "test_passed": True,
+                    "output_size_mb": round(output_size, 2),
+                    "details": {
+                        "base_size_mb": round(os.path.getsize(base_path) / (1024 * 1024), 2),
+                        "lora_size_mb": round(os.path.getsize(lora_path) / (1024 * 1024), 2),
+                        "merged_size_mb": round(output_size, 2),
+                        "alpha_used": 0.8
+                    }
+                })
+            else:
+                return jsonify({
+                    "status": "error",
+                    "message": "LoRA merge test failed",
+                    "test_passed": False
+                }), 500
+                
+        finally:
+            # Clean up temp files
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+                
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": f"LoRA merge test failed: {str(e)}",
+            "test_passed": False
         }), 500
 
 if __name__ == "__main__":
