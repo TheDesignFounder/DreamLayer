@@ -1,5 +1,5 @@
 """
-scheduler.py — Helper functions for value scheduling and interpolation.
+scheduler.py - Helper functions for value scheduling and interpolation.
 """
 
 from math import cos, pi
@@ -84,8 +84,14 @@ def interpolate(schedule: List[float], step: int) -> float:
     >>> interpolate([], 0)
     Traceback (most recent call last):
     ...
-    ValueError: schedule list is empty
+    ValueError: schedule cannot be empty
+    >>> interpolate([0.0, 0.5, 1.0], -1)
+    Traceback (most recent call last):
+    ...
+    ValueError: step cannot be negative
     """
     if not schedule:
-        raise ValueError("schedule list is empty")
+        raise ValueError("schedule cannot be empty")
+    if step < 0:
+        raise ValueError("step cannot be negative")
     return schedule[min(step, len(schedule) - 1)]
