@@ -92,13 +92,13 @@ class TestConstants(unittest.TestCase):
         hosts = SERVER_CONFIG['HOSTS']
         
         # Test ports are valid
-        for port_name, port_value in ports.items():
+        for _port_name, port_value in ports.items():
             self.assertIsInstance(port_value, int)
             self.assertGreater(port_value, 1000)  # Should be > 1024 for user ports
             self.assertLess(port_value, 65536)    # Valid port range
         
         # Test hosts are valid URLs
-        for host_name, host_value in hosts.items():
+        for _host_name, host_value in hosts.items():
             self.assertIsInstance(host_value, str)
             self.assertTrue(host_value.startswith('http'))
 

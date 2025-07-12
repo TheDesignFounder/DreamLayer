@@ -404,6 +404,12 @@ def inject_controlnet_parameters(workflow, controlnet_data):
                     if not original_negative:
                         original_negative = clip_nodes[1]
             
+            # Final fallback: use default node IDs if still not found
+            if not original_positive:
+                original_positive = "6"  # Default positive conditioning node
+            if not original_negative:
+                original_negative = "7"  # Default negative conditioning node
+            
             # Get next available node ID
             numeric_ids = []
             for k in prompt.keys():
@@ -705,15 +711,20 @@ def inject_tiling_parameters(workflow, tiling_data):
         # Get workflow components
         prompt = workflow.get('prompt', {})
         
-        # Find VAEEncode and VAEDecode nodes
+        # Find VAEEncode and VAEDecode nodes in a single iteration
         vae_encode_node_id = None
         vae_decode_node_id = None
         
         for node_id, node_data in prompt.items():
-            if node_data.get('class_type') == 'VAEEncode':
+            class_type = node_data.get('class_type')
+            if class_type == 'VAEEncode' and not vae_encode_node_id:
                 vae_encode_node_id = node_id
-            elif node_data.get('class_type') == 'VAEDecode':
+            elif class_type == 'VAEDecode' and not vae_decode_node_id:
                 vae_decode_node_id = node_id
+            
+            # Break early if both nodes found
+            if vae_encode_node_id and vae_decode_node_id:
+                break
         
         if not vae_encode_node_id:
             print("VAEEncode node not found, cannot inject tiling")
@@ -850,21 +861,44 @@ def inject_hires_fix_parameters(workflow, hires_fix_data):
                 **({"upscale_by": upscale_factor} if upscale_method == "upscale-by" else {"width": resize_width, "height": resize_height})
             }
         }
+        # Find required nodes in a single iteration for efficiency
+        checkpoint_loader_node = None
+        positive_conditioning_node = None
+        negative_conditioning_node = None
+        
+        for node_id, node_data in prompt.items():
+            class_type = node_data.get('class_type')
+            
+            if class_type == 'CheckpointLoaderSimple' and not checkpoint_loader_node:
+                checkpoint_loader_node = node_id
+            elif class_type == 'CLIPTextEncode':
+                inputs = node_data.get('inputs', {})
+                text_content = inputs.get('text', '').lower()
+                if 'positive' in text_content and not positive_conditioning_node:
+                    positive_conditioning_node = node_id
+                elif 'negative' in text_content and not negative_conditioning_node:
+                    negative_conditioning_node = node_id
+            
+            # Break early if all nodes found
+            if checkpoint_loader_node and positive_conditioning_node and negative_conditioning_node:
+                break
+        
         # Add VAEEncode node (to convert upscaled image to latent)
         prompt[hires_vae_encode_node_id] = {
             "class_type": "VAEEncode",
             "inputs": {
                 "pixels": [upscaler_node_id, 0],
-                "vae": ["4", 2]  # Assumes CheckpointLoaderSimple is node 4
+                "vae": [checkpoint_loader_node or "4", 2]  # Use found node or fallback to "4"
             }
         }
+        
         # Add a new KSampler for hires steps/denoising
         prompt[hires_ksampler_node_id] = {
             "class_type": "KSampler",
             "inputs": {
-                "model": ["4", 0],  # Assumes CheckpointLoaderSimple is node 4
-                "positive": ["6", 0],
-                "negative": ["7", 0],
+                "model": [checkpoint_loader_node or "4", 0],  # Use found checkpoint loader
+                "positive": [positive_conditioning_node or "6", 0],
+                "negative": [negative_conditioning_node or "7", 0],
                 "latent_image": [hires_vae_encode_node_id, 0],
                 "seed": 0,  # Could use a new random seed or reuse
                 "steps": hires_steps,
@@ -879,7 +913,7 @@ def inject_hires_fix_parameters(workflow, hires_fix_data):
             "class_type": "VAEDecode",
             "inputs": {
                 "samples": [hires_ksampler_node_id, 0],
-                "vae": ["4", 2]
+                "vae": [checkpoint_loader_node or "4", 2]
             }
         }
         # Update SaveImage to use the hires VAEDecode output
@@ -979,13 +1013,29 @@ def inject_refiner_parameters(workflow, refiner_data):
                 "vae": [refiner_loader_node_id, 2]
             }
         }
+        # Find conditioning nodes for refiner in a single iteration
+        positive_conditioning_node = None
+        negative_conditioning_node = None
+        for node_id, node_data in prompt.items():
+            if node_data.get('class_type') == 'CLIPTextEncode':
+                inputs = node_data.get('inputs', {})
+                text_content = inputs.get('text', '').lower()
+                if 'positive' in text_content and not positive_conditioning_node:
+                    positive_conditioning_node = node_id
+                elif 'negative' in text_content and not negative_conditioning_node:
+                    negative_conditioning_node = node_id
+                
+                # Break early if both nodes found
+                if positive_conditioning_node and negative_conditioning_node:
+                    break
+        
         # Add KSampler for refiner
         prompt[refiner_ksampler_node_id] = {
             "class_type": "KSampler",
             "inputs": {
                 "model": [refiner_loader_node_id, 0],
-                "positive": ["6", 0],
-                "negative": ["7", 0],
+                "positive": [positive_conditioning_node or "6", 0],
+                "negative": [negative_conditioning_node or "7", 0],
                 "latent_image": [refiner_vae_encode_node_id, 0],
                 "seed": 0,
                 "steps": 10,  # You may want to parameterize this

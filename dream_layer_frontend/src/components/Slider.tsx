@@ -73,16 +73,14 @@ const Slider = ({
   }, [defaultValue]);
 
   // Get tooltip content if tooltipKey is provided
-  const tooltipContent = tooltipKey
-    ? getTooltipContent(tooltipKey as keyof typeof tooltipDefinitions)
-    : null;
+  const tooltipContent = tooltipKey ? getTooltipContent(tooltipKey) : null;
 
   return (
     <div className="mb-4 p-3 rounded-lg border border-border/50 bg-card/30 glass-morphism hover:shadow-sm transition-all duration-300">
       <div className="flex items-center justify-between mb-3">
         {label && (
           <div className="text-sm font-medium flex items-center">
-            <span dangerouslySetInnerHTML={{ __html: label }} />
+            <span>{label}</span>
             {sublabel && <span className="ml-1 text-xs text-muted-foreground">{sublabel}</span>}
             {tooltipContent && <SliderTooltip content={tooltipContent} className="ml-2" />}
           </div>
@@ -145,6 +143,7 @@ const Slider = ({
                   type="button"
                   className="p-0.5 hover:bg-accent rounded transition-colors"
                   onClick={incrementValue}
+                  aria-label={`Increase ${label || 'value'} by ${effectiveStep}`}
                 >
                   <svg className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
@@ -154,6 +153,7 @@ const Slider = ({
                   type="button"
                   className="p-0.5 hover:bg-accent rounded transition-colors"
                   onClick={decrementValue}
+                  aria-label={`Decrease ${label || 'value'} by ${effectiveStep}`}
                 >
                   <svg className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -189,6 +189,7 @@ const Slider = ({
                       onChange(presetValue);
                     }
                   }}
+                  aria-label={`Set ${label || 'value'} to ${presetValue}`}
                   className={`px-2 py-0.5 text-xs rounded transition-all duration-200 ${
                     value === presetValue 
                       ? 'bg-primary text-primary-foreground shadow-sm' 
@@ -213,7 +214,7 @@ const Slider = ({
         <ShadcnSlider
           min={min}
           max={max}
-          step={step || (min < 1 ? 0.1 : 1)}
+          step={effectiveStep}
           value={[value]}
           onValueChange={handleChange}
         />

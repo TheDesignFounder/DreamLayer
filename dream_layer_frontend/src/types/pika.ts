@@ -134,14 +134,30 @@ export const getAspectRatioDisplayName = (ratio: number): string => {
     2.4: "21:9 (Ultrawide)",
   };
   
-  // Find closest match
+  // Define tolerance for floating point comparison
+  const ASPECT_RATIO_TOLERANCE = 0.01;
+  
+  // Check for exact match within tolerance first
+  for (const [ratioStr, displayName] of Object.entries(commonRatios)) {
+    const commonRatio = parseFloat(ratioStr);
+    if (Math.abs(commonRatio - ratio) < ASPECT_RATIO_TOLERANCE) {
+      return displayName;
+    }
+  }
+  
+  // If no exact match, find closest match
   const closest = Object.keys(commonRatios)
     .map(Number)
     .reduce((prev, curr) => 
       Math.abs(curr - ratio) < Math.abs(prev - ratio) ? curr : prev
     );
   
-  return commonRatios[closest] || `${ratio.toFixed(2)}:1`;
+  // Only use closest match if it's within a reasonable range
+  if (Math.abs(closest - ratio) < ASPECT_RATIO_TOLERANCE * 2) {
+    return commonRatios[closest];
+  }
+  
+  return `${ratio.toFixed(2)}:1`;
 };
 
 // Error types for Pika API
