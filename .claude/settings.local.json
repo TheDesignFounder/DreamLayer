@@ -9,7 +9,9 @@
       "Bash(curl:*)",
       "Bash(python3 -m pytest tests-unit/comfy_api_nodes_test/pika_frame_test.py::TestPikaFrameNode::test_input_types_structure -v)",
       "Bash(python3:*)",
-      "Bash(python test:*)"
+      "Bash(python test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

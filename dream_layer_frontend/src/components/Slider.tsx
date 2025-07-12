@@ -171,10 +171,18 @@ const Slider = ({
         {(() => {
           const commonValues = [];
           const range = max - min;
+          const precision = min < 1 ? 1 : 0; // Use 1 decimal place for values < 1, otherwise integers
+          
           if (range > 10) {
-            commonValues.push(min, Math.round(min + range * 0.25), Math.round(min + range * 0.5), Math.round(min + range * 0.75), max);
+            commonValues.push(
+              min, 
+              Number((min + range * 0.25).toFixed(precision)), 
+              Number((min + range * 0.5).toFixed(precision)), 
+              Number((min + range * 0.75).toFixed(precision)), 
+              max
+            );
           } else if (range > 2) {
-            commonValues.push(min, Math.round((min + max) / 2), max);
+            commonValues.push(min, Number(((min + max) / 2).toFixed(precision)), max);
           }
           
           return commonValues.length > 0 && (

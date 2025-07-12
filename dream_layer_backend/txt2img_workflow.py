@@ -339,6 +339,7 @@ def inject_controlnet_parameters(workflow, controlnet_data):
         # If only one unit, use the template-based approach
         if len(enabled_units) == 1:
             unit = enabled_units[0]
+            dynamic_load_image_nodes = []  # Initialize for single unit case
             
             # Update ControlNetLoader node
             for node_id, node_data in prompt.items():
@@ -412,7 +413,7 @@ def inject_controlnet_parameters(workflow, controlnet_data):
             
             # Get next available node ID
             numeric_ids = []
-            for k in prompt.keys():
+            for k in prompt:
                 try:
                     numeric_ids.append(float(k))
                 except ValueError:
@@ -420,9 +421,10 @@ def inject_controlnet_parameters(workflow, controlnet_data):
             max_node_id = max(numeric_ids) if numeric_ids else 0
             next_node_id = int(max_node_id) + 1
             
-            # Build ControlNet chain
+            # Build ControlNet chain and track LoadImage nodes
             current_positive = original_positive
             current_negative = original_negative
+            dynamic_load_image_nodes = []  # Track dynamically created LoadImage nodes
             
             for i, unit in enumerate(enabled_units):
                 print(f"Adding ControlNet unit {i+1}/{len(enabled_units)}: {unit.get('control_type', 'unknown')}")
@@ -457,6 +459,7 @@ def inject_controlnet_parameters(workflow, controlnet_data):
                         "image": "controlnet_input.png"  # Will be updated later with actual image
                     }
                 }
+                dynamic_load_image_nodes.append(load_image_id)  # Track this dynamically created node
                 next_node_id += 1
                 
                 # Add ControlNetApplyAdvanced
@@ -494,15 +497,20 @@ def inject_controlnet_parameters(workflow, controlnet_data):
         # Handle input images for all enabled units
         print(f"🎯 Processing images for {len(enabled_units)} ControlNet units")
         
-        # Collect all LoadImage nodes to update them
-        load_image_nodes = []
-        for node_id, node_data in prompt.items():
-            if node_data.get('class_type') == 'LoadImage':
-                load_image_nodes.append(node_id)
+        # Use the tracked dynamic LoadImage nodes for multiple units, or find LoadImage nodes for single unit
+        if len(enabled_units) > 1:
+            # Multiple units: use tracked dynamic LoadImage nodes
+            load_image_nodes = dynamic_load_image_nodes
+            print(f"🔍 Using {len(load_image_nodes)} dynamic LoadImage nodes: {load_image_nodes}")
+        else:
+            # Single unit: find existing LoadImage nodes in workflow
+            load_image_nodes = []
+            for node_id, node_data in prompt.items():
+                if node_data.get('class_type') == 'LoadImage':
+                    load_image_nodes.append(node_id)
+            print(f"🔍 Found {len(load_image_nodes)} LoadImage nodes: {load_image_nodes}")
         
-        print(f"🔍 Found {len(load_image_nodes)} LoadImage nodes: {load_image_nodes}")
-        
-        # Process each enabled unit's image
+        # Process each enabled unit's image with correct node mapping
         for i, unit in enumerate(enabled_units):
             print(f"🎯 Processing image for unit {i+1}: {unit.get('control_type', 'unknown')}")
             

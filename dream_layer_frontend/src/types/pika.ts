@@ -7,7 +7,7 @@ import { API_ENDPOINTS, API_TIMEOUTS } from '@/constants/api';
 export interface PikaFrameRequest {
   // Required parameters
   prompt_text: string;
-  negative_prompt: string;
+  negative_prompt?: string;
   
   // Optional parameters with defaults
   seed?: number; // default: 0
@@ -60,7 +60,7 @@ export const defaultPikaFrameSettings: PikaFrameSettings = {
   negative_prompt: "",
   seed: 0,
   resolution: "1080p",
-  duration: "5s", // Used for aspect ratio calculation
+  duration: "5s", // Default duration for future video upgrade
   aspect_ratio: 1.7778, // 16:9 aspect ratio
   motion_strength: 0.5, // Exposed for future video upgrade
 };

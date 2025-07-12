@@ -203,4 +203,4 @@ dream_layer_backend/served_images/
 .DS_Store
  
 #VSCode
-.vscode/
+.vscode/.claude/
