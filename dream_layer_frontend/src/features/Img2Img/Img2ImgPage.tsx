@@ -51,6 +51,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({
 
   const {
     inputImage,
+    maskFile,
     setLoading,
     addImages,
     clearImages,
@@ -113,7 +114,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({
 
   const handleGenerateImage = async () => {
     if (isGenerating) {
-      await fetch("http://localhost:5002/api/img2img/interrupt", {
+      await fetch("http://localhost:5004/api/img2img/interrupt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -167,7 +168,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({
       console.log("ControlNet config is enabled?", controlNetConfig?.enabled);
 
       // Send the request data as multipart/form-data
-      const response = await fetch("http://localhost:5002/api/img2img", {
+      const response = await fetch("http://localhost:5004/api/img2img", {
         method: "POST",
         body: formData,
       });

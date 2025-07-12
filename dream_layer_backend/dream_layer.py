@@ -515,35 +515,7 @@ def get_controlnet_models_endpoint():
         }), 500
 
 
-@app.route('/api/img2img', methods=['POST'])
-def img2img():
-    """
-    Accepts multipart/form-data with 'image', 'mask', and 'params'.
-    Logs the received files and params, and returns a dummy success response.
-    """
-    try:
-        image_file = request.files.get('image')
-        mask_file = request.files.get('mask')
-        params_json = request.form.get('params')
-        print("[img2img] Received image:",
-              image_file.filename if image_file else None)
-        print("[img2img] Received mask:",
-              mask_file.filename if mask_file else None)
-        print("[img2img] Received params:", params_json)
-        # TODO: Implement actual img2img/inpaint logic here
-        # For now, return a dummy response in the format expected by the frontend
-        return jsonify({
-            "status": "success",
-            "message": "Received image, mask, and params.",
-            "comfy_response": {
-                "generated_images": [
-                    {"url": "/images/dummy_output.png"}
-                ]
-            }
-        })
-    except Exception as e:
-        print(f"[img2img] Error: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+# Note: img2img endpoint has been moved to img2img_server.py for better integration with ComfyUI
 
 
 if __name__ == "__main__":

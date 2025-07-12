@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Mask Upload Feature** - Added mask upload option in Inpaint toolbar with file validation (PNG ≤ 10 MB), 128px thumbnail preview, and multipart payload support
+- **Backend Integration** - Integrated mask upload with existing ComfyUI workflow system in `img2img_server.py`
+- **Actual Image Generation** - Mask upload now generates real images using ComfyUI instead of placeholder responses
+- **Multipart Form Support** - Added support for multipart form data with file uploads in img2img server
 - Comprehensive documentation system
 - MkDocs integration for GitHub Pages
 - API reference documentation
@@ -18,8 +21,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Moved img2img endpoint** from `dream_layer.py` to `img2img_server.py` for better ComfyUI integration
+- **Updated frontend** to use port 5004 for img2img requests
+- **Enhanced workflow system** to support mask injection for inpainting
 - Improved project structure
 - Enhanced code organization
+
+### Fixed
+
+- **Image Generation** - Fixed placeholder response issue by implementing actual ComfyUI workflow integration
+- **Server Architecture** - Properly separated concerns between different server components
+
+### [Unreleased]
+
+#### Added
+
+- Integrated img2img mask upload with ComfyUI workflow system, supporting both regular img2img and inpainting workflows.
+- Added file validation for mask uploads (PNG, ≤10MB) and 128px thumbnail preview in the UI.
+- Unit tests for mask upload and preview using React Testing Library.
+- Usage documentation and format notes for mask upload (white=keep, black=inpaint).
+
+#### Changed
+
+- Refactored backend to move img2img endpoints to `img2img_server.py` for proper ComfyUI integration.
+- Reduced default steps and batch size for CPU compatibility (as low as 3 steps, 256x256, batch size 1).
+- Increased backend timeout for slow CPU image generation (recommend 15+ minutes for some CPUs).
+- Updated frontend to allow model selection and to use the correct img2img server port.
+
+#### Fixed
+
+- Patched ComfyUI model loader to avoid PyTorch `weights_only` errors by setting `weights_only=False` in `utils.py`.
+- Installed and switched to a safetensors model (`v1-5-pruned-emaonly.safetensors`) for better compatibility and reliability.
+- Documented troubleshooting steps for model loading, including:
+  - PyTorch/ComfyUI safe loading issues
+  - Model file format and placement
+  - Environment variable and dependency setup
+- Added detailed logging for workflow generation and file handling.
+
+#### Troubleshooting & Local Setup Notes
+
+- Faced repeated issues with PyTorch model loading (`weights_only` error) and resolved by patching ComfyUI and switching to a safetensors model.
+- Installed missing dependencies (e.g., `lpips`) for custom nodes.
+- Observed that on CPU-only machines, image generation is extremely slow (even with minimal settings), and may not complete before timeout.
+- Used ComfyUI web UI to monitor workflow queue and confirm that jobs are running, but output images may take several minutes or longer to appear.
+- Documented all steps and provided guidance for other contributors facing similar local setup issues.
+
+#### Known Issues
+
+- Image generation on CPU is extremely slow (even with minimal settings).
+- On some machines, generation may not complete before timeout.
+- Unable to attach working screenshots in PR due to local hardware limitations, but workflow and logs confirm end-to-end integration.
 
 ## [1.0.0] - 2024-12-XX
 
