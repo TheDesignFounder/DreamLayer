@@ -111,6 +111,10 @@ export const generatePikaVideo = async (request: PikaVideoRequest): Promise<Pika
     body: JSON.stringify(apiRequest),
   });
 
+  if (!response.ok) {
+    throw new Error(`Pika API returned ${response.status} ${response.statusText}`);
+  }
+
   const data: PikaVideoResponse = await response.json();
   
   // Verify we got a video URL
@@ -152,20 +156,24 @@ const [videoMode, setVideoMode] = useState(false);
 
 // Update generation function
 const handleGenerate = async () => {
-  if (videoMode) {
-    // Call generatePikaVideo instead of generatePikaFrame
-    const result = await generatePikaVideo({
-      ...settings,
-      video: true,
-    });
-    actions.addVideo(result);
-  } else {
-    // Existing frame generation logic
-    const result = await generatePikaFrame({
-      ...settings,
-      video: false,
-    });
-    actions.addFrame(result);
+  try {
+    if (videoMode) {
+      // Call generatePikaVideo instead of generatePikaFrame
+      const result = await generatePikaVideo({
+        ...settings,
+        video: true,
+      });
+      actions.addVideo(result);
+    } else {
+      // Existing frame generation logic
+      const result = await generatePikaFrame({
+        ...settings,
+        video: false,
+      });
+      actions.addFrame(result);
+    }
+  } catch (err) {
+    toast.error(`Generation failed: ${(err as Error).message}`);
   }
 };
 

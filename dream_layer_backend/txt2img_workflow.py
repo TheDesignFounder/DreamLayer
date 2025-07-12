@@ -2,6 +2,13 @@ import json
 import random
 import os
 import json
+import re
+from pathlib import Path
+from constants import (
+    DIMENSION_LIMITS, BATCH_SIZE_LIMITS, SAMPLING_LIMITS, 
+    SEED_LIMITS, BASE64_DETECTION, DEFAULT_PATHS, 
+    CONTROLNET_TYPE_MAPPING
+)
 from dream_layer_backend_utils.workflow_loader import load_workflow
 from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow
 from dream_layer_backend_utils.update_custom_workflow import override_workflow 
@@ -53,16 +60,16 @@ def transform_to_txt2img_workflow(data):
         negative_prompt = data.get('negative_prompt', '')
         
         # Dimension validation
-        width = max(64, min(2048, int(data.get('width', 512))))
-        height = max(64, min(2048, int(data.get('height', 512))))
+        width = max(DIMENSION_LIMITS['MIN'], min(DIMENSION_LIMITS['MAX'], int(data.get('width', DIMENSION_LIMITS['DEFAULT']))))
+        height = max(DIMENSION_LIMITS['MIN'], min(DIMENSION_LIMITS['MAX'], int(data.get('height', DIMENSION_LIMITS['DEFAULT']))))
         
         # Batch parameters with validation (from smallFeatures)
-        batch_size = max(1, min(8, int(data.get('batch_size', 1))))  # Clamp between 1 and 8
+        batch_size = max(BATCH_SIZE_LIMITS['MIN'], min(BATCH_SIZE_LIMITS['MAX'], int(data.get('batch_size', BATCH_SIZE_LIMITS['DEFAULT']))))
         print(f"\nBatch size: {batch_size}")
         
         # Sampling parameters with validation
-        steps = max(1, min(150, int(data.get('steps', 20))))
-        cfg_scale = max(1.0, min(20.0, float(data.get('cfg_scale', 7.0))))
+        steps = max(SAMPLING_LIMITS['STEPS']['MIN'], min(SAMPLING_LIMITS['STEPS']['MAX'], int(data.get('steps', SAMPLING_LIMITS['STEPS']['DEFAULT']))))
+        cfg_scale = max(SAMPLING_LIMITS['CFG_SCALE']['MIN'], min(SAMPLING_LIMITS['CFG_SCALE']['MAX'], float(data.get('cfg_scale', SAMPLING_LIMITS['CFG_SCALE']['DEFAULT']))))
         
         # Get sampler name and map it to ComfyUI format (from smallFeatures)
         frontend_sampler = data.get('sampler_name', 'euler')
@@ -74,10 +81,10 @@ def transform_to_txt2img_workflow(data):
         # Handle seed - enhanced from smallFeatures for -1 values
         try:
             seed = int(data.get('seed', 0))
-            if seed < 0:
-                seed = random.randint(0, 2**32 - 1)  # Generate random seed between 0 and 2^32-1
+            if seed < SEED_LIMITS['MIN_VALUE']:
+                seed = random.randint(SEED_LIMITS['MIN_VALUE'], SEED_LIMITS['MAX_VALUE'])
         except (ValueError, TypeError):
-            seed = random.randint(0, 2**32 - 1)
+            seed = random.randint(SEED_LIMITS['MIN_VALUE'], SEED_LIMITS['MAX_VALUE'])
         
         # Handle model name validation
         model_name = data.get('model_name', 'juggernautXL_v8Rundiffusion.safetensors')
@@ -346,16 +353,7 @@ def inject_controlnet_parameters(workflow, controlnet_data):
                 if node_data.get('class_type') == 'SetUnionControlNetType':
                     if unit.get('control_type'):
                         # Map frontend control types to Union ControlNet types
-                        control_type_mapping = {
-                            'openpose': 'openpose',
-                            'canny': 'canny/lineart/anime_lineart/mlsd',
-                            'depth': 'depth',
-                            'normal': 'normal',
-                            'segment': 'segment',
-                            'tile': 'tile',
-                            'repaint': 'repaint'
-                        }
-                        union_type = control_type_mapping.get(unit['control_type'], 'openpose')
+                        union_type = CONTROLNET_TYPE_MAPPING.get(unit['control_type'], 'openpose')
                         node_data['inputs']['type'] = union_type
                         print(f"Updated Union ControlNet type: {union_type}")
                     break
@@ -391,13 +389,29 @@ def inject_controlnet_parameters(workflow, controlnet_data):
             for node_id, node_data in prompt.items():
                 if node_data.get('class_type') == 'CLIPTextEncode':
                     inputs = node_data.get('inputs', {})
-                    if 'positive' in inputs.get('text', '').lower() or node_id == '4':
+                    if 'positive' in inputs.get('text', '').lower():
                         original_positive = node_id
-                    elif 'negative' in inputs.get('text', '').lower() or node_id == '5':
+                    elif 'negative' in inputs.get('text', '').lower():
                         original_negative = node_id
             
+            # Fallback: find any CLIPTextEncode nodes if not found by text content
+            if not original_positive or not original_negative:
+                clip_nodes = [node_id for node_id, node_data in prompt.items() 
+                             if node_data.get('class_type') == 'CLIPTextEncode']
+                if len(clip_nodes) >= 2:
+                    if not original_positive:
+                        original_positive = clip_nodes[0]
+                    if not original_negative:
+                        original_negative = clip_nodes[1]
+            
             # Get next available node ID
-            max_node_id = max([float(k) for k in prompt.keys() if k.replace('.', '').isdigit()])
+            numeric_ids = []
+            for k in prompt.keys():
+                try:
+                    numeric_ids.append(float(k))
+                except ValueError:
+                    continue
+            max_node_id = max(numeric_ids) if numeric_ids else 0
             next_node_id = int(max_node_id) + 1
             
             # Build ControlNet chain
@@ -419,16 +433,7 @@ def inject_controlnet_parameters(workflow, controlnet_data):
                 
                 # Add SetUnionControlNetType
                 union_id = str(next_node_id) + '.5'
-                control_type_mapping = {
-                    'openpose': 'openpose',
-                    'canny': 'canny/lineart/anime_lineart/mlsd', 
-                    'depth': 'depth',
-                    'normal': 'normal',
-                    'segment': 'segment',
-                    'tile': 'tile',
-                    'repaint': 'repaint'
-                }
-                union_type = control_type_mapping.get(unit.get('control_type'), 'openpose')
+                union_type = CONTROLNET_TYPE_MAPPING.get(unit.get('control_type'), 'openpose')
                 prompt[union_id] = {
                     "class_type": "SetUnionControlNetType",
                     "inputs": {
@@ -453,8 +458,8 @@ def inject_controlnet_parameters(workflow, controlnet_data):
                 prompt[apply_id] = {
                     "class_type": "ControlNetApplyAdvanced",
                     "inputs": {
-                        "positive": [current_positive, 0] if current_positive else ["4", 0],
-                        "negative": [current_negative, 0] if current_negative else ["5", 0],
+                        "positive": [current_positive, 0] if current_positive else [original_positive, 0],
+                        "negative": [current_negative, 0] if current_negative else [original_negative, 0],
                         "control_net": [union_id, 0],
                         "image": [load_image_id, 0],
                         "strength": unit.get('weight', 0.8),
@@ -504,7 +509,10 @@ def inject_controlnet_parameters(workflow, controlnet_data):
                 
                 if isinstance(input_image, str):
                     # Check if it looks like a filename (not base64)
-                    if not input_image.startswith('data:image') and not input_image.startswith('/9j/') and len(input_image) < 1000:
+                    # More robust check: filenames typically have extensions and don't contain base64 characters
+                    is_base64 = (any(input_image.startswith(prefix) for prefix in BASE64_DETECTION['PREFIXES']) or
+                                (re.match(BASE64_DETECTION['PATTERN'], input_image) and len(input_image) > BASE64_DETECTION['MIN_LENGTH']))
+                    if not is_base64:
                         # It's likely a filename
                         print(f"📁 Unit {i+1} using filename: {input_image}")
                         saved_filename = input_image
@@ -532,8 +540,8 @@ def inject_controlnet_parameters(workflow, controlnet_data):
         if not any(unit.get('input_image') for unit in enabled_units):
             print("📁 No ControlNet images provided, checking for default test image...")
             # Create test image if none exists
-            test_image_path = os.path.join(os.path.dirname(__file__), "..", "..", "ComfyUI", "input", "controlnet_input.png")
-            if not os.path.exists(test_image_path):
+            test_image_path = Path(__file__).parent.parent.parent / DEFAULT_PATHS['COMFYUI_INPUT_DIR'] / DEFAULT_PATHS['CONTROLNET_INPUT']
+            if not test_image_path.exists():
                 print("📁 Creating default test image...")
                 create_test_controlnet_image()
             else:

@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { Slider as ShadcnSlider } from "@/components/ui/slider";
 import { SliderTooltip } from "@/components/SliderTooltip";
-import { getTooltipContent } from "@/utils/tooltipDefinitions";
+import { getTooltipContent, tooltipDefinitions } from "@/utils/tooltipDefinitions";
+import { SLIDER_CONSTANTS, UI_CONSTANTS } from "@/constants/ui";
 
 interface SliderProps {
   min: number;
@@ -14,7 +15,7 @@ interface SliderProps {
   onChange?: (value: number) => void;
   hideInput?: boolean;
   step?: number;
-  tooltipKey?: string; // Key to look up tooltip content
+  tooltipKey?: keyof typeof tooltipDefinitions; // Key to look up tooltip content
 }
 
 const Slider = ({
@@ -23,13 +24,34 @@ const Slider = ({
   defaultValue,
   label,
   sublabel,
-  inputWidth = "w-16",
+  inputWidth = UI_CONSTANTS.INPUT_WIDTH_DEFAULT,
   onChange,
   hideInput = false,
   step,
   tooltipKey,
 }: SliderProps) => {
   const [value, setValue] = useState(defaultValue);
+
+  // Extract step calculation to avoid duplication
+  const effectiveStep = step || (min < 1 ? SLIDER_CONSTANTS.DEFAULT_DECIMAL_STEP : SLIDER_CONSTANTS.DEFAULT_INTEGER_STEP);
+  const decimalPlaces = min < 1 ? SLIDER_CONSTANTS.DECIMAL_PLACES : 0;
+
+  // Helper functions for increment/decrement
+  const incrementValue = () => {
+    const newValue = Math.min(max, Number((value + effectiveStep).toFixed(decimalPlaces)));
+    setValue(newValue);
+    if (onChange) {
+      onChange(newValue);
+    }
+  };
+
+  const decrementValue = () => {
+    const newValue = Math.max(min, Number((value - effectiveStep).toFixed(decimalPlaces)));
+    setValue(newValue);
+    if (onChange) {
+      onChange(newValue);
+    }
+  };
 
   const handleChange = (newValue: number[]) => {
     setValue(newValue[0]);
@@ -51,7 +73,9 @@ const Slider = ({
   }, [defaultValue]);
 
   // Get tooltip content if tooltipKey is provided
-  const tooltipContent = tooltipKey ? getTooltipContent(tooltipKey as any) : null;
+  const tooltipContent = tooltipKey
+    ? getTooltipContent(tooltipKey as keyof typeof tooltipDefinitions)
+    : null;
 
   return (
     <div className="mb-4 p-3 rounded-lg border border-border/50 bg-card/30 glass-morphism hover:shadow-sm transition-all duration-300">
@@ -85,7 +109,7 @@ const Slider = ({
                 className={`rounded-md border border-input bg-background px-2 py-1 text-center text-xs ${inputWidth} glass-morphism transition-all duration-300 hover:shadow-md focus:shadow-lg focus:ring-2 focus:ring-primary/50 focus:border-primary pr-6 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                 min={min}
                 max={max}
-                step={step || (min < 1 ? 0.1 : 1)}
+                step={effectiveStep}
                 value={value}
                 onChange={(e) => {
                   const newValue = Number(e.target.value);
@@ -98,20 +122,10 @@ const Slider = ({
                   // Handle keyboard shortcuts
                   if (e.key === 'ArrowUp') {
                     e.preventDefault();
-                    const stepValue = step || (min < 1 ? 0.1 : 1);
-                    const newValue = Math.min(max, Number((value + stepValue).toFixed(min < 1 ? 1 : 0)));
-                    setValue(newValue);
-                    if (onChange) {
-                      onChange(newValue);
-                    }
+                    incrementValue();
                   } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
-                    const stepValue = step || (min < 1 ? 0.1 : 1);
-                    const newValue = Math.max(min, Number((value - stepValue).toFixed(min < 1 ? 1 : 0)));
-                    setValue(newValue);
-                    if (onChange) {
-                      onChange(newValue);
-                    }
+                    decrementValue();
                   }
                 }}
                 onBlur={(e) => {
@@ -130,14 +144,7 @@ const Slider = ({
                 <button
                   type="button"
                   className="p-0.5 hover:bg-accent rounded transition-colors"
-                  onClick={() => {
-                    const stepValue = step || (min < 1 ? 0.1 : 1);
-                    const newValue = Math.min(max, Number((value + stepValue).toFixed(min < 1 ? 1 : 0)));
-                    setValue(newValue);
-                    if (onChange) {
-                      onChange(newValue);
-                    }
-                  }}
+                  onClick={incrementValue}
                 >
                   <svg className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
@@ -146,14 +153,7 @@ const Slider = ({
                 <button
                   type="button"
                   className="p-0.5 hover:bg-accent rounded transition-colors"
-                  onClick={() => {
-                    const stepValue = step || (min < 1 ? 0.1 : 1);
-                    const newValue = Math.max(min, Number((value - stepValue).toFixed(min < 1 ? 1 : 0)));
-                    setValue(newValue);
-                    if (onChange) {
-                      onChange(newValue);
-                    }
-                  }}
+                  onClick={decrementValue}
                 >
                   <svg className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />

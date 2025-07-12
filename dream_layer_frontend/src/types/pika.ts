@@ -1,6 +1,9 @@
 // Pika 2.2 API types and interfaces for single-frame video generation
 // Based on ComfyUI Pika text-to-video API documentation
 
+import { VALIDATION_LIMITS, PIKA_CONSTANTS, ASPECT_RATIOS } from '@/constants/validation';
+import { API_ENDPOINTS, API_TIMEOUTS } from '@/constants/api';
+
 export interface PikaFrameRequest {
   // Required parameters
   prompt_text: string;
@@ -75,11 +78,10 @@ export interface PikaFrameResult {
 
 // API endpoint configuration
 export const PIKA_API_CONFIG = {
-  // Note: These would be configured based on your backend setup
-  ENDPOINT: '/api/pika/frame',
+  ENDPOINT: API_ENDPOINTS.PIKA_SERVICE.BASE,
   METHOD: 'POST',
   CONTENT_TYPE: 'application/json',
-  TIMEOUT: 30000, // 30 seconds timeout for frame generation
+  TIMEOUT: API_TIMEOUTS.DEFAULT,
 };
 
 // Validation functions
@@ -89,16 +91,32 @@ export const validatePikaFrameRequest = (request: PikaFrameRequest): boolean => 
     return false;
   }
   
+  // Resolution validation
+  if (request.resolution !== undefined) {
+    if (!PIKA_CONSTANTS.VALID_RESOLUTIONS.includes(request.resolution)) {
+      return false;
+    }
+  }
+  
+  // Duration validation
+  if (request.duration !== undefined) {
+    if (!PIKA_CONSTANTS.VALID_DURATIONS.includes(request.duration)) {
+      return false;
+    }
+  }
+  
   // Aspect ratio validation
   if (request.aspect_ratio !== undefined) {
-    if (request.aspect_ratio < 0.4 || request.aspect_ratio > 2.5) {
+    if (request.aspect_ratio < VALIDATION_LIMITS.ASPECT_RATIO.MIN || 
+        request.aspect_ratio > VALIDATION_LIMITS.ASPECT_RATIO.MAX) {
       return false;
     }
   }
   
   // Motion strength validation
   if (request.motion_strength !== undefined) {
-    if (request.motion_strength < 0 || request.motion_strength > 1) {
+    if (request.motion_strength < VALIDATION_LIMITS.MOTION_STRENGTH.MIN || 
+        request.motion_strength > VALIDATION_LIMITS.MOTION_STRENGTH.MAX) {
       return false;
     }
   }

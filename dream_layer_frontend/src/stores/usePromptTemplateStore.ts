@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { nanoid } from 'nanoid';
 import { PromptTemplate, PromptTemplateCategory, defaultCategories, builtInTemplates } from '@/types/promptTemplate';
 
 interface PromptTemplateState {
@@ -51,7 +52,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       addTemplate: (templateData) => {
         const newTemplate: PromptTemplate = {
           ...templateData,
-          id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `template-${nanoid()}`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
           usageCount: 0,
@@ -85,7 +86,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         
         const duplicatedTemplate: PromptTemplate = {
           ...template,
-          id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `template-${nanoid()}`,
           name: newName || `${template.name} (Copy)`,
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -111,7 +112,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       addCategory: (categoryData) => {
         const newCategory: PromptTemplateCategory = {
           ...categoryData,
-          id: `category-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          id: `category-${nanoid()}`
         };
         
         set((state) => ({
@@ -223,13 +224,24 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
       importTemplates: (data) => {
         try {
           const parsed = JSON.parse(data);
+          
+          // Validate structure
+          if (!parsed || typeof parsed !== 'object') {
+            throw new Error('Invalid data structure');
+          }
+          
           const { templates: importedTemplates, categories: importedCategories } = parsed;
           
           if (importedTemplates && Array.isArray(importedTemplates)) {
+            // Validate each template has required fields
+            const validTemplates = importedTemplates.filter(t => 
+              t.name && t.prompt && t.category
+            );
+            
             // Generate new IDs to avoid conflicts
-            const newTemplates = importedTemplates.map(t => ({
+            const newTemplates = validTemplates.map(t => ({
               ...t,
-              id: `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              id: `template-${nanoid()}`,
               isBuiltIn: false,
               createdAt: Date.now(),
               updatedAt: Date.now()
@@ -238,12 +250,15 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
             set((state) => ({
               templates: [...newTemplates, ...state.templates]
             }));
+            
+            // Return success info
+            return { success: true, imported: newTemplates.length };
           }
           
           if (importedCategories && Array.isArray(importedCategories)) {
             const newCategories = importedCategories.map(c => ({
               ...c,
-              id: `category-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+              id: `category-${nanoid()}`
             }));
             
             set((state) => ({
@@ -252,7 +267,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
           }
         } catch (error) {
           console.error('Failed to import templates:', error);
-          throw new Error('Invalid template data format');
+          throw new Error(`Failed to import templates: ${error.message}`);
         }
       },
       
@@ -273,7 +288,8 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         templates: state.templates,
         categories: state.categories,
         selectedCategory: state.selectedCategory,
-        sortBy: state.sortBy
+        sortBy: state.sortBy,
+        searchQuery: state.searchQuery
       })
     }
   )

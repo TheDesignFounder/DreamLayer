@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { UI_CONSTANTS } from '@/constants/ui';
 import { 
   Download, 
   Copy, 
@@ -69,14 +70,20 @@ const ImageDetailsModal: React.FC<ImageDetailsModalProps> = ({
 
   const handleCopyPrompt = () => {
     const text = `Prompt: ${image.prompt}${image.negativePrompt ? `\nNegative: ${image.negativePrompt}` : ''}`;
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        console.log('Prompt copied to clipboard');
+      })
+      .catch((err) => {
+        console.error('Failed to copy prompt:', err);
+      });
   };
 
   const settings = image.settings ? formatSettings(image.settings) : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className={`${UI_CONSTANTS.MODAL_MAX_WIDTH} ${UI_CONSTANTS.MODAL_MAX_HEIGHT} overflow-hidden`}>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Image Details</span>
@@ -121,7 +128,7 @@ const ImageDetailsModal: React.FC<ImageDetailsModalProps> = ({
           </div>
           
           {/* Metadata */}
-          <ScrollArea className="h-[500px]">
+          <ScrollArea className={UI_CONSTANTS.SCROLL_AREA_HEIGHT}>
             <div className="space-y-4">
               {/* Basic Info */}
               <div>
@@ -278,8 +285,11 @@ const ImageHistoryGallery: React.FC<ImageHistoryGalleryProps> = ({
             className="w-full"
           />
         </div>
-        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-          <SelectTrigger className="w-32">
+        <Select
+          value={sortBy}
+          onValueChange={(value) => setSortBy(value as 'newest' | 'oldest' | 'model')}
+        >
+          <SelectTrigger className={UI_CONSTANTS.SELECT_WIDTH_SMALL}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -289,7 +299,7 @@ const ImageHistoryGallery: React.FC<ImageHistoryGalleryProps> = ({
           </SelectContent>
         </Select>
         <Select value={filterModel} onValueChange={setFilterModel}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className={UI_CONSTANTS.SELECT_WIDTH_MEDIUM}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -312,7 +322,7 @@ const ImageHistoryGallery: React.FC<ImageHistoryGalleryProps> = ({
             <AspectRatio ratio={1} className="bg-muted rounded-lg overflow-hidden">
               <img
                 src={image.url}
-                alt={`Generated: ${image.prompt.slice(0, 50)}...`}
+                alt={`Generated: ${image.prompt.slice(0, UI_CONSTANTS.PROMPT_PREVIEW_LENGTH)}...`}
                 className="w-full h-full object-cover transition-transform group-hover:scale-105"
               />
               
@@ -337,7 +347,7 @@ const ImageHistoryGallery: React.FC<ImageHistoryGalleryProps> = ({
               {/* Info overlay */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <p className="text-white text-xs truncate">
-                  {image.prompt.slice(0, 40)}...
+                  {image.prompt.slice(0, UI_CONSTANTS.PROMPT_TRUNCATE_LENGTH)}...
                 </p>
                 <p className="text-white/70 text-xs">
                   {formatDate(image.timestamp).split(',')[0]}
