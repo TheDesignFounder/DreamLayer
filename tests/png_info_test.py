@@ -86,10 +86,25 @@ class TestPNGInfoParsing(unittest.TestCase):
         
         return filepath
 
+    def _assert_metadata_parsed_correctly(self, metadata, context_message=""):
+        """Helper method to assert that metadata was parsed correctly."""
+        self.assertIsNotNone(metadata, f"Metadata should not be None{context_message}")
+        self.assertEqual(metadata.get("prompt"), self.test_metadata["prompt"], 
+                        f"Prompt should be parsed correctly{context_message}")
+        self.assertEqual(metadata.get("negative_prompt"), self.test_metadata["negative_prompt"],
+                        f"Negative prompt should be parsed correctly{context_message}")
+        
+        # Parse generation parameters
+        params = extract_generation_parameters(metadata)
+        self.assertIsNotNone(params, f"Generation parameters should be extracted{context_message}")
+        self.assertEqual(params.get("steps"), self.test_metadata["steps"],
+                        f"Steps should be parsed correctly{context_message}")
+        self.assertEqual(params.get("cfg_scale"), self.test_metadata["cfg_scale"],
+                        f"CFG scale should be parsed correctly{context_message}")
+
+    @unittest.skipIf(parse_png_metadata is None, "PNG metadata parsing module not available")
     def test_png_metadata_parsing_without_alpha(self):
         """Test PNG metadata parsing works correctly without alpha channel."""
-        if parse_png_metadata is None:
-            self.skipTest("PNG metadata parsing module not available")
         
         # Create test PNG without alpha channel
         png_path = self.create_test_png(has_alpha=False, include_metadata=True)
@@ -98,20 +113,11 @@ class TestPNGInfoParsing(unittest.TestCase):
         metadata = parse_png_metadata(png_path)
         
         # Verify metadata was parsed correctly
-        self.assertIsNotNone(metadata)
-        self.assertEqual(metadata.get("prompt"), self.test_metadata["prompt"])
-        self.assertEqual(metadata.get("negative_prompt"), self.test_metadata["negative_prompt"])
-        
-        # Parse generation parameters
-        params = extract_generation_parameters(metadata)
-        self.assertIsNotNone(params)
-        self.assertEqual(params.get("steps"), self.test_metadata["steps"])
-        self.assertEqual(params.get("cfg_scale"), self.test_metadata["cfg_scale"])
+        self._assert_metadata_parsed_correctly(metadata)
 
+    @unittest.skipIf(parse_png_metadata is None, "PNG metadata parsing module not available")
     def test_png_metadata_parsing_with_alpha_channel_fails(self):
         """Test that demonstrates the alpha channel bug - this should FAIL initially."""
-        if parse_png_metadata is None:
-            self.skipTest("PNG metadata parsing module not available")
         
         # Create test PNG with alpha channel
         png_path = self.create_test_png(has_alpha=True, include_metadata=True)
@@ -120,24 +126,11 @@ class TestPNGInfoParsing(unittest.TestCase):
         metadata = parse_png_metadata(png_path)
         
         # These assertions should FAIL initially, demonstrating the bug
-        self.assertIsNotNone(metadata, "Metadata should not be None for PNG with alpha channel")
-        self.assertEqual(metadata.get("prompt"), self.test_metadata["prompt"], 
-                        "Prompt should be parsed correctly even with alpha channel")
-        self.assertEqual(metadata.get("negative_prompt"), self.test_metadata["negative_prompt"],
-                        "Negative prompt should be parsed correctly even with alpha channel")
-        
-        # Parse generation parameters
-        params = extract_generation_parameters(metadata)
-        self.assertIsNotNone(params, "Generation parameters should be extracted even with alpha channel")
-        self.assertEqual(params.get("steps"), self.test_metadata["steps"],
-                        "Steps should be parsed correctly even with alpha channel")
-        self.assertEqual(params.get("cfg_scale"), self.test_metadata["cfg_scale"],
-                        "CFG scale should be parsed correctly even with alpha channel")
+        self._assert_metadata_parsed_correctly(metadata, " for PNG with alpha channel")
 
+    @unittest.skipIf(parse_png_metadata is None, "PNG metadata parsing module not available")
     def test_png_metadata_parsing_no_metadata(self):
         """Test PNG parsing with no metadata returns empty result."""
-        if parse_png_metadata is None:
-            self.skipTest("PNG metadata parsing module not available")
         
         # Create test PNG without metadata
         png_path = self.create_test_png(has_alpha=False, include_metadata=False)
@@ -148,19 +141,17 @@ class TestPNGInfoParsing(unittest.TestCase):
         # Should return empty or None
         self.assertTrue(metadata is None or len(metadata) == 0)
 
+    @unittest.skipIf(parse_png_metadata is None, "PNG metadata parsing module not available")
     def test_png_metadata_parsing_invalid_file(self):
         """Test PNG parsing with invalid file handles errors gracefully."""
-        if parse_png_metadata is None:
-            self.skipTest("PNG metadata parsing module not available")
         
         # Test with non-existent file
         with self.assertRaises((FileNotFoundError, IOError)):
             parse_png_metadata("/nonexistent/file.png")
 
+    @unittest.skipIf(parse_png_metadata is None, "PNG metadata parsing module not available")
     def test_png_metadata_parsing_non_png_file(self):
         """Test PNG parsing with non-PNG file handles errors gracefully."""
-        if parse_png_metadata is None:
-            self.skipTest("PNG metadata parsing module not available")
         
         # Create a text file with PNG extension
         fake_png_path = os.path.join(self.temp_dir, "fake.png")

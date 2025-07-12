@@ -19,6 +19,7 @@ import { Upload, Download, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import ComfyUINode from './ComfyUINode';
 import { WorkflowGraph } from '@/types/workflow';
 import { loadWorkflowFromFile, loadWorkflowFromUrl } from '@/utils/workflowParser';
+import styles from './WorkflowViewer.module.css';
 
 /**
  * Utility to summarize/truncate large or deeply nested JSON values.
@@ -79,52 +80,6 @@ const InputValueDisplay: React.FC<InputValueDisplayProps> = ({ inputKey, value }
   );
 };
 
-// Custom styles for React Flow controls
-const controlsStyle = `
-  .react-flow-controls-enhanced .react-flow__controls-button {
-    background: white !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 6px !important;
-    color: #374151 !important;
-    font-weight: 500 !important;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
-    transition: all 0.2s ease !important;
-    width: 32px !important;
-    height: 32px !important;
-    margin: 2px !important;
-  }
-  
-  .react-flow-controls-enhanced .react-flow__controls-button:hover {
-    background: #f9fafb !important;
-    border-color: #d1d5db !important;
-    transform: translateY(-1px) !important;
-  }
-  
-  .react-flow-controls-enhanced .react-flow__controls-button:active {
-    transform: translateY(0) !important;
-  }
-  
-  .react-flow-controls-enhanced .react-flow__controls-button svg {
-    width: 16px !important;
-    height: 16px !important;
-  }
-  
-  .react-flow-controls-enhanced {
-    box-shadow: none !important;
-  }
-  
-  /* Dark mode styles */
-  .dark .react-flow-controls-enhanced .react-flow__controls-button {
-    background: #374151 !important;
-    border-color: #4b5563 !important;
-    color: #f9fafb !important;
-  }
-  
-  .dark .react-flow-controls-enhanced .react-flow__controls-button:hover {
-    background: #4b5563 !important;
-    border-color: #6b7280 !important;
-  }
-`;
 
 interface WorkflowViewerProps {
   initialWorkflow?: WorkflowGraph;
@@ -186,8 +141,6 @@ const WorkflowViewer: React.FC<WorkflowViewerProps> = ({ initialWorkflow, classN
 
   return (
     <div className={`h-full w-full ${className}`}>
-      {/* Inject custom styles */}
-      <style dangerouslySetInnerHTML={{ __html: controlsStyle }} />
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex-shrink-0 p-4 border-b">
@@ -246,7 +199,7 @@ const WorkflowViewer: React.FC<WorkflowViewerProps> = ({ initialWorkflow, classN
                 showZoom={true}
                 showFitView={true}
                 showInteractive={false}
-                className="react-flow-controls-enhanced"
+                className={styles.controlsEnhanced}
               />
               <MiniMap 
                 nodeColor={(node) => {

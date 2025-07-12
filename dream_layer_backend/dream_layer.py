@@ -602,8 +602,12 @@ def merge_lora_api():
                 "message": "LoRA merge utility not available. Please install required dependencies."
             }), 500
         
+        # Get configured directories
+        _, models_dir = get_directories()
+        if not models_dir:
+            models_dir = os.path.join(parent_dir, 'models')
+        
         # Prepare file paths
-        models_dir = os.path.join(parent_dir, 'models')
         base_path = os.path.join(models_dir, 'checkpoints', base_model)
         lora_path = os.path.join(models_dir, 'loras', lora_model)
         output_path = os.path.join(models_dir, 'checkpoints', output_name)
@@ -622,9 +626,7 @@ def merge_lora_api():
             }), 404
         
         # Perform the merge
-        success = merge_lora_with_base(base_path, lora_path, output_path, alpha=alpha, device="auto")
-        
-        if success:
+        if (success := merge_lora_with_base(base_path, lora_path, output_path, alpha=alpha, device="auto")):
             output_size = os.path.getsize(output_path) / (1024 * 1024)  # Size in MB
             return jsonify({
                 "status": "success",
@@ -680,19 +682,16 @@ def test_lora_merge_api():
             create_dummy_lora(lora_path, size_mb=0.05)
             
             # Test merge
-            success = merge_lora_with_base(base_path, lora_path, output_path, alpha=0.8, device='cpu')
-            
-            # Validate merge results
-            merge_successful = success
-            output_exists = os.path.exists(output_path)
-            output_has_content = output_exists and os.path.getsize(output_path) > 0
-            
-            if not merge_successful:
+            if not (merge_successful := merge_lora_with_base(base_path, lora_path, output_path, alpha=0.8, device='cpu')):
                 return jsonify({
                     "status": "error",
                     "message": "LoRA merge operation failed",
                     "test_passed": False
                 }), 500
+            
+            # Validate merge results
+            output_exists = os.path.exists(output_path)
+            output_has_content = output_exists and os.path.getsize(output_path) > 0
                 
             if not output_exists:
                 return jsonify({
@@ -725,8 +724,10 @@ def test_lora_merge_api():
                 
         finally:
             # Clean up temp files
-            if os.path.exists(temp_dir):
+            try:
                 shutil.rmtree(temp_dir)
+            except (OSError, FileNotFoundError):
+                pass  # Directory already gone or doesn't exist
                 
     except Exception as e:
         return jsonify({

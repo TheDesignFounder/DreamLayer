@@ -15,8 +15,8 @@ current_dir = Path(__file__).parent
 backend_dir = current_dir / "dream_layer_backend"
 sys.path.insert(0, str(backend_dir))
 
-def main():
-    """Main CLI entry point."""
+def _create_argument_parser():
+    """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(description='DreamLayer AI CLI Tool')
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
@@ -36,114 +36,139 @@ def main():
     # Version command
     version_parser = subparsers.add_parser('version', help='Show version information')
     
+    return parser
+
+def _handle_merge_lora_command(args):
+    """Handle the merge-lora command."""
+    try:
+        from lora_merge import merge_lora_with_base
+        
+        print("🔄 Merging LoRA...")
+        print(f"   Base model: {args.base_model}")
+        print(f"   LoRA model: {args.lora_model}")
+        print(f"   Output: {args.output_model}")
+        print(f"   Alpha: {args.alpha}")
+        print(f"   Device: {args.device}")
+        print()
+        
+        success = merge_lora_with_base(
+            args.base_model, 
+            args.lora_model, 
+            args.output_model,
+            alpha=args.alpha,
+            device=args.device
+        )
+        
+        _handle_merge_result(success, args.output_model)
+        
+    except ImportError as e:
+        _handle_import_error(e)
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        sys.exit(1)
+
+def _handle_test_lora_command(args):
+    """Handle the test-lora command."""
+    try:
+        from lora_merge import create_dummy_checkpoint, create_dummy_lora, merge_lora_with_base
+        import tempfile
+        import shutil
+        
+        print("🧪 Running LoRA merge test...")
+        
+        temp_dir = Path(args.temp_dir)
+        temp_dir.mkdir(exist_ok=True)
+        
+        try:
+            success = _run_test_merge(temp_dir)
+            if not success:
+                print("❌ Test failed! Output file not created or empty.")
+                sys.exit(1)
+                
+        finally:
+            _cleanup_test_files(temp_dir)
+            
+    except ImportError as e:
+        _handle_import_error(e)
+    except Exception as e:
+        print(f"❌ Test failed: {e}")
+        sys.exit(1)
+
+def _handle_version_command():
+    """Handle the version command."""
+    print("DreamLayer AI CLI Tool")
+    print("Version: 1.0.0")
+    print("LoRA Auto-Merge Utility")
+
+def _handle_merge_result(success, output_path):
+    """Handle the result of a merge operation."""
+    if success:
+        print("✅ LoRA merge completed successfully!")
+        
+        if os.path.exists(output_path):
+            size_mb = os.path.getsize(output_path) / (1024 * 1024)
+            print(f"   Output file size: {size_mb:.2f} MB")
+    else:
+        print("❌ LoRA merge failed. Check logs for details.")
+        sys.exit(1)
+
+def _handle_import_error(error):
+    """Handle import errors with helpful message."""
+    print(f"❌ Error: Required dependencies not installed: {error}")
+    print("Please install required packages with:")
+    print("pip install -r dream_layer_backend/requirements.txt")
+    sys.exit(1)
+
+def _run_test_merge(temp_dir):
+    """Run the test merge operation and return success status."""
+    from lora_merge import create_dummy_checkpoint, create_dummy_lora, merge_lora_with_base
+    
+    base_path = temp_dir / "test_base.safetensors"
+    lora_path = temp_dir / "test_lora.safetensors"
+    output_path = temp_dir / "test_merged.safetensors"
+    
+    print("📝 Creating dummy test files...")
+    create_dummy_checkpoint(str(base_path), size_mb=0.5)
+    create_dummy_lora(str(lora_path), size_mb=0.05)
+    
+    print("🔄 Testing merge operation...")
+    success = merge_lora_with_base(
+        str(base_path),
+        str(lora_path),
+        str(output_path),
+        alpha=0.8,
+        device='cpu'
+    )
+    
+    # Verify output
+    if (test_passed := success and output_path.exists() and output_path.stat().st_size > 0):
+        size_mb = output_path.stat().st_size / (1024 * 1024)
+        print("✅ Test passed!")
+        print(f"   Output file: {output_path}")
+        print(f"   File size: {size_mb:.2f} MB")
+        print(f"   File exists: {output_path.exists()}")
+        print(f"   Size > 0: {output_path.stat().st_size > 0}")
+    
+    return test_passed
+
+def _cleanup_test_files(temp_dir):
+    """Clean up test files."""
+    import shutil
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+        print("🧹 Cleaned up test files")
+
+def main():
+    """Main CLI entry point."""
+    parser = _create_argument_parser()
     args = parser.parse_args()
     
     if args.command == 'merge-lora':
-        # Import and run LoRA merge
-        try:
-            from lora_merge import merge_lora_with_base
-            
-            print(f"🔄 Merging LoRA...")
-            print(f"   Base model: {args.base_model}")
-            print(f"   LoRA model: {args.lora_model}")
-            print(f"   Output: {args.output_model}")
-            print(f"   Alpha: {args.alpha}")
-            print(f"   Device: {args.device}")
-            print()
-            
-            success = merge_lora_with_base(
-                args.base_model, 
-                args.lora_model, 
-                args.output_model,
-                alpha=args.alpha,
-                device=args.device
-            )
-            
-            if success:
-                print("✅ LoRA merge completed successfully!")
-                
-                # Check output file size
-                if os.path.exists(args.output_model):
-                    size_mb = os.path.getsize(args.output_model) / (1024 * 1024)
-                    print(f"   Output file size: {size_mb:.2f} MB")
-                
-            else:
-                print("❌ LoRA merge failed. Check logs for details.")
-                sys.exit(1)
-                
-        except ImportError as e:
-            print(f"❌ Error: Required dependencies not installed: {e}")
-            print("Please install required packages with:")
-            print("pip install -r dream_layer_backend/requirements.txt")
-            sys.exit(1)
-        except Exception as e:
-            print(f"❌ Error: {e}")
-            sys.exit(1)
-    
+        _handle_merge_lora_command(args)
     elif args.command == 'test-lora':
-        # Import and run test
-        try:
-            from lora_merge import create_dummy_checkpoint, create_dummy_lora, merge_lora_with_base
-            import tempfile
-            import shutil
-            
-            print("🧪 Running LoRA merge test...")
-            
-            # Create temporary directory
-            temp_dir = Path(args.temp_dir)
-            temp_dir.mkdir(exist_ok=True)
-            
-            try:
-                # Create dummy files
-                base_path = temp_dir / "test_base.safetensors"
-                lora_path = temp_dir / "test_lora.safetensors"
-                output_path = temp_dir / "test_merged.safetensors"
-                
-                print("📝 Creating dummy test files...")
-                create_dummy_checkpoint(str(base_path), size_mb=0.5)
-                create_dummy_lora(str(lora_path), size_mb=0.05)
-                
-                print("🔄 Testing merge operation...")
-                success = merge_lora_with_base(
-                    str(base_path),
-                    str(lora_path),
-                    str(output_path),
-                    alpha=0.8,
-                    device='cpu'
-                )
-                
-                # Verify output
-                if success and output_path.exists() and output_path.stat().st_size > 0:
-                    size_mb = output_path.stat().st_size / (1024 * 1024)
-                    print(f"✅ Test passed!")
-                    print(f"   Output file: {output_path}")
-                    print(f"   File size: {size_mb:.2f} MB")
-                    print(f"   File exists: {output_path.exists()}")
-                    print(f"   Size > 0: {output_path.stat().st_size > 0}")
-                else:
-                    print("❌ Test failed! Output file not created or empty.")
-                    sys.exit(1)
-                    
-            finally:
-                # Clean up
-                if temp_dir.exists():
-                    shutil.rmtree(temp_dir)
-                    print("🧹 Cleaned up test files")
-                    
-        except ImportError as e:
-            print(f"❌ Error: Required dependencies not installed: {e}")
-            print("Please install required packages with:")
-            print("pip install -r dream_layer_backend/requirements.txt")
-            sys.exit(1)
-        except Exception as e:
-            print(f"❌ Test failed: {e}")
-            sys.exit(1)
-    
+        _handle_test_lora_command(args)
     elif args.command == 'version':
-        print("DreamLayer AI CLI Tool")
-        print("Version: 1.0.0")
-        print("LoRA Auto-Merge Utility")
-        
+        _handle_version_command()
     else:
         parser.print_help()
 

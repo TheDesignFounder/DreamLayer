@@ -46,6 +46,41 @@ def test_imports():
     
     return True
 
+def _validate_merge_results(success, output_path):
+    """Validate LoRA merge results."""
+    merge_successful = success
+    output_exists = os.path.exists(output_path)
+    output_has_content = output_exists and os.path.getsize(output_path) > 0
+    
+    if not merge_successful:
+        print("❌ LoRA merge test FAILED: Merge operation failed")
+        return False
+        
+    if not output_exists:
+        print("❌ LoRA merge test FAILED: Output file not found")
+        return False
+        
+    if not output_has_content:
+        print("❌ LoRA merge test FAILED: Output file is empty")
+        return False
+    
+    return True
+
+def _validate_cli_script(cli_path):
+    """Validate CLI script existence and permissions."""
+    cli_exists = os.path.exists(cli_path)
+    cli_executable = cli_exists and os.access(cli_path, os.X_OK)
+    
+    if not cli_exists:
+        print(f"❌ CLI script not found: {cli_path}")
+        return False
+        
+    if not cli_executable:
+        print(f"❌ CLI script not executable: {cli_path}")
+        return False
+    
+    return True
+
 def test_lora_functionality():
     """Test the actual LoRA merge functionality."""
     print("\n🧪 Testing LoRA functionality...")
@@ -74,23 +109,25 @@ def test_lora_functionality():
             print("🔄 Testing merge operation...")
             success = merge_lora_with_base(base_path, lora_path, output_path, alpha=0.8, device='cpu')
             
-            if success and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                output_size = os.path.getsize(output_path) / (1024 * 1024)
-                print(f"✅ LoRA merge test PASSED!")
-                print(f"📊 Output file: {output_path}")
-                print(f"📊 Output size: {output_size:.2f} MB")
-                print(f"📊 File exists: {os.path.exists(output_path)}")
-                print(f"📊 Size > 0: {os.path.getsize(output_path) > 0}")
-                return True
-            else:
-                print("❌ LoRA merge test FAILED!")
+            # Validate test results
+            validation_result = _validate_merge_results(success, output_path)
+            if not validation_result:
                 return False
+            
+            # Success case
+            output_size = os.path.getsize(output_path) / (1024 * 1024)
+            print("✅ LoRA merge test PASSED!")
+            print(f"📊 Output file: {output_path}")
+            print(f"📊 Output size: {output_size:.2f} MB")
+            return True
                 
         finally:
             # Clean up
-            if os.path.exists(temp_dir):
+            try:
                 shutil.rmtree(temp_dir)
-                print(f"🧹 Cleaned up temp directory")
+                print("🧹 Cleaned up temp directory")
+            except (OSError, FileNotFoundError):
+                pass  # Directory already gone or doesn't exist
                 
     except Exception as e:
         print(f"❌ LoRA functionality test failed: {e}")
@@ -103,12 +140,9 @@ def test_cli_command():
     try:
         cli_path = os.path.join(current_dir, "dreamlayer")
         
-        if not os.path.exists(cli_path):
-            print(f"❌ CLI script not found: {cli_path}")
-            return False
-        
-        if not os.access(cli_path, os.X_OK):
-            print(f"❌ CLI script not executable: {cli_path}")
+        # Validate CLI script existence
+        validation_result = _validate_cli_script(cli_path)
+        if not validation_result:
             return False
         
         print(f"✅ CLI script exists and is executable: {cli_path}")
@@ -117,20 +151,21 @@ def test_cli_command():
         import subprocess
         try:
             result = subprocess.run([cli_path, "version"], capture_output=True, text=True, timeout=10)
-            if result.returncode == 0:
-                print("✅ CLI version command works")
-                print(f"📋 Output: {result.stdout.strip()}")
-            else:
+            
+            if result.returncode != 0:
                 print(f"❌ CLI version command failed: {result.stderr}")
                 return False
+                
+            print("✅ CLI version command works")
+            print(f"📋 Output: {result.stdout.strip()}")
+            return True
+            
         except subprocess.TimeoutExpired:
             print("❌ CLI version command timed out")
             return False
         except Exception as e:
             print(f"❌ CLI version command error: {e}")
             return False
-        
-        return True
         
     except Exception as e:
         print(f"❌ CLI test failed: {e}")
@@ -149,11 +184,14 @@ def test_file_structure():
     all_exist = True
     for file_path in required_files:
         full_path = os.path.join(current_dir, file_path)
-        if os.path.exists(full_path):
-            print(f"✅ {file_path}")
-        else:
+        file_exists = os.path.exists(full_path)
+        
+        if not file_exists:
             print(f"❌ {file_path} - NOT FOUND")
             all_exist = False
+            continue
+            
+        print(f"✅ {file_path}")
     
     return all_exist
 
@@ -175,23 +213,25 @@ def main():
     for test_name, test_func in tests:
         print(f"\n🔬 Running {test_name} test...")
         try:
-            if test_func():
-                print(f"✅ {test_name} test PASSED")
-                passed += 1
-            else:
+            test_result = test_func()
+            if not test_result:
                 print(f"❌ {test_name} test FAILED")
+                continue
+                
+            print(f"✅ {test_name} test PASSED")
+            passed += 1
         except Exception as e:
             print(f"❌ {test_name} test ERROR: {e}")
     
     print("\n" + "=" * 50)
     print(f"📊 Test Results: {passed}/{total} tests passed")
     
-    if passed == total:
-        print("🎉 ALL TESTS PASSED! LoRA Auto-Merge utility is working correctly.")
-        return True
-    else:
+    if passed != total:
         print("⚠️  Some tests failed. Please check the output above.")
         return False
+        
+    print("🎉 ALL TESTS PASSED! LoRA Auto-Merge utility is working correctly.")
+    return True
 
 if __name__ == "__main__":
     success = main()

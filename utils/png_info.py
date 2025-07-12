@@ -46,7 +46,7 @@ def parse_png_metadata(file_path: str) -> Optional[Dict[str, Any]]:
             return None
             
     except Exception as e:
-        raise IOError(f"Failed to parse PNG metadata: {str(e)}")
+        raise IOError(f"Failed to parse PNG metadata: {str(e)}") from e
 
 def extract_generation_parameters(metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
@@ -87,7 +87,7 @@ def extract_generation_parameters(metadata: Dict[str, Any]) -> Optional[Dict[str
                 else:
                     params[key] = value
         
-        return params if params else None
+        return params or None
         
     except (json.JSONDecodeError, ValueError) as e:
         print(f"Warning: Failed to parse generation parameters: {e}")

@@ -9,6 +9,41 @@ import os
 from utils.png_info import create_sample_png_with_metadata, parse_png_metadata, format_generation_info
 
 
+def _test_png_metadata(png_path, png_type):
+    """Test PNG metadata extraction and display results."""
+    print(f"\n🔍 Testing {png_type} PNG metadata extraction:")
+    if metadata := parse_png_metadata(png_path):
+        info = format_generation_info(metadata)
+        print(f"  ✅ Prompt: {info.get('prompt')}")
+        print(f"  ✅ Negative: {info.get('negative_prompt')}")
+        print(f"  ✅ Parameters: {len(info.get('parameters', {}))} items")
+        return True
+    else:
+        print(f"  ❌ Failed to extract metadata from {png_type} PNG")
+        return False
+
+def _create_demo_files(temp_dir):
+    """Create demo PNG files with and without alpha channels."""
+    rgb_path = os.path.join(temp_dir, "demo_rgb.png")
+    rgba_path = os.path.join(temp_dir, "demo_rgba.png")
+    
+    print("\n📝 Creating demo PNG files...")
+    create_sample_png_with_metadata(rgb_path, has_alpha=False, include_metadata=True)
+    create_sample_png_with_metadata(rgba_path, has_alpha=True, include_metadata=True)
+    
+    print("✅ Created RGB PNG (no alpha channel)")
+    print("✅ Created RGBA PNG (with alpha channel)")
+    
+    return rgb_path, rgba_path
+
+def _show_fix_summary():
+    """Display the fix summary information."""
+    print("\n📋 Fix Summary:")
+    print("  BEFORE: PNG files with alpha channels (RGBA) returned None for metadata")
+    print("  AFTER:  PNG files with alpha channels now correctly return metadata")
+    print("  ROOT CAUSE: The parser incorrectly assumed alpha channels affected text chunk extraction")
+    print("  SOLUTION: Text chunks are independent of image mode - extract them regardless of RGB/RGBA")
+
 def demonstrate_png_fix():
     """Demonstrate the PNG alpha channel fix."""
     
@@ -20,44 +55,14 @@ def demonstrate_png_fix():
     
     try:
         # Create test PNG files
-        rgb_path = os.path.join(temp_dir, "demo_rgb.png")
-        rgba_path = os.path.join(temp_dir, "demo_rgba.png")
+        rgb_path, rgba_path = _create_demo_files(temp_dir)
         
-        print("\n📝 Creating demo PNG files...")
-        create_sample_png_with_metadata(rgb_path, has_alpha=False, include_metadata=True)
-        create_sample_png_with_metadata(rgba_path, has_alpha=True, include_metadata=True)
+        # Test both PNG types
+        _test_png_metadata(rgb_path, "RGB")
+        _test_png_metadata(rgba_path, "RGBA")
         
-        print("✅ Created RGB PNG (no alpha channel)")
-        print("✅ Created RGBA PNG (with alpha channel)")
-        
-        # Test RGB PNG
-        print("\n🔍 Testing RGB PNG metadata extraction:")
-        rgb_metadata = parse_png_metadata(rgb_path)
-        if rgb_metadata:
-            rgb_info = format_generation_info(rgb_metadata)
-            print(f"  ✅ Prompt: {rgb_info.get('prompt')}")
-            print(f"  ✅ Negative: {rgb_info.get('negative_prompt')}")
-            print(f"  ✅ Parameters: {len(rgb_info.get('parameters', {}))} items")
-        else:
-            print("  ❌ Failed to extract metadata from RGB PNG")
-        
-        # Test RGBA PNG  
-        print("\n🔍 Testing RGBA PNG metadata extraction:")
-        rgba_metadata = parse_png_metadata(rgba_path)
-        if rgba_metadata:
-            rgba_info = format_generation_info(rgba_metadata)
-            print(f"  ✅ Prompt: {rgba_info.get('prompt')}")
-            print(f"  ✅ Negative: {rgba_info.get('negative_prompt')}")
-            print(f"  ✅ Parameters: {len(rgba_info.get('parameters', {}))} items")
-        else:
-            print("  ❌ Failed to extract metadata from RGBA PNG")
-        
-        # Show the fix
-        print("\n📋 Fix Summary:")
-        print("  BEFORE: PNG files with alpha channels (RGBA) returned None for metadata")
-        print("  AFTER:  PNG files with alpha channels now correctly return metadata")
-        print("  ROOT CAUSE: The parser incorrectly assumed alpha channels affected text chunk extraction")
-        print("  SOLUTION: Text chunks are independent of image mode - extract them regardless of RGB/RGBA")
+        # Show the fix summary
+        _show_fix_summary()
         
         # Show file details
         print(f"\n📁 Demo files created in: {temp_dir}")
@@ -78,8 +83,7 @@ def demonstrate_png_fix():
 
 
 if __name__ == "__main__":
-    success = demonstrate_png_fix()
-    if success:
+    if success := demonstrate_png_fix():
         print("\n🎉 PNG Info alpha channel fix demonstration completed successfully!")
     else:
         print("\n💥 PNG Info alpha channel fix demonstration failed!")

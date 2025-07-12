@@ -4,6 +4,68 @@ import { WorkflowGraph } from '@/types/workflow';
 import { parseComfyUIWorkflow } from '@/utils/workflowParser';
 import { Button } from '@/components/ui/button';
 
+const FALLBACK_WORKFLOW_DATA = {
+  prompt: {
+    "1": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "demo_model.safetensors"
+      }
+    },
+    "2": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["1", 1],
+        "text": "a beautiful landscape, highly detailed, 8k resolution"
+      }
+    },
+    "3": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["1", 1],
+        "text": "blurry, low quality, deformed, bad anatomy"
+      }
+    },
+    "4": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 512,
+        "height": 512,
+        "batch_size": 1
+      }
+    },
+    "5": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": ["1", 0],
+        "positive": ["2", 0],
+        "negative": ["3", 0],
+        "latent_image": ["4", 0],
+        "seed": 42,
+        "steps": 20,
+        "cfg": 7.0,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0
+      }
+    },
+    "6": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["5", 0],
+        "vae": ["1", 2]
+      }
+    },
+    "7": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "demo_output",
+        "images": ["6", 0]
+      }
+    }
+  }
+};
+
 const Graph: React.FC = () => {
   const [demoWorkflow, setDemoWorkflow] = useState<WorkflowGraph | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,68 +80,7 @@ const Graph: React.FC = () => {
         
         // Create a fallback demo workflow
         const createFallbackWorkflow = () => {
-          const demoData = {
-            prompt: {
-              "1": {
-                "class_type": "CheckpointLoaderSimple",
-                "inputs": {
-                  "ckpt_name": "demo_model.safetensors"
-                }
-              },
-              "2": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                  "clip": ["1", 1],
-                  "text": "a beautiful landscape, highly detailed, 8k resolution"
-                }
-              },
-              "3": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                  "clip": ["1", 1],
-                  "text": "blurry, low quality, deformed, bad anatomy"
-                }
-              },
-              "4": {
-                "class_type": "EmptyLatentImage",
-                "inputs": {
-                  "width": 512,
-                  "height": 512,
-                  "batch_size": 1
-                }
-              },
-              "5": {
-                "class_type": "KSampler",
-                "inputs": {
-                  "model": ["1", 0],
-                  "positive": ["2", 0],
-                  "negative": ["3", 0],
-                  "latent_image": ["4", 0],
-                  "seed": 42,
-                  "steps": 20,
-                  "cfg": 7.0,
-                  "sampler_name": "euler",
-                  "scheduler": "normal",
-                  "denoise": 1.0
-                }
-              },
-              "6": {
-                "class_type": "VAEDecode",
-                "inputs": {
-                  "samples": ["5", 0],
-                  "vae": ["1", 2]
-                }
-              },
-              "7": {
-                "class_type": "SaveImage",
-                "inputs": {
-                  "filename_prefix": "demo_output",
-                  "images": ["6", 0]
-                }
-              }
-            }
-          };
-          return parseComfyUIWorkflow(demoData);
+          return parseComfyUIWorkflow(FALLBACK_WORKFLOW_DATA);
         };
 
         let workflowGraph;
@@ -105,31 +106,7 @@ const Graph: React.FC = () => {
         console.error('Error loading demo workflow:', err);
         // Even if there's an error, create a fallback workflow
         try {
-          const fallbackData = {
-            prompt: {
-              "1": {
-                "class_type": "CheckpointLoaderSimple",
-                "inputs": {
-                  "ckpt_name": "fallback_model.safetensors"
-                }
-              },
-              "2": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                  "clip": ["1", 1],
-                  "text": "simple demo prompt"
-                }
-              },
-              "3": {
-                "class_type": "SaveImage",
-                "inputs": {
-                  "filename_prefix": "fallback",
-                  "images": ["2", 0]
-                }
-              }
-            }
-          };
-          const fallbackWorkflow = parseComfyUIWorkflow(fallbackData);
+          const fallbackWorkflow = parseComfyUIWorkflow(FALLBACK_WORKFLOW_DATA);
           setDemoWorkflow(fallbackWorkflow);
         } catch (fallbackErr) {
           console.error('Even fallback failed:', fallbackErr);
@@ -182,9 +159,6 @@ const Graph: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
                   No workflow loaded. Please upload a workflow file.
                 </p>
-                <WorkflowViewer 
-                  className="h-full"
-                />
               </div>
             </div>
           )}

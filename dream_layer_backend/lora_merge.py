@@ -17,16 +17,14 @@ import os
 import sys
 import argparse
 import logging
-from typing import Optional, Union, Dict, Any
+from typing import Dict
 from pathlib import Path
 
 try:
     import torch
     from diffusers import StableDiffusionPipeline, DiffusionPipeline
-    from diffusers.utils import is_safetensors_available
     from safetensors import safe_open
     from safetensors.torch import save_file
-    import numpy as np
 except ImportError as e:
     print(f"Error: Required dependencies not installed. Please install: {e}")
     print("Run: pip install diffusers torch safetensors transformers")
@@ -112,6 +110,58 @@ class LoRAMerger:
             logger.error(f"Failed to load LoRA weights: {e}")
             raise
     
+    def _group_lora_weights_by_layer(self, lora_weights: Dict[str, torch.Tensor]) -> Dict[str, Dict[str, torch.Tensor]]:
+        """Group LoRA weights by layer name."""
+        lora_pairs = {}
+        for key, weight in lora_weights.items():
+            if '.lora_down.' in key:
+                base_key = key.replace('.lora_down.', '.')
+                layer_name = base_key.split('.weight')[0]
+                if layer_name not in lora_pairs:
+                    lora_pairs[layer_name] = {}
+                lora_pairs[layer_name]['down'] = weight
+            elif '.lora_up.' in key:
+                base_key = key.replace('.lora_up.', '.')
+                layer_name = base_key.split('.weight')[0]
+                if layer_name not in lora_pairs:
+                    lora_pairs[layer_name] = {}
+                lora_pairs[layer_name]['up'] = weight
+        return lora_pairs
+    
+    def _apply_lora_to_layer(self, unet_state_dict: Dict[str, torch.Tensor], layer_name: str, 
+                            lora_pair: Dict[str, torch.Tensor], alpha: float) -> bool:
+        """Apply LoRA adaptation to a specific layer."""
+        # Find corresponding weight in UNet using next() instead of for-loop
+        unet_key = next((key for key in unet_state_dict.keys() 
+                        if layer_name in key and 'weight' in key), None)
+        
+        if not unet_key or unet_key not in unet_state_dict:
+            return False
+            
+        # Calculate LoRA delta: up @ down
+        down_weight = lora_pair['down']
+        up_weight = lora_pair['up']
+        
+        # Compute the low-rank adaptation
+        if len(down_weight.shape) == 4:  # Conv2d
+            down_weight = down_weight.squeeze()
+        if len(up_weight.shape) == 4:  # Conv2d
+            up_weight = up_weight.squeeze()
+        
+        # Compute delta
+        delta = alpha * torch.mm(up_weight, down_weight)
+        
+        # Reshape if needed
+        original_shape = unet_state_dict[unet_key].shape
+        if len(original_shape) == 4 and len(delta.shape) == 2:
+            delta = delta.unsqueeze(-1).unsqueeze(-1)
+        elif len(original_shape) != len(delta.shape):
+            delta = delta.view(original_shape)
+        
+        # Apply the adaptation
+        unet_state_dict[unet_key] = unet_state_dict[unet_key] + delta.to(unet_state_dict[unet_key].device)
+        return True
+
     def merge_lora_with_pipeline(self, pipeline: DiffusionPipeline, lora_weights: Dict[str, torch.Tensor], 
                                 alpha: float = 1.0) -> DiffusionPipeline:
         """Merge LoRA weights with the pipeline.
@@ -131,55 +181,13 @@ class LoRAMerger:
             unet_state_dict = pipeline.unet.state_dict()
             
             # Group LoRA weights by layer
-            lora_pairs = {}
-            for key, weight in lora_weights.items():
-                if '.lora_down.' in key:
-                    base_key = key.replace('.lora_down.', '.')
-                    layer_name = base_key.split('.weight')[0]
-                    if layer_name not in lora_pairs:
-                        lora_pairs[layer_name] = {}
-                    lora_pairs[layer_name]['down'] = weight
-                elif '.lora_up.' in key:
-                    base_key = key.replace('.lora_up.', '.')
-                    layer_name = base_key.split('.weight')[0]
-                    if layer_name not in lora_pairs:
-                        lora_pairs[layer_name] = {}
-                    lora_pairs[layer_name]['up'] = weight
+            lora_pairs = self._group_lora_weights_by_layer(lora_weights)
             
             # Apply LoRA adaptations
             modifications = 0
             for layer_name, lora_pair in lora_pairs.items():
                 if 'down' in lora_pair and 'up' in lora_pair:
-                    # Find corresponding weight in UNet
-                    unet_key = None
-                    for key in unet_state_dict.keys():
-                        if layer_name in key and 'weight' in key:
-                            unet_key = key
-                            break
-                    
-                    if unet_key and unet_key in unet_state_dict:
-                        # Calculate LoRA delta: up @ down
-                        down_weight = lora_pair['down']
-                        up_weight = lora_pair['up']
-                        
-                        # Compute the low-rank adaptation
-                        if len(down_weight.shape) == 4:  # Conv2d
-                            down_weight = down_weight.squeeze()
-                        if len(up_weight.shape) == 4:  # Conv2d
-                            up_weight = up_weight.squeeze()
-                        
-                        # Compute delta
-                        delta = alpha * torch.mm(up_weight, down_weight)
-                        
-                        # Reshape if needed
-                        original_shape = unet_state_dict[unet_key].shape
-                        if len(original_shape) == 4 and len(delta.shape) == 2:
-                            delta = delta.unsqueeze(-1).unsqueeze(-1)
-                        elif len(original_shape) != len(delta.shape):
-                            delta = delta.view(original_shape)
-                        
-                        # Apply the adaptation
-                        unet_state_dict[unet_key] = unet_state_dict[unet_key] + delta.to(unet_state_dict[unet_key].device)
+                    if self._apply_lora_to_layer(unet_state_dict, layer_name, lora_pair, alpha):
                         modifications += 1
             
             # Load the modified state dict
@@ -528,13 +536,15 @@ def main():
             create_dummy_lora(str(lora_path))
             
             # Test merge
-            if (success := merge_lora_with_base(
+            success = merge_lora_with_base(
                 str(base_path),
                 str(lora_path),
                 str(output_path),
                 alpha=0.8,
                 device='cpu'  # Use CPU for testing
-            )) and output_path.exists() and output_path.stat().st_size > 0:
+            )
+            
+            if success and output_path.exists() and output_path.stat().st_size > 0:
                 logger.info(f"✅ Test passed! Output file size: {output_path.stat().st_size} bytes")
                 print(f"✅ Test passed! Created merged model: {output_path}")
                 print(f"   File size: {output_path.stat().st_size / (1024*1024):.2f} MB")

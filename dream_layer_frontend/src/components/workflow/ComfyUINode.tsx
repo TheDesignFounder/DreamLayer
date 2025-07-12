@@ -17,6 +17,17 @@ const ComfyUINode: React.FC<ComfyUINodeProps> = ({ data, selected }) => {
   const { label, class_type, inputs } = data;
   const nodeColor = getNodeColor(class_type);
   
+  // Create a transparent background color that works with various color formats
+  const createTransparentBackground = (color: string) => {
+    if (color.startsWith('#')) {
+      // Hex color - append alpha
+      return color + '20';
+    } else {
+      // Use CSS color-mix for other formats (named colors, rgb, etc.)
+      return `color-mix(in srgb, ${color} 12.5%, transparent)`;
+    }
+  };
+  
   return (
     <Card 
       className={`min-w-[200px] max-w-[300px] shadow-lg transition-all duration-200 ${
@@ -47,7 +58,7 @@ const ComfyUINode: React.FC<ComfyUINodeProps> = ({ data, selected }) => {
           variant="secondary" 
           className="text-xs w-fit"
           style={{
-            backgroundColor: nodeColor + '20',
+            backgroundColor: createTransparentBackground(nodeColor),
             color: nodeColor
           }}
         >
