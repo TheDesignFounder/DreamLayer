@@ -14,8 +14,16 @@ def linear_schedule(start: float, end: float, steps: int) -> List[float]:
     [0.0, 0.25, 0.5, 0.75, 1.0]
     >>> linear_schedule(5, 5, 3)
     [5.0, 5.0, 5.0]
+    >>> linear_schedule(2, 4, 1)
+    [4]
+    >>> linear_schedule(0, 1, 0)
+    Traceback (most recent call last):
+    ...
+    ValueError: steps must be a positive integer
     """
-    if steps <= 1:
+    if steps <= 0:
+        raise ValueError("steps must be a positive integer")
+    if steps == 1:
         return [end]
     delta = (end - start) / (steps - 1)
     return [round(start + i * delta, 6) for i in range(steps)]
@@ -29,8 +37,16 @@ def cosine_schedule(start: float, end: float, steps: int) -> List[float]:
     [0.0, 0.5, 1.0]
     >>> cosine_schedule(2, 4, 2)
     [2.0, 4.0]
+    >>> cosine_schedule(3, 3, 1)
+    [3]
+    >>> cosine_schedule(1, 2, 0)
+    Traceback (most recent call last):
+    ...
+    ValueError: steps must be a positive integer
     """
-    if steps <= 1:
+    if steps <= 0:
+        raise ValueError("steps must be a positive integer")
+    if steps == 1:
         return [end]
     return [
         round(start + (1 - cos(pi * i / (steps - 1))) / 2 * (end - start), 6)
@@ -46,7 +62,13 @@ def constant_schedule(value: float, steps: int) -> List[float]:
     [0.7, 0.7, 0.7, 0.7]
     >>> constant_schedule(1.5, 1)
     [1.5]
+    >>> constant_schedule(2.0, 0)
+    []
+    >>> constant_schedule(2.0, -3)
+    []
     """
+    if steps <= 0:
+        return []
     return [value] * steps
 
 
@@ -57,9 +79,13 @@ def interpolate(schedule: List[float], step: int) -> float:
 
     >>> interpolate([0.0, 0.5, 1.0], 1)
     0.5
-    >>> interpolate([0.0, 0.5, 1.0], 2)
-    1.0
     >>> interpolate([0.0, 0.5, 1.0], 5)
     1.0
+    >>> interpolate([], 0)
+    Traceback (most recent call last):
+    ...
+    ValueError: schedule list is empty
     """
+    if not schedule:
+        raise ValueError("schedule list is empty")
     return schedule[min(step, len(schedule) - 1)]
