@@ -2,10 +2,11 @@ import os
 import shutil
 import time
 import requests
-import json
-from typing import List, Dict, Any, Optional
+import copy
+from typing import List, Dict, Any
 from dream_layer import get_directories
 from dream_layer_backend_utils.update_custom_workflow import find_save_node
+from dream_layer_backend_utils.shared_workflow_parameters import increment_seed_in_workflow
 
 # Global constants
 COMFY_API_URL = "http://127.0.0.1:8188"
@@ -142,8 +143,7 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
         
         for i in range(iterations):
             # Increment seed for variation
-            import copy
-            from txt2img_workflow import increment_seed_in_workflow
+
             current_workflow = increment_seed_in_workflow(copy.deepcopy(workflow), i) if i > 0 else workflow
             
             # Send to ComfyUI

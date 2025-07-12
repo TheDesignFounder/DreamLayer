@@ -16,6 +16,16 @@ interface SubTabContentProps {
   setBatchCount: (count: number) => void;
   batchSize: number;
   setBatchSize: (size: number) => void;
+  promptValue?: string;
+  negativePromptValue?: string;
+  onPromptChange?: (value: string) => void;
+  onNegativePromptChange?: (value: string) => void;
+  width?: number;
+  height?: number;
+  onSizeChange?: (width: number, height: number) => void;
+  seed?: number;
+  random?: boolean;
+  onSeedChange?: (seed: number, random?: boolean) => void;
 }
 
 const SubTabContent: React.FC<SubTabContentProps> = ({ 
@@ -23,7 +33,17 @@ const SubTabContent: React.FC<SubTabContentProps> = ({
   batchCount, 
   setBatchCount, 
   batchSize, 
-  setBatchSize 
+  setBatchSize,
+  promptValue = "",
+  negativePromptValue = "",
+  onPromptChange = () => {},
+  onNegativePromptChange = () => {},
+  width = 512,
+  height = 512,
+  onSizeChange = () => {},
+  seed = 123456789,
+  random = false,
+  onSeedChange = () => {}
 }) => {
   const handleCopyPrompts = () => {
     const promptTextarea = document.querySelector('textarea[placeholder="Enter your prompt here"]') as HTMLTextAreaElement;
@@ -60,25 +80,34 @@ const SubTabContent: React.FC<SubTabContentProps> = ({
             label="a) Prompt"
             maxLength={75}
             placeholder="Enter your prompt here"
+            value={promptValue}
+            onChange={onPromptChange}
           />
           <PromptInput 
             label="b) Negative Prompt"
             negative={true}
             placeholder="Enter negative prompt here"
+            value={negativePromptValue}
+            onChange={onNegativePromptChange}
           />
           
-          <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">2. Sampling Settings</h4>
-          <RenderSettings />
-          
           <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">3. Sizing</h4>
-          <SizingSettings />
+          <SizingSettings 
+            width={width}
+            height={height}
+            onChange={onSizeChange}
+          />
           
           <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
             4. Output Quantity: {batchCount * batchSize}
           </h4>
           <OutputQuantity 
-            onBatchCountChange={setBatchCount}
-            onBatchSizeChange={setBatchSize}
+            batchSize={batchSize}
+            batchCount={batchCount}
+            onChange={(newBatchSize, newBatchCount) => {
+              setBatchSize(newBatchSize);
+              setBatchCount(newBatchCount);
+            }}
           />
           
           <div className="flex items-center justify-between mt-6 mb-2">
@@ -92,7 +121,11 @@ const SubTabContent: React.FC<SubTabContentProps> = ({
               </button>
             </div>
           </div>
-          <GenerationID />
+          <GenerationID 
+            seed={seed}
+            random={random}
+            onChange={onSeedChange}
+          />
         </div>
       );
   }

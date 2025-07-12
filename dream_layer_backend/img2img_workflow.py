@@ -5,6 +5,12 @@ from dream_layer_backend_utils.update_custom_workflow import validate_custom_wor
 from dream_layer_backend_utils.img2img_controlnet_processor import process_controlnet_images, inject_controlnet_into_workflow, validate_controlnet_config
 from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow
 from dream_layer_backend_utils.workflow_loader import load_workflow
+from dream_layer_backend_utils.shared_workflow_parameters import (
+    inject_face_restoration_parameters,
+    inject_tiling_parameters,
+    inject_hires_fix_parameters,
+    inject_refiner_parameters
+)
 import json
 import os
 import random
@@ -12,6 +18,7 @@ import re
 import logging
 from dream_layer import get_directories 
 from extras import COMFY_INPUT_DIR
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,27 +28,17 @@ def transform_to_img2img_workflow(data):
     Transform frontend request data into ComfyUI workflow format for img2img
     """
 
-    # Create workflow_request dictionary with the 4 keys expected by load_workflow
-    workflow_request = {
-        'generation_flow': 'img2img',
-        'model_name': 'local',  # Default to local, will be updated based on actual model
-        'controlnet': 'controlnet' in data,  # True if controlnet exists in data, False otherwise
-        'lora': data.get('lora') is not None  # True if lora exists and is not None, False otherwise
-    }
-    
-    # Determine model type based on model_name
+    # Determine model type and features
     model_name = data.get('model_name', 'v1-6-pruned-emaonly-fp16.safetensors')
-    if 'bfl' in model_name.lower() or 'flux' in model_name.lower():
-        workflow_request['model_name'] = 'bfl'
-    elif 'ideogram' in model_name.lower():  # Added check for ideogram models
-        workflow_request['model_name'] = 'ideogram'
-    else:
-        workflow_request['model_name'] = 'local'
-    
-    print(f"\nWorkflow request dictionary:")
-    print("-"*30)
-    print(json.dumps(workflow_request, indent=2))
-    print("-"*30)
+    use_controlnet = bool(data.get('controlnet'))
+    use_lora = bool(data.get('lora'))
+
+    # Select the correct workflow template path
+    workflow_template_path = get_img2img_workflow_template(model_name, use_controlnet, use_lora)
+
+    # Load the workflow from the template file
+    with open(workflow_template_path, 'r') as f:
+        workflow = json.load(f)
 
     # Log the raw incoming data
     logger.info("Raw data received in transform_to_img2img_workflow:")
@@ -126,83 +123,8 @@ def transform_to_img2img_workflow(data):
     logger.info(json.dumps(core_generation_settings, indent=4))
     
     # Create the ComfyUI workflow
-    workflow = {
-        "prompt": {
-            "3": {
-                "class_type": "KSampler",
-                "inputs": {
-                    "cfg": cfg_scale,
-                    "denoise": denoising_strength,
-                    "latent_image": ["5", 0],
-                    "model": ["4", 0],
-                    "negative": ["7", 0],
-                    "positive": ["6", 0],
-                    "sampler_name": sampler_name,
-                    "scheduler": scheduler,
-                    "seed": seed,
-                    "steps": steps
-                }
-            },
-            "4": {
-                "class_type": "CheckpointLoaderSimple",
-                "inputs": {
-                    "ckpt_name": model_name
-                }
-            },
-            "5": {
-                "class_type": "VAEEncode",
-                "inputs": {
-                    "pixels": ["resize", 0],
-                    "vae": ["4", 2] if not vae_name else ["11", 0]
-                }
-            },
-            "6": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                    "clip": ["4", 1],
-                    "text": prompt
-                }
-            },
-            "7": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {
-                    "clip": ["4", 1],
-                    "text": negative_prompt
-                }
-            },
-            "8": {
-                "class_type": "VAEDecode",
-                "inputs": {
-                    "samples": ["3", 0],
-                    "vae": ["4", 2] if not vae_name else ["11", 0]
-                }
-            },
-            "9": {
-                "class_type": "SaveImage",
-                "inputs": {
-                    "filename_prefix": "ComfyUI",
-                    "images": ["8", 0]
-                }
-            },
-            "10": {
-                "class_type": "LoadImage",
-                "inputs": {
-                    "image": os.path.join(COMFY_INPUT_DIR, input_image)
-                }
-            },
-            "resize": {
-                "class_type": "ImageScale",
-                "inputs": {
-                    "image": ["10", 0],
-                    "width": width,
-                    "height": height,
-                    "upscale": "disabled",
-                    "crop": "center",
-                    "upscale_method": "lanczos"
-                }
-            }
-        }
-    }
+    # The old hardcoded workflow dict is removed, so this block is now empty.
+    # The workflow object is now loaded directly from the template.
 
     # Add VAE loader if custom VAE is specified
     if vae_name:
@@ -213,12 +135,9 @@ def transform_to_img2img_workflow(data):
             }
         }
     
-    loaded_workflow = load_workflow(workflow_request)
-    print("\nLoaded workflow:")
-    print("-"*50)
-    print(json.dumps(loaded_workflow, indent=2))
-    print("-"*50)
-    
+    # The original workflow loading logic using load_workflow is removed.
+    # The workflow object is now directly loaded from the template.
+
     # Check if custom workflow is provided and use it instead of the default workflow
     custom_workflow = data.get('custom_workflow')
     if custom_workflow and validate_custom_workflow(custom_workflow):
@@ -232,7 +151,7 @@ def transform_to_img2img_workflow(data):
             logger.info("Falling back to default workflow")
     else:
         # Update the default workflow with the current parameters
-        workflow = override_workflow(loaded_workflow, core_generation_settings)
+        workflow = override_workflow(workflow, core_generation_settings)
         # Update image paths in the workflow
         workflow = update_image_paths_in_workflow(workflow, os.path.join(COMFY_INPUT_DIR, input_image))
         logger.info("No valid custom workflow provided, using default workflow")
@@ -257,6 +176,47 @@ def transform_to_img2img_workflow(data):
     # Inject API keys from environment variables into the workflow
     workflow = inject_api_keys_into_workflow(workflow)
     
+    # Extract advanced option data (mirroring txt2img)
+    face_restoration_data = {
+        'restore_faces': data.get('restore_faces', False),
+        'face_restoration_model': data.get('face_restoration_model', 'codeformer'),
+        'codeformer_weight': data.get('codeformer_weight', 0.5),
+        'gfpgan_weight': data.get('gfpgan_weight', 0.5)
+    }
+    tiling_data = {
+        'tiling': data.get('tiling', False),
+        'tile_size': data.get('tile_size', 512),
+        'tile_overlap': data.get('tile_overlap', 64)
+    }
+    hires_fix_data = {
+        'hires_fix': data.get('hires_fix', False),
+        'hires_fix_upscale_method': data.get('hires_fix_upscale_method', 'upscale-by'),
+        'hires_fix_upscale_factor': data.get('hires_fix_upscale_factor', 2.5),
+        'hires_fix_hires_steps': data.get('hires_fix_hires_steps', 1),
+        'hires_fix_denoising_strength': data.get('hires_fix_denoising_strength', 0.5),
+        'hires_fix_resize_width': data.get('hires_fix_resize_width', 4000),
+        'hires_fix_resize_height': data.get('hires_fix_resize_height', 4000),
+        'hires_fix_upscaler': data.get('hires_fix_upscaler', '4x-ultrasharp')
+    }
+    refiner_data = {
+        'refiner_enabled': data.get('refiner_enabled', False),
+        'refiner_model': data.get('refiner_model', 'none'),
+        'refiner_switch_at': data.get('refiner_switch_at', 0.8)
+    }
+    # Inject advanced options if enabled
+    if face_restoration_data['restore_faces']:
+        logger.info("Injecting Face Restoration parameters...")
+        workflow = inject_face_restoration_parameters(workflow, face_restoration_data)
+    if tiling_data['tiling']:
+        logger.info("Injecting Tiling parameters...")
+        workflow = inject_tiling_parameters(workflow, tiling_data)
+    if hires_fix_data['hires_fix']:
+        logger.info("Injecting Hires.fix parameters...")
+        workflow = inject_hires_fix_parameters(workflow, hires_fix_data)
+    if refiner_data['refiner_enabled']:
+        logger.info("Injecting Refiner parameters...")
+        workflow = inject_refiner_parameters(workflow, refiner_data)
+    
     return workflow
 
 def extract_filename_from_data_url(data_url):
@@ -269,3 +229,25 @@ def extract_filename_from_data_url(data_url):
     if name_match:
         return name_match.group(1)
     return None
+
+def get_img2img_workflow_template(model_name, use_controlnet=False, use_lora=False):
+    model_name_lower = model_name.lower()
+    
+    # Check for BFL/Flux models first (they have their own workflow)
+    if "bfl" in model_name_lower or "flux" in model_name_lower:
+        return "workflows/img2img/bfl_core_generation_workflow.json"
+    
+    # Check for Ideogram models
+    elif "ideogram" in model_name_lower:
+        return "workflows/img2img/ideogram_core_generation_workflow.json"
+    
+    # For all other models (SD1.5, SDXL, etc.), use the appropriate workflow based on features
+    else:
+        if use_controlnet and use_lora:
+            return "workflows/img2img/local_controlnet_lora.json"
+        elif use_controlnet:
+            return "workflows/img2img/local_controlnet.json"
+        elif use_lora:
+            return "workflows/img2img/local_lora.json"
+        else:
+            return "workflows/img2img/core_generation_workflow.json"

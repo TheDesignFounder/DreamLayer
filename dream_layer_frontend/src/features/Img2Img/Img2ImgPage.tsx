@@ -62,7 +62,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({
     handleSizeSettingsChange,
     handleBatchSettingsChange,
     handleSeedChange,
-    maskFile,
+    updateCoreSettings,
   } = useImg2ImgGalleryStore();
   const selectedLora = useLoraStore((state) => state.loraConfig);
   const { controlNetConfig, setControlNetConfig } = useControlNetStore();
@@ -239,6 +239,41 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({
     }
   };
 
+  // Advanced option handlers
+  const handleRestoreFacesChange = (enabled: boolean) => {
+    updateCoreSettings({ restore_faces: enabled });
+  };
+  const handleFaceRestorationModelChange = (model: string) => {
+    updateCoreSettings({ face_restoration_model: model });
+  };
+  const handleCodeformerWeightChange = (weight: number) => {
+    updateCoreSettings({ codeformer_weight: weight });
+  };
+  const handleGfpganWeightChange = (weight: number) => {
+    updateCoreSettings({ gfpgan_weight: weight });
+  };
+  const handleTilingChange = (enabled: boolean) => {
+    updateCoreSettings({ tiling: enabled });
+  };
+  const handleTileSizeChange = (size: number) => {
+    updateCoreSettings({ tile_size: size });
+  };
+  const handleTileOverlapChange = (overlap: number) => {
+    updateCoreSettings({ tile_overlap: overlap });
+  };
+  const handleHiresFixChange = (enabled: boolean) => {
+    updateCoreSettings({ hires_fix: enabled });
+  };
+  const handleRefinerEnabledChange = (enabled: boolean) => {
+    updateCoreSettings({ refiner_enabled: enabled });
+  };
+  const handleRefinerModelChange = (model: string) => {
+    updateCoreSettings({ refiner_model: model });
+  };
+  const handleRefinerSwitchAtChange = (value: number) => {
+    updateCoreSettings({ refiner_switch_at: value });
+  };
+
   const renderSubTabContent = () => {
     switch (activeSubTab) {
       case "checkpoints":
@@ -285,9 +320,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({
               onChange={(value) => handlePromptChange(value, true)}
             />
 
-            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
-              2. Sampling Settings
-            </h4>
+            {/* <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">2. Sampling Settings</h4> */}
             <RenderSettings
               sampler={coreSettings.sampler_name}
               scheduler={coreSettings.scheduler}
@@ -489,7 +522,32 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 py-3 bg-card">
-                  <AdvancedSettings />
+                  <AdvancedSettings
+                    restoreFaces={coreSettings.restore_faces}
+                    onRestoreFacesChange={handleRestoreFacesChange}
+                    faceRestorationModel={coreSettings.face_restoration_model}
+                    onFaceRestorationModelChange={
+                      handleFaceRestorationModelChange
+                    }
+                    codeformerWeight={coreSettings.codeformer_weight}
+                    onCodeformerWeightChange={handleCodeformerWeightChange}
+                    gfpganWeight={coreSettings.gfpgan_weight}
+                    onGfpganWeightChange={handleGfpganWeightChange}
+                    tiling={coreSettings.tiling}
+                    onTilingChange={handleTilingChange}
+                    tileSize={coreSettings.tile_size}
+                    onTileSizeChange={handleTileSizeChange}
+                    overlap={coreSettings.tile_overlap}
+                    onOverlapChange={handleTileOverlapChange}
+                    hiresFix={coreSettings.hires_fix}
+                    onHiresFixChange={handleHiresFixChange}
+                    refinerEnabled={coreSettings.refiner_enabled}
+                    onRefinerEnabledChange={handleRefinerEnabledChange}
+                    refinerModel={coreSettings.refiner_model}
+                    onRefinerModelChange={handleRefinerModelChange}
+                    refinerSwitchAt={coreSettings.refiner_switch_at}
+                    onRefinerSwitchAtChange={handleRefinerSwitchAtChange}
+                  />
                 </AccordionContent>
               </AccordionItem>
             )}
