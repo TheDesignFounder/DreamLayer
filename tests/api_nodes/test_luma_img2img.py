@@ -1,5 +1,7 @@
 import sys
 import os
+
+# Add project root to Python path so 'nodes' module is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 import pytest
@@ -9,20 +11,29 @@ import numpy as np
 
 from nodes.api_nodes.luma_img2img import LumaImg2Img
 
-
 @pytest.fixture
 def dummy_image():
+    """
+    Returns a 3x64x64 NumPy tensor simulating an RGB image.
+    """
     return np.random.rand(3, 64, 64).astype(np.float32)
 
 def test_missing_api_key(monkeypatch, dummy_image):
+    """
+    Test that the node raises a clear error when LUMA_API_KEY is missing.
+    """
     monkeypatch.delenv("LUMA_API_KEY", raising=False)
     node = LumaImg2Img()
+
     with pytest.raises(Exception) as exc:
         node.run(dummy_image, "cat prompt")
+
     assert "LUMA_API_KEY" in str(exc.value)
 
-
 def test_successful_response(monkeypatch, mocker, dummy_image):
+    """
+    Test that the node returns a valid tensor when the API call is mocked successfully.
+    """
     monkeypatch.setenv("LUMA_API_KEY", "test-key")
 
     dummy_output = BytesIO()
