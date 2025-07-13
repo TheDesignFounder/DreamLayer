@@ -3,21 +3,27 @@ import requests
 from PIL import Image
 from io import BytesIO
 from typing import Optional
-
 import numpy as np
 
 def tensor_to_image(tensor: np.ndarray) -> Image.Image:
-    """Converts a 3xHxW tensor to a PIL image (RGB)."""
+    """
+    Converts a 3xHxW tensor to a PIL image (RGB).
+    """
     tensor = np.clip(tensor * 255, 0, 255).astype(np.uint8)
     return Image.fromarray(np.transpose(tensor, (1, 2, 0)))
 
 def image_to_tensor(image: Image.Image) -> np.ndarray:
-    """Converts a PIL image to a 3xHxW float32 tensor scaled [0, 1]."""
+    """
+    Converts a PIL image to a 3xHxW float32 tensor scaled [0, 1].
+    """
     image = image.convert("RGB")
     arr = np.array(image).astype(np.float32) / 255.0
     return np.transpose(arr, (2, 0, 1))
 
 class ComfyUIWarning(Exception):
+    """
+    Custom warning for missing API keys or environment misconfiguration.
+    """
     pass
 
 class LumaImg2Img:
@@ -26,23 +32,24 @@ class LumaImg2Img:
 
     This node modifies an input image using the Luma API.
 
-    Required env:
-        LUMA_API_KEY (str) — your API key from Luma
+    Required Environment Variable:
+        LUMA_API_KEY (str): Your API key from Luma
 
     Inputs:
-        image (Tensor) — input image tensor
-        prompt (str) — prompt to guide the image generation
+        image (Tensor): Input image tensor
+        prompt (str): Prompt to guide the image generation
 
-    Optional:
-        image_weight (float) — [0.02, 1.0], default=0.5
-        model (str) — default="luma-v3"
-        aspect_ratio (str) — "1:1", "16:9", etc. Default: "1:1"
-        seed (int) — random seed for reproducibility
-        timeout (float) — request timeout in seconds
+    Optional Parameters:
+        image_weight (float): [0.02, 1.0], default = 0.5
+        model (str): Model name, default = "luma-v3"
+        aspect_ratio (str): Default = "1:1"
+        seed (int): Random seed for reproducibility
+        timeout (float): Request timeout in seconds, default = 30.0
 
-    Output:
-        modified_image (Tensor) — the returned image
+    Returns:
+        dict: {"image": Modified image tensor}
     """
+    
     def run(
         self,
         image,
@@ -56,8 +63,7 @@ class LumaImg2Img:
         api_key = os.getenv("LUMA_API_KEY")
         if not api_key:
             raise ComfyUIWarning("Missing $LUMA_API_KEY — set this in your environment or ~/.dreamlayer/keys.toml")
-
-        # Convert image tensor to PNG byte stream
+            
         pil_img = tensor_to_image(image)
         buffer = BytesIO()
         pil_img.save(buffer, format="PNG")
@@ -81,7 +87,7 @@ class LumaImg2Img:
             headers=headers,
             data=payload,
             files=files,
-            timeout=timeout
+            timeout=timeout,
         )
 
         if not response.ok:
