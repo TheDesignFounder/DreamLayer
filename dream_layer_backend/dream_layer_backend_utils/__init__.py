@@ -11,8 +11,6 @@ from .workflow_execution import interrupt_workflow
 from .lora_merger_bridge import (
     merge_lora_weights,
     validate_safetensors_file,
-    create_dummy_checkpoints,
-    test_merge_functionality,
     check_comfyui_availability,
     get_comfyui_version
 )
@@ -27,8 +25,6 @@ __all__ = [
     'interrupt_workflow',
     'merge_lora_weights',
     'validate_safetensors_file',
-    'create_dummy_checkpoints',
-    'test_merge_functionality',
     'check_comfyui_availability',
     'get_comfyui_version'
 ]

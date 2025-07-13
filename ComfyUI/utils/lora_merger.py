@@ -83,8 +83,10 @@ def save_safetensors_file(state_dict: Dict[str, torch.Tensor], output_path: str)
         output_path: Path where to save the file
     """
     try:
-        # Ensure output directory exists
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        # Ensure output directory exists (only if there's a directory path)
+        dir_path = os.path.dirname(output_path)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
 
         # Save using ComfyUI's safe save
         comfy.utils.save_torch_file(state_dict, output_path, metadata={})

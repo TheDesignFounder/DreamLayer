@@ -145,6 +145,26 @@ dreamlayer test
 
 The utility leverages ComfyUI's LoRA infrastructure for robust merging and supports `.safetensors` file formats. It can handle various LoRA formats including diffusers, OneTrainer, SimpleTuner, and more.
 
+### Testing the LoRA Merger
+
+To test the LoRA merger functionality, you can use the included test tensor generator:
+
+```bash
+# Navigate to the backend directory
+cd dream_layer_backend
+
+# Generate test tensor files
+python create_test_tensors.py
+
+# Test the merger with the generated files
+python -m dream_layer_backend.cli merge-lora test_base.safetensors test_lora.safetensors test_merged.safetensors
+
+# Test with custom scaling
+python -m dream_layer_backend.cli merge-lora test_base.safetensors test_lora.safetensors test_merged.safetensors --scale 0.8
+```
+
+The test script creates dummy `.safetensors` files that simulate real model and LoRA structures, allowing you to verify that the merger is working correctly without needing actual model files.
+
 ---
 
 ## ⭐ Why Star This Repo Now?

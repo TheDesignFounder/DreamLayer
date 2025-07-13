@@ -20,7 +20,6 @@ try:
     from .dream_layer_backend_utils.lora_merger_bridge import (
         merge_lora_weights,
         validate_safetensors_file,
-        test_merge_functionality,
         check_comfyui_availability,
         get_comfyui_version
     )
@@ -29,7 +28,6 @@ except ImportError:
     from dream_layer_backend_utils.lora_merger_bridge import (
         merge_lora_weights,
         validate_safetensors_file,
-        test_merge_functionality,
         check_comfyui_availability,
         get_comfyui_version
     )
@@ -118,40 +116,7 @@ def merge_lora_command(args: argparse.Namespace) -> int:
         return 1
 
 
-def test_command(args: argparse.Namespace) -> int:
-    """
-    Handle the test command.
 
-    Args:
-        args: Parsed command line arguments
-
-    Returns:
-        int: Exit code (0 for success, 1 for failure)
-    """
-    try:
-        # Check ComfyUI availability
-        if not check_comfyui_availability():
-            logging.error("❌ Error: ComfyUI is not available. Please ensure ComfyUI is properly installed.")
-            return 1
-
-        comfyui_version = get_comfyui_version()
-        if comfyui_version:
-            logging.info(f"🔧 Using ComfyUI version: {comfyui_version}")
-
-        logging.info("🧪 Testing LoRA merge functionality...")
-
-        success = test_merge_functionality()
-
-        if success:
-            logging.info("✅ All tests passed!")
-            return 0
-        else:
-            logging.error("❌ Tests failed!")
-            return 1
-
-    except Exception as e:
-        logging.error(f"❌ Error during testing: {e}")
-        return 1
 
 
 def main() -> int:
@@ -168,7 +133,6 @@ def main() -> int:
 Examples:
   dreamlayer merge-lora base.safetensors lora.safetensors merged.safetensors
   dreamlayer merge-lora base.safetensors lora.safetensors merged.safetensors --scale 0.8
-  dreamlayer test
 
 Note: This CLI requires ComfyUI to be installed and available in the project.
         """
@@ -215,11 +179,7 @@ Note: This CLI requires ComfyUI to be installed and available in the project.
         help='Alpha parameter for LoRA merging (default: 1.0)'
     )
 
-    # test command
-    test_parser = subparsers.add_parser(
-        'test',
-        help='Test the LoRA merge functionality with dummy checkpoints'
-    )
+
 
     args = parser.parse_args()
 
@@ -229,8 +189,6 @@ Note: This CLI requires ComfyUI to be installed and available in the project.
     # Handle commands
     if args.command == 'merge-lora':
         return merge_lora_command(args)
-    elif args.command == 'test':
-        return test_command(args)
     else:
         parser.print_help()
         return 1
