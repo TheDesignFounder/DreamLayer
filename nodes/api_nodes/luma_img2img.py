@@ -11,17 +11,14 @@ def tensor_to_image(tensor: np.ndarray) -> Image.Image:
     tensor = np.clip(tensor * 255, 0, 255).astype(np.uint8)
     return Image.fromarray(np.transpose(tensor, (1, 2, 0)))
 
-
 def image_to_tensor(image: Image.Image) -> np.ndarray:
     """Converts a PIL image to a 3xHxW float32 tensor scaled [0, 1]."""
     image = image.convert("RGB")
     arr = np.array(image).astype(np.float32) / 255.0
     return np.transpose(arr, (2, 0, 1))
 
-
 class ComfyUIWarning(Exception):
     pass
-
 
 class LumaImg2Img:
     """
