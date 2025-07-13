@@ -7,9 +7,8 @@ This script creates dummy .safetensors files that can be used to test the LoRA m
 
 import os
 import torch
-import tempfile
-from pathlib import Path
 import safetensors.torch
+import logging
 
 def create_dummy_safetensors_file(file_path: str, num_tensors: int = 10, tensor_size: int = 64):
     """
@@ -49,7 +48,7 @@ def create_dummy_safetensors_file(file_path: str, num_tensors: int = 10, tensor_
 
     # Save as safetensors
     safetensors.torch.save_file(state_dict, file_path)
-    print(f"✅ Created test file: {file_path} ({len(state_dict)} tensors)")
+    (f"✅ Created test file: {file_path} ({len(state_dict)} tensors)")
 
 def create_dummy_lora_file(file_path: str, num_tensors: int = 8, tensor_size: int = 64):
     """
@@ -87,11 +86,11 @@ def create_dummy_lora_file(file_path: str, num_tensors: int = 8, tensor_size: in
 
     # Save as safetensors
     safetensors.torch.save_file(state_dict, file_path)
-    print(f"✅ Created LoRA test file: {file_path} ({len(state_dict)} tensors)")
+    logging.info(f"✅ Created LoRA test file: {file_path} ({len(state_dict)} tensors)")
 
 def main():
     """Create test tensor files."""
-    print("🧪 Creating test tensor files for LoRA merger testing...")
+    logging.info("🧪 Creating test tensor files for LoRA merger testing...")
 
     # Create test files in current directory
     base_file = "test_base.safetensors"
@@ -104,23 +103,23 @@ def main():
     # Create LoRA file
     create_dummy_lora_file(lora_file, num_tensors=8, tensor_size=128)
 
-    print(f"\n📁 Test files created:")
-    print(f"   Base model: {base_file}")
-    print(f"   LoRA model: {lora_file}")
-    print(f"   Output file: {output_file}")
+    logging.info("\n📁 Test files created:")
+    logging.info(f"   Base model: {base_file}")
+    logging.info(f"   LoRA model: {lora_file}")
+    logging.info(f"   Output file: {output_file}")
 
-    print(f"\n🧪 You can now test the CLI with:")
-    print(f"   python -m dream_layer_backend.cli merge-lora {base_file} {lora_file} {output_file}")
+    logging.info("\n🧪 You can now test the CLI with:")
+    logging.info(f"   python -m dream_layer_backend.cli merge-lora {base_file} {lora_file} {output_file}")
 
     # Check file sizes
     if os.path.exists(base_file):
         size = os.path.getsize(base_file)
-        print(f"\n📊 File sizes:")
-        print(f"   {base_file}: {size:,} bytes")
+        logging.info("\n📊 File sizes:")
+        logging.info(f"   {base_file}: {size:,} bytes")
 
     if os.path.exists(lora_file):
         size = os.path.getsize(lora_file)
-        print(f"   {lora_file}: {size:,} bytes")
+        logging.info(f"   {lora_file}: {size:,} bytes")
 
 if __name__ == "__main__":
     main()

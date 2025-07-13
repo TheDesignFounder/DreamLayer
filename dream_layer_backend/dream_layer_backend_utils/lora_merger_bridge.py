@@ -8,7 +8,7 @@ It allows DreamLayer to leverage ComfyUI's robust LoRA infrastructure while main
 import os
 import sys
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 
 # Add ComfyUI to path
 current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -32,7 +32,9 @@ def get_comfyui_lora_merger():
         return comfyui_lora_merger
     except ImportError as e:
         logger.error(f"Failed to import ComfyUI lora_merger: {e}")
-        raise ImportError("ComfyUI lora_merger not found. Make sure ComfyUI is properly installed.")
+        raise ImportError(
+            "ComfyUI lora_merger not found. Make sure ComfyUI is properly installed."
+        ) from e
 
 
 def merge_lora_weights(
@@ -116,6 +118,6 @@ def get_comfyui_version() -> Optional[str]:
     """
     try:
         import comfy.comfyui_version
-        return comfy.comfyui_version.version
-    except ImportError:
+        return getattr(comfy.comfyui_version, 'version', None)
+    except (ImportError, AttributeError):
         return None

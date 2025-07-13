@@ -58,7 +58,7 @@ def merge_lora_command(args: argparse.Namespace) -> int:
     try:
         # Check ComfyUI availability
         if not check_comfyui_availability():
-            print("❌ Error: ComfyUI is not available. Please ensure ComfyUI is properly installed.")
+            logging.error("❌ Error: ComfyUI is not available. Please ensure ComfyUI is properly installed.")
             return 1
 
         comfyui_version = get_comfyui_version()
@@ -78,7 +78,7 @@ def merge_lora_command(args: argparse.Namespace) -> int:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        logging.info(f"🔄 Starting LoRA merge...")
+        logging.info("🔄 Starting LoRA merge...")
         logging.info(f"   Base model: {args.base}")
         logging.info(f"   LoRA model: {args.lora}")
         logging.info(f"   Output: {args.output}")
@@ -98,17 +98,17 @@ def merge_lora_command(args: argparse.Namespace) -> int:
             if os.path.exists(args.output):
                 stat = os.stat(args.output)
                 if stat.st_size > 0:
-                    logging.info(f"✅ LoRA merge completed successfully!")
+                    logging.info("✅ LoRA merge completed successfully!")
                     logging.info(f"   Output file size: {stat.st_size:,} bytes")
                     return 0
                 else:
-                    logging.error(f"❌ Error: Output file is empty")
+                    logging.error("❌ Error: Output file is empty")
                     return 1
             else:
-                logging.error(f"❌ Error: Output file was not created")
+                logging.error("❌ Error: Output file was not created")
                 return 1
         else:
-            logging.error(f"❌ Error: LoRA merge failed")
+            logging.error("❌ Error: LoRA merge failed")
             return 1
 
     except Exception as e:

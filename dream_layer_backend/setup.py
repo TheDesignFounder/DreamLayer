@@ -20,7 +20,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dreamlayer-ai/DreamLayer",
-    packages=find_packages(),
+    packages=["dream_layer_backend", "dream_layer_backend.dream_layer_backend_utils"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

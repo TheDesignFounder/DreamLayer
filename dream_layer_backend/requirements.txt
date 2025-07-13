@@ -3,6 +3,6 @@ flask-cors>=4.0.0
 pillow>=10.0.0
 requests>=2.31.0
 python-dotenv>=1.0.0
-diffusers>=0.25.0
-torch>=2.0.0
-transformers>=4.30.0
+diffusers~=0.25.2
+torch==2.2.1
+transformers~=4.41.0

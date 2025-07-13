@@ -10,9 +10,7 @@ import os
 import sys
 import logging
 import torch
-import tempfile
-from pathlib import Path
-from typing import Optional, Tuple, Dict, Any
+from typing import Dict
 
 # Add ComfyUI to path
 current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -123,7 +121,7 @@ def merge_lora_using_comfyui(
         if not validate_safetensors_file(lora_path):
             return False
 
-        logger.info(f"Starting LoRA merge using ComfyUI infrastructure:")
+        logger.info("Starting LoRA merge using ComfyUI infrastructure:")
         logger.info(f"  Base model: {base_path}")
         logger.info(f"  LoRA model: {lora_path}")
         logger.info(f"  Output: {output_path}")

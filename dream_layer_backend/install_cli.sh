@@ -1,7 +1,5 @@
 #!/bin/bash
-"""
-Installation script for DreamLayer CLI
-"""
+# Installation script for DreamLayer CLI
 
 set -e
 
