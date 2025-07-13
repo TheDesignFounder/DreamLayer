@@ -6,8 +6,6 @@ from typing import Optional
 
 import numpy as np
 
-# These are placeholders for how ComfyUI might structure utilities
-# If your project uses a different image tensor helper, update accordingly
 def tensor_to_image(tensor: np.ndarray) -> Image.Image:
     """Converts a 3xHxW tensor to a PIL image (RGB)."""
     tensor = np.clip(tensor * 255, 0, 255).astype(np.uint8)
