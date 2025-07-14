@@ -9,8 +9,9 @@ import logging
 from functools import lru_cache
 
 import sys
-import os
 # Add parent directory to path for utils import
+# This path manipulation is necessary to import utils from the parent directory
+# as the app/ directory structure requires access to utils/ at the project root
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.json_util import merge_json_recursive
 

@@ -36,6 +36,42 @@ class TestRecraftTextToImageDirectNode:
         
         # Create a mock image tensor
         self.mock_image_tensor = torch.rand(1, 512, 512, 3)
+    
+    def _setup_operation_mock(self, mock_operation, response=None):
+        """Helper method to setup SynchronousOperation mock"""
+        if response is None:
+            response = self.mock_response
+        
+        mock_op_instance = MagicMock()
+        mock_op_instance.execute.return_value = response
+        mock_operation.return_value = mock_op_instance
+        return mock_op_instance
+    
+    def _verify_api_call_args(self, mock_operation, expected_prompt, expected_size, expected_n, expected_seed=None):
+        """Helper method to verify API call arguments"""
+        mock_operation.assert_called_once()
+        call_args = mock_operation.call_args
+        
+        # Verify endpoint configuration
+        endpoint = call_args[1]['endpoint']
+        assert endpoint.path == "/v1/images/generations"
+        assert str(endpoint.method) == "HttpMethod.POST"
+        
+        # Verify request data
+        request_data = call_args[1]['request'] 
+        assert request_data['prompt'] == expected_prompt
+        assert request_data['size'] == expected_size
+        assert request_data['n'] == expected_n
+        assert request_data['model'] == "recraftv3"
+        
+        if expected_seed is not None:
+            assert request_data['random_seed'] == expected_seed
+        
+        # Verify API base and auth
+        assert call_args[1]['api_base'] == "https://external.api.recraft.ai"
+        assert call_args[1]['auth_token'] == 'test_key'
+        
+        return call_args
 
     def test_node_structure(self):
         """Test that node has required attributes for ComfyUI integration"""
@@ -53,7 +89,7 @@ class TestRecraftTextToImageDirectNode:
         """Test that missing API key surfaces helpful message without crashing"""
         # Ensure no API key is set
         with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(Exception) as exc_info:
+            with pytest.raises(ValueError) as exc_info:
                 self.node.api_call(
                     prompt="test prompt",
                     size="1024x1024", 
@@ -62,8 +98,8 @@ class TestRecraftTextToImageDirectNode:
                 )
             
             error_message = str(exc_info.value)
-            assert "RECRAFT_API_KEY is required but not found" in error_message
-            assert "Please set the RECRAFT_API_KEY environment variable" in error_message
+            assert "Recraft API key is required but not found" in error_message
+            assert "Please provide the API key via either" in error_message
 
     @patch('comfy_api_nodes.nodes_recraft.SynchronousOperation')
     @patch('comfy_api_nodes.nodes_recraft.download_url_to_bytesio')
@@ -71,9 +107,7 @@ class TestRecraftTextToImageDirectNode:
     def test_successful_api_call_with_mocking(self, mock_tensor_convert, mock_download, mock_operation):
         """Test successful API call with HTTP mocking as required by challenge"""
         # Setup mocks
-        mock_op_instance = MagicMock()
-        mock_op_instance.execute.return_value = self.mock_response
-        mock_operation.return_value = mock_op_instance
+        self._setup_operation_mock(mock_operation)
         
         mock_download.return_value = BytesIO(b"fake image data")
         mock_tensor_convert.return_value = self.mock_image_tensor
@@ -91,32 +125,13 @@ class TestRecraftTextToImageDirectNode:
         assert len(result) == 1
         assert torch.is_tensor(result[0])
         
-        # Verify API call was made correctly
-        mock_operation.assert_called_once()
-        call_args = mock_operation.call_args
-        
-        # Verify endpoint configuration
-        endpoint = call_args[1]['endpoint']
-        assert endpoint.path == "/v1/images/generations"
-        assert str(endpoint.method) == "HttpMethod.POST"
-        
-        # Verify request data
-        request_data = call_args[1]['request'] 
-        assert request_data['prompt'] == "test prompt"
-        assert request_data['size'] == "1024x1024"
-        assert request_data['n'] == 1
-        assert request_data['model'] == "recraftv3"
-        assert request_data['random_seed'] == 42
-        
-        # Verify API base and auth
-        assert call_args[1]['api_base'] == "https://external.api.recraft.ai"
-        assert call_args[1]['auth_token'] == 'test_key'
+        # Verify API call was made correctly using helper method
+        self._verify_api_call_args(mock_operation, "test prompt", "1024x1024", 1, 42)
 
     @patch('comfy_api_nodes.nodes_recraft.SynchronousOperation')
     def test_timeout_configuration(self, mock_operation):
         """Test that timeout can be configured as required by challenge"""
-        mock_op_instance = MagicMock()
-        mock_operation.return_value = mock_op_instance
+        self._setup_operation_mock(mock_operation)
         
         with patch.dict(os.environ, {'RECRAFT_API_KEY': 'test_key'}):
             try:
@@ -126,7 +141,7 @@ class TestRecraftTextToImageDirectNode:
                     n=1,
                     seed=0
                 )
-            except:
+            except Exception:
                 pass  # We only care about the timeout parameter
         
         # Verify timeout is configurable (default 30.0 seconds)
@@ -153,9 +168,7 @@ class TestRecraftTextToImageDirectNode:
             ]
         }
         
-        mock_op_instance = MagicMock()
-        mock_op_instance.execute.return_value = multi_response
-        mock_operation.return_value = mock_op_instance
+        self._setup_operation_mock(mock_operation, multi_response)
         
         with patch.dict(os.environ, {'RECRAFT_API_KEY': 'test_key'}):
             with patch('comfy_api_nodes.nodes_recraft.download_url_to_bytesio'):
@@ -172,9 +185,8 @@ class TestRecraftTextToImageDirectNode:
         # Should handle multiple images
         assert len(result) == 1  # Returns single batched tensor
         
-        # Verify request asked for 2 images
-        call_args = mock_operation.call_args
-        assert call_args[1]['request']['n'] == 2
+        # Verify request asked for 2 images using helper method
+        self._verify_api_call_args(mock_operation, "test prompt", "1024x1024", 2)
 
     def test_docstring_completeness(self):
         """Test that inline docstring documents all requirements"""
@@ -193,3 +205,4 @@ class TestRecraftTextToImageDirectNode:
         assert "size:" in docstring
         assert "n:" in docstring
         assert "seed:" in docstring 
+ 
