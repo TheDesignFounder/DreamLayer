@@ -1,3 +1,4 @@
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fetchRandomPrompt } from "@/services/modelService";
@@ -23,16 +24,15 @@ const PromptInput: React.FC<PromptInputProps> = ({
 }) => {
   const handleAddRandom = async () => {
     try {
-      const promptType = negative ? 'negative' : 'positive';
-      console.log(`🎲 Frontend: Add Random clicked for ${promptType} prompt`);
-      
+      const promptType = negative ? "negative" : "positive";
+      console.log(`🎲 Add Random clicked for ${promptType} prompt`);
+
       const randomPrompt = await fetchRandomPrompt(promptType);
-      console.log(`📝 Frontend: Got prompt: ${randomPrompt}`);
-      
-      // Replace existing value with random prompt
+      console.log(`📝 Got random prompt: ${randomPrompt}`);
+
       onChange(randomPrompt);
     } catch (error) {
-      console.error('❌ Frontend: Failed to fetch random prompt:', error);
+      console.error("❌ Failed to fetch random prompt:", error);
     }
   };
 
@@ -41,18 +41,21 @@ const PromptInput: React.FC<PromptInputProps> = ({
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-foreground">{label}</label>
         {showAddRandom && (
-          <button 
+          <Button
             onClick={handleAddRandom}
-            className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground"
+            variant="outline"
+            size="sm"
+            className="text-xs px-2 py-1 h-auto"
           >
             Add Random
-          </button>
+          </Button>
         )}
       </div>
       <textarea
-        className={`w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-          negative ? 'text-red-500' : ''
-        }`}
+        className={cn(
+          "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          negative && "text-red-500"
+        )}
         rows={3}
         maxLength={maxLength}
         placeholder={placeholder}

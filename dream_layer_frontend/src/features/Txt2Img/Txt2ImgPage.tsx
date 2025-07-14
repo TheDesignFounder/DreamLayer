@@ -22,10 +22,15 @@ import { ControlNetRequest } from '@/types/controlnet';
 import useLoraStore from '@/stores/useLoraStore';
 import { LoraRequest } from '@/types/lora';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 interface Txt2ImgPageProps {
   selectedModel: string;
   onTabChange: (tabId: string) => void;
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CustomWorkflowType = any;
 
 const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange }) => {
   const [activeSubTab, setActiveSubTab] = useState("generation");
@@ -33,7 +38,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     ...defaultTxt2ImgSettings,
     model_name: selectedModel
   });
-  const [customWorkflow, setCustomWorkflow] = useState<any | null>(null);
+  const [customWorkflow, setCustomWorkflow] = useState<CustomWorkflowType | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const isMobile = useIsMobile();
   const addImages = useTxt2ImgGalleryStore(state => state.addImages);
@@ -42,7 +47,6 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const { setControlNetConfig } = useControlNetStore();
   const loraConfig = useLoraStore(state => state.loraConfig);
 
-  // Add effect to update model when selectedModel prop changes
   useEffect(() => {
     updateCoreSettings({ model_name: selectedModel });
   }, [selectedModel]);
@@ -55,95 +59,9 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     updateCoreSettings(isNegative ? { negative_prompt: value } : { prompt: value });
   };
 
-  const handleBatchSettingsChange = (batchSize: number, batchCount: number) => {
-    updateCoreSettings({ batch_size: batchSize, batch_count: batchCount });
-  };
-
-  const handleSamplingSettingsChange = (sampler: string, scheduler: string, steps: number, cfg: number) => {
-    updateCoreSettings({
-      sampler_name: sampler,
-      scheduler: scheduler,
-      steps: steps,
-      cfg_scale: cfg
-    });
-  };
-
-  const handleSizeSettingsChange = (width: number, height: number) => {
-    updateCoreSettings({ width, height });
-  };
-
-  const handleSeedChange = (seed: number, random: boolean = true) => {
-    updateCoreSettings({ seed, random_seed: random });
-  };
-
-  const handleSubTabChange = (tabId: string) => {
-    setActiveSubTab(tabId);
-  };
-
-  const handleControlNetChange = (config: ControlNetRequest | null) => {
-    console.log('ControlNet config changed in txt2img:', config);
-    // If config is null, it means ControlNet was disabled
-    setControlNetConfig(config?.enabled ? config : null);
-  };
-
-  const handleRestoreFacesChange = (enabled: boolean) => {
-    updateCoreSettings({ restore_faces: enabled });
-  };
-
-  const handleFaceRestorationModelChange = (model: string) => {
-    updateCoreSettings({ face_restoration_model: model });
-  };
-
-  const handleCodeformerWeightChange = (weight: number) => {
-    updateCoreSettings({ codeformer_weight: weight });
-  };
-
-  const handleGfpganWeightChange = (weight: number) => {
-    updateCoreSettings({ gfpgan_weight: weight });
-  };
-
-  const handleTilingChange = (enabled: boolean) => {
-    updateCoreSettings({ tiling: enabled });
-  };
-
-  const handleTileSizeChange = (size: number) => {
-    updateCoreSettings({ tile_size: size });
-  };
-
-  const handleTileOverlapChange = (overlap: number) => {
-    updateCoreSettings({ tile_overlap: overlap });
-  };
-
-  const handleHiresFixChange = (enabled: boolean) => {
-    updateCoreSettings({ hires_fix: enabled });
-  };
-
-  const handleRefinerEnabledChange = (enabled: boolean) => {
-    updateCoreSettings({ refiner_enabled: enabled });
-  };
-
-  const handleRefinerModelChange = (model: string) => {
-    updateCoreSettings({ refiner_model: model });
-  };
-
-  const handleRefinerSwitchAtChange = (value: number) => {
-    updateCoreSettings({ refiner_switch_at: value });
-  };
-
-  const handleCopyPrompts = () => {
-    const promptTextarea = document.querySelector('textarea[placeholder="Enter your prompt here"]') as HTMLTextAreaElement;
-    const negativePromptTextarea = document.querySelector('textarea[placeholder="Enter negative prompt here"]') as HTMLTextAreaElement;
-    
-    if (promptTextarea && negativePromptTextarea) {
-      const combinedText = `Prompt: ${promptTextarea.value}\nNegative Prompt: ${negativePromptTextarea.value}`;
-      navigator.clipboard.writeText(combinedText);
-    }
-  };
-
   const handleGenerateImage = async () => {
-    // Handle interrupt if already generating
     if (isGenerating) {
-      await fetch('http://localhost:5001/api/txt2img/interrupt', {
+      await fetch(`${API_URL}/api/txt2img/interrupt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -153,97 +71,46 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
       return;
     }
 
-    // === GUARD: Ensure ControlNet image is set ===
-    // if (controlNetConfig?.enabled) {
-    //   const missingImage = controlNetConfig.units.some(unit => unit.enabled && !unit.input_image);
-    //   if (missingImage) {
-    //     alert("Please upload a ControlNet image for all enabled units before generating.");
-    //     setIsGenerating(false);
-    //     setLoading(false);
-    //     return;
-    //   }
-    // }
-    // === END GUARD ===
-
     try {
       setIsGenerating(true);
       setLoading(true);
-      
-      console.log("ControlNetConfig at generate time:", JSON.stringify(controlNetConfig, null, 2));
-      
-      // Prepare the request data
+
       const requestData = {
         ...coreSettings,
-        custom_workflow: customWorkflow, // Add the custom workflow to the request
-        // Only include controlnet if it's properly configured
+        custom_workflow: customWorkflow,
         ...(controlNetConfig && { controlnet: controlNetConfig }),
-        // Only include lora if it's enabled and configured
         ...(loraConfig?.enabled && { lora: loraConfig })
       };
-      
-      if (controlNetConfig?.units) {
-        console.log('📦 ControlNet Units Details:');
-        controlNetConfig.units.forEach((unit, index) => {
-          if (unit.input_image) {
-            console.log(`    Input image preview: ${unit.input_image.substring(0, 100)}...`);
-          }
-        });
-      }
-      console.log('ControlNet config being sent:', JSON.stringify(controlNetConfig, null, 2));
-      const response = await fetch('http://localhost:5001/api/txt2img', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      const response = await fetch(`${API_URL}/api/txt2img`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
         throw new Error(`Failed to generate image: ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('Response data:', data);
 
       if (data.comfy_response?.generated_images) {
-        const images = data.comfy_response.generated_images.map((img: any) => {
-          // Use the URL directly from the response
-          const imageUrl = img.url;
-          
-          // Create a test image to verify the URL works
-          const testImage = new Image();
-          testImage.src = imageUrl;
-          
-          // Log the URL and loading status
-          console.log('Testing image URL:', imageUrl);
-          testImage.onload = () => console.log('Image loaded successfully:', imageUrl);
-          testImage.onerror = (e) => console.error('Image failed to load:', imageUrl, e);
-          
-          return {
-            id: `${Date.now()}-${Math.random()}`,
-            url: imageUrl,
-            prompt: coreSettings.prompt,
-            negativePrompt: coreSettings.negative_prompt,
-            timestamp: Date.now(),
-            settings: {
-              ...coreSettings
-            }
-          };
-        });
-        
-        console.log('Adding images to gallery:', images);
+        const images = data.comfy_response.generated_images.map((img: { url: string }) => ({
+          id: `${Date.now()}-${Math.random()}`,
+          url: img.url,
+          prompt: coreSettings.prompt,
+          negativePrompt: coreSettings.negative_prompt,
+          timestamp: Date.now(),
+          settings: { ...coreSettings }
+        }));
+
         addImages(images);
       } else {
-        console.error('No generated_images in response:', data);
         throw new Error('No images were generated');
       }
     } catch (error) {
-      console.error('Error details:', error);
+      console.error('Error generating image:', error);
     } finally {
       setLoading(false);
       setIsGenerating(false);
@@ -268,11 +135,8 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
         onClick={handleGenerateImage}
         disabled={false}
       >
-        {isGenerating ? 'Interrupt' : 'Generate Image'}
+        {isGenerating ? 'Generating...' : 'Generate Image'}
       </Button>
-      {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-        Save Settings
-      </button>}
     </div>
   );
 
@@ -294,7 +158,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
         {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => handleSubTabChange(tab.id)}
+            onClick={() => setActiveSubTab(tab.id)}
             className={cn(
               "px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-200 border focus:outline-none focus:ring-2 focus:ring-offset-2",
               tab.active
@@ -309,22 +173,33 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     );
   };
 
+  const handleCopyPrompts = () => {
+    const promptTextarea = document.querySelector('textarea[placeholder="Enter your prompt here"]') as HTMLTextAreaElement;
+    const negativePromptTextarea = document.querySelector('textarea[placeholder="Enter negative prompt here"]') as HTMLTextAreaElement;
+
+    if (promptTextarea && negativePromptTextarea) {
+      const combinedText = `Prompt: ${promptTextarea.value}\nNegative Prompt: ${negativePromptTextarea.value}`;
+      navigator.clipboard.writeText(combinedText);
+    }
+  };
+
   const renderActiveSubTabContent = () => {
     switch (activeSubTab) {
       case "checkpoints":
-        return <CustomWorkflowBrowser 
-          onWorkflowChange={setCustomWorkflow}
-          currentWorkflow={customWorkflow}
-        />;
+        return (
+          <CustomWorkflowBrowser
+            onWorkflowChange={setCustomWorkflow}
+            currentWorkflow={customWorkflow}
+          />
+        );
       case "lora":
         return <LoraBrowser />;
       default:
-        // "generation" tab (default)
         return (
           <>
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-bold text-[#2563EB]">1. Prompt Input</h4>
-              <Button 
+              <Button
                 onClick={handleCopyPrompts}
                 variant="outline"
                 size="sm"
@@ -334,14 +209,14 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
                 Copy Prompts
               </Button>
             </div>
-            <PromptInput 
+            <PromptInput
               label="a) Prompt"
               maxLength={500}
               placeholder="Enter your prompt here"
               value={coreSettings.prompt}
               onChange={(value) => handlePromptChange(value)}
             />
-            <PromptInput 
+            <PromptInput
               label="b) Negative Prompt"
               negative={true}
               maxLength={500}
@@ -349,53 +224,56 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
               value={coreSettings.negative_prompt}
               onChange={(value) => handlePromptChange(value, true)}
             />
-            
-            <RenderSettings 
+            <RenderSettings
               showResizeMode={false}
               sampler={coreSettings.sampler_name}
               scheduler={coreSettings.scheduler}
               steps={coreSettings.steps}
               cfg={coreSettings.cfg_scale}
-              onChange={handleSamplingSettingsChange}
+              onChange={(sampler, scheduler, steps, cfg) => {
+                updateCoreSettings({
+                  sampler_name: sampler,
+                  scheduler,
+                  steps,
+                  cfg_scale: cfg
+                });
+              }}
             />
-            
             <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">3. Sizing</h4>
-            <SizingSettings 
+            <SizingSettings
               width={coreSettings.width}
               height={coreSettings.height}
-              onChange={handleSizeSettingsChange}
+              onChange={(w, h) => updateCoreSettings({ width: w, height: h })}
             />
-            
             <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
               4. Output Quantity: {coreSettings.batch_count * coreSettings.batch_size}
             </h4>
-            <OutputQuantity 
+            <OutputQuantity
               batchCount={coreSettings.batch_count}
               batchSize={coreSettings.batch_size}
-              onChange={handleBatchSettingsChange}
+              onChange={(count, size) => updateCoreSettings({ batch_count: count, batch_size: size })}
             />
-            
             <div className="flex items-center justify-between mt-6 mb-2">
               <h4 className="text-sm font-bold text-[#2563EB]">5. Seed</h4>
               <div className="flex space-x-2">
-                <button 
+                <button
                   className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => handleSeedChange(-1, true)}
+                  onClick={() => updateCoreSettings({ seed: -1, random_seed: true })}
                 >
                   Randomize Seed
                 </button>
-                <button 
+                <button
                   className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => handleSeedChange(coreSettings.seed, false)}
+                  onClick={() => updateCoreSettings({ seed: coreSettings.seed, random_seed: false })}
                 >
                   Reuse Past Seed
                 </button>
               </div>
             </div>
-            <GenerationID 
+            <GenerationID
               seed={coreSettings.seed}
               random={coreSettings.random_seed}
-              onChange={handleSeedChange}
+              onChange={(seed, random) => updateCoreSettings({ seed, random_seed: random })}
             />
           </>
         );
@@ -404,65 +282,21 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
 
   return (
     <div className={`mb-4 ${isMobile ? 'grid grid-cols-1' : 'grid gap-6 md:grid-cols-[1.8fr_1fr]'}`}>
-      {/* Left Column - Controls */}
       <div className="space-y-4">
         <div className="flex flex-col">
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <h3 className="text-base font-medium">Generation Settings</h3>
             <ActionButtons />
           </div>
-          
           {isMobile && <MobileImagePreview />}
-          
           <div className="mb-[18px]">
             <SubTabNavigation />
           </div>
-          
           <Accordion title={getAccordionTitle()} number="1" defaultOpen={true}>
             {renderActiveSubTabContent()}
           </Accordion>
-          
-          {activeSubTab === "generation" && (
-            <>
-              <Accordion title="Advanced Optional Settings" number="2">
-                <AdvancedSettings 
-                  restoreFaces={coreSettings.restore_faces}
-                  onRestoreFacesChange={handleRestoreFacesChange}
-                  faceRestorationModel={coreSettings.face_restoration_model}
-                  onFaceRestorationModelChange={handleFaceRestorationModelChange}
-                  codeformerWeight={coreSettings.codeformer_weight}
-                  onCodeformerWeightChange={handleCodeformerWeightChange}
-                  gfpganWeight={coreSettings.gfpgan_weight}
-                  onGfpganWeightChange={handleGfpganWeightChange}
-                  tiling={coreSettings.tiling}
-                  onTilingChange={handleTilingChange}
-                  tileSize={coreSettings.tile_size}
-                  onTileSizeChange={handleTileSizeChange}
-                  overlap={coreSettings.tile_overlap}
-                  onOverlapChange={handleTileOverlapChange}
-                  hiresFix={coreSettings.hires_fix}
-                  onHiresFixChange={handleHiresFixChange}
-                  refinerEnabled={coreSettings.refiner_enabled}
-                  onRefinerEnabledChange={handleRefinerEnabledChange}
-                  refinerModel={coreSettings.refiner_model}
-                  onRefinerModelChange={handleRefinerModelChange}
-                  refinerSwitchAt={coreSettings.refiner_switch_at}
-                  onRefinerSwitchAtChange={handleRefinerSwitchAtChange}
-                />
-              </Accordion>
-              
-              <Accordion title="External Extensions & Add-ons" number="3">
-                <ExternalExtensions 
-                  isImg2ImgTab={false} 
-                  onControlNetChange={handleControlNetChange}
-                />
-              </Accordion>
-            </>
-          )}
         </div>
       </div>
-      
-      {/* Right Column - Preview */}
       {!isMobile && (
         <div>
           <ImagePreview onTabChange={onTabChange} />
