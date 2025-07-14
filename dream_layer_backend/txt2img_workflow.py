@@ -10,7 +10,8 @@ from dream_layer_backend_utils.shared_workflow_parameters import (
     inject_face_restoration_parameters,
     inject_tiling_parameters,
     inject_hires_fix_parameters,
-    inject_refiner_parameters
+    inject_refiner_parameters,
+    inject_controlnet_parameters
 )
 from shared_utils import SAMPLER_NAME_MAP
 
