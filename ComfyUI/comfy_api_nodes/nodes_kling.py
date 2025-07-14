@@ -1913,6 +1913,8 @@ class KlingGenerate(KlingNodeBase):
                 n=n,
                 image_fidelity=0.5,
                 human_fidelity=0.45,
+                height=final_height,
+                width=final_width,
             ),
             auth_kwargs=kwargs,
         )
