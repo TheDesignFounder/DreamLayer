@@ -2,19 +2,60 @@ import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import type { WorkflowReactFlowNode } from '@/components/WorkflowGraph';
 
-interface NodeHandle {
-  id: string;
-  type: 'source' | 'target';
-  position: 'left' | 'right';
-  name?: string;
-  index: number;
-}
-
 const MIN_NODE_HEIGHT = 80; // Minimum node height
 const HANDLE_HEIGHT = 8; // Height of each handle
 const VERTICAL_PADDING = 8; // Padding at top and bottom
 const HANDLE_SPACING = 8; // Space between handles
+const MAX_NODE_NAME_LENGTH = 18; // Maximum characters for node names
 const MAX_HANDLE_NAME_LENGTH = 12; // Maximum characters for handle names
+
+// Define color schemes
+const NODE_COLORS = {
+	purple: 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-700',
+	blue: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700',
+	green: 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700',
+	red: 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700',
+	yellow: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700',
+	orange: 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700',
+	default: 'bg-background border-input dark:bg-[#0F172A] dark:border-slate-700'
+};
+
+// Map node types to colors
+const NODE_TYPE_MAP: { [key: string]: string[] } = {
+	purple: ['KSampler', 'SamplerCustom', 'KSamplerAdvanced'],
+	blue: ['CheckpointLoaderSimple', 'VAELoader', 'UNETLoader', 'LoraLoader'],
+	green: ['CLIPTextEncode', 'CLIPTextEncodeSDXL', 'CLIPLoader'],
+	red: ['VAEDecode', 'VAEEncode'],
+	yellow: ['SaveImage', 'PreviewImage', 'LoadImage'],
+	orange: ['ControlNetLoader', 'ControlNetApply']
+};
+
+// Base node classes
+const BASE_NODE_CLASSES = 'border hover:bg-accent hover:text-accent-foreground dark:hover:bg-slate-800 transition-colors';
+
+const getNodeColor = (type: string) => {
+	// Find the color for this node type
+	const colorKey = Object.entries(NODE_TYPE_MAP).find(([_, types]) => 
+		types.includes(type)
+	)?.[0] || 'default';
+	
+	return `${BASE_NODE_CLASSES} ${NODE_COLORS[colorKey as keyof typeof NODE_COLORS]}`;
+};
+
+const calculateHandlePosition = (index: number) => {
+	return VERTICAL_PADDING + 
+				 (index * (HANDLE_HEIGHT + HANDLE_SPACING));
+};
+
+const truncateHandleName = (name: string) => {
+	if (name.length <= MAX_HANDLE_NAME_LENGTH) return name;
+	return name.substring(0, MAX_HANDLE_NAME_LENGTH) + '...';
+};
+
+const truncateNodeName = (name: string) => {
+	if (name.length <= MAX_NODE_NAME_LENGTH) return name;
+	return name.substring(0, MAX_NODE_NAME_LENGTH) + '...';
+};
 
 const WorkflowCustomNode: React.FC<NodeProps<WorkflowReactFlowNode>> = ({ data }) => {
   // Calculate dynamic node height based on handles
@@ -28,54 +69,6 @@ const WorkflowCustomNode: React.FC<NodeProps<WorkflowReactFlowNode>> = ({ data }
     maxHandles * HANDLE_HEIGHT + 
     Math.max(0, maxHandles - 1) * HANDLE_SPACING
   );
-
-  const getNodeColor = (type: string) => {
-    const baseClasses = 'border hover:bg-accent hover:text-accent-foreground dark:hover:bg-slate-800 transition-colors';
-    
-    // Define color schemes
-    const colors = {
-      purple: 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-700',
-      blue: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700',
-      green: 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700',
-      red: 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700',
-      yellow: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700',
-      orange: 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700',
-      default: 'bg-background border-input dark:bg-[#0F172A] dark:border-slate-700'
-    };
-    
-    // Map node types to colors
-    const nodeTypeMap: { [key: string]: string[] } = {
-      purple: ['KSampler', 'SamplerCustom', 'KSamplerAdvanced'],
-      blue: ['CheckpointLoaderSimple', 'VAELoader', 'UNETLoader', 'LoraLoader'],
-      green: ['CLIPTextEncode', 'CLIPTextEncodeSDXL', 'CLIPLoader'],
-      red: ['VAEDecode', 'VAEEncode'],
-      yellow: ['SaveImage', 'PreviewImage', 'LoadImage'],
-      orange: ['ControlNetLoader', 'ControlNetApply']
-    };
-    
-    // Find the color for this node type
-    const colorKey = Object.entries(nodeTypeMap).find(([_, types]) => 
-      types.includes(type)
-    )?.[0] || 'default';
-    
-    return `${baseClasses} ${colors[colorKey as keyof typeof colors]}`;
-  };
-
-  const calculateHandlePosition = (index: number, handles: NodeHandle[]) => {
-    return VERTICAL_PADDING + 
-           (index * (HANDLE_HEIGHT + HANDLE_SPACING));
-  };
-
-  const truncateHandleName = (name: string) => {
-    if (name.length <= MAX_HANDLE_NAME_LENGTH) return name;
-    return name.substring(0, MAX_HANDLE_NAME_LENGTH) + '...';
-  };
-
-  const truncateNodeName = (name: string) => {
-    const MAX_NODE_NAME_LENGTH = 18;
-    if (name.length <= MAX_NODE_NAME_LENGTH) return name;
-    return name.substring(0, MAX_NODE_NAME_LENGTH) + '...';
-  };
 
   return (
     <div 
@@ -97,7 +90,7 @@ const WorkflowCustomNode: React.FC<NodeProps<WorkflowReactFlowNode>> = ({ data }
             key={handle.id} 
             className="absolute flex items-center w-full"
             style={{ 
-              top: `${calculateHandlePosition(index, leftHandles)}px`,
+              top: `${calculateHandlePosition(index)}px`,
             }}
           >
             <Handle
@@ -120,7 +113,7 @@ const WorkflowCustomNode: React.FC<NodeProps<WorkflowReactFlowNode>> = ({ data }
             key={handle.id} 
             className="absolute flex items-center w-full justify-end"
             style={{ 
-              top: `${calculateHandlePosition(index, rightHandles)}px`,
+              top: `${calculateHandlePosition(index)}px`,
             }}
           >
             <div className="mr-2 text-xs text-muted-foreground text-right" title={handle.name}>

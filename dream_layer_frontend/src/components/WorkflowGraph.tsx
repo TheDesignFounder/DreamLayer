@@ -154,9 +154,6 @@ export const WorkflowGraph: React.FC = () => {
       };
     });
 
-    console.log('Parsed Nodes:', processedNodes);
-    console.log('Parsed Edges:', processedEdges);
-
     setNodes(processedNodes);
     setEdges(processedEdges);
     
