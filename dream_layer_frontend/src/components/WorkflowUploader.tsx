@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import demoWorkflow from '@/data/demo-workflow.json';
 
 // Type definitions for ComfyUI workflow
@@ -46,10 +46,13 @@ interface WorkflowUploaderProps {
 }
 
 export const WorkflowUploader: React.FC<WorkflowUploaderProps> = ({ onWorkflowLoaded }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   // Load demo workflow on component mount
   useEffect(() => {
     onWorkflowLoaded(demoWorkflow as unknown as WorkflowData);
   }, [onWorkflowLoaded]);
+  
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -61,9 +64,19 @@ export const WorkflowUploader: React.FC<WorkflowUploaderProps> = ({ onWorkflowLo
         } catch (error) {
           console.error('Error parsing workflow JSON', error);
           alert('Failed to parse workflow JSON. Please check the file format.');
+        } finally {
+          // Reset the input value so the same file can be uploaded again
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
         }
       };
       reader.readAsText(file);
+    } else {
+      // Also reset if no file is selected (e.g., user cancels dialog)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -89,6 +102,7 @@ export const WorkflowUploader: React.FC<WorkflowUploaderProps> = ({ onWorkflowLo
         </svg>
         Upload JSON
         <input
+          ref={fileInputRef}
           type="file"
           accept=".json"
           onChange={handleFileUpload}
