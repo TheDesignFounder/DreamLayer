@@ -48,7 +48,7 @@ def create_dummy_safetensors_file(file_path: str, num_tensors: int = 10, tensor_
 
     # Save as safetensors
     safetensors.torch.save_file(state_dict, file_path)
-    (f"✅ Created test file: {file_path} ({len(state_dict)} tensors)")
+    logging.info(f"✅ Created test file: {file_path} ({len(state_dict)} tensors)")
 
 def create_dummy_lora_file(file_path: str, num_tensors: int = 8, tensor_size: int = 64):
     """
@@ -65,13 +65,13 @@ def create_dummy_lora_file(file_path: str, num_tensors: int = 8, tensor_size: in
     # LoRA tensors typically have specific naming patterns
     lora_names = [
         "lora_unet_input_blocks_0_0_weight",
-        "lora_unet_input_blocks_0_0_weight",
+        "lora_unet_input_blocks_0_0_bias",
         "lora_unet_input_blocks_1_0_weight",
-        "lora_unet_input_blocks_1_0_weight",
+        "lora_unet_input_blocks_1_0_bias",
         "lora_unet_middle_block_0_weight",
-        "lora_unet_middle_block_0_weight",
+        "lora_unet_middle_block_0_bias",
         "lora_unet_output_blocks_0_0_weight",
-        "lora_unet_output_blocks_0_0_weight"
+        "lora_unet_output_blocks_0_0_bias"
     ]
 
     for i in range(min(num_tensors, len(lora_names))):

@@ -58,19 +58,14 @@ def merge_lora_weights(
         bool: True if merge was successful, False otherwise
     """
     try:
-        # Get the ComfyUI lora_merger module
-        comfyui_lora_merger = get_comfyui_lora_merger()
-
-        # Use ComfyUI's merge function
-        success = comfyui_lora_merger.merge_lora_using_comfyui(
+        # Get the ComfyUI lora_merger module and use its merge function
+        return get_comfyui_lora_merger().merge_lora_using_comfyui(
             base_path=base_path,
             lora_path=lora_path,
             output_path=output_path,
             strength_model=lora_scale,
             strength_clip=alpha
         )
-
-        return success
 
     except Exception as e:
         logger.error(f"Error in LoRA merge bridge: {e}")
