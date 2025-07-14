@@ -39,38 +39,6 @@ const WorkflowEdge: FC<EdgeProps<Edge<{
           strokeWidth: 2 
         }} 
       />
-      {/* Only render labels if they exist for original workflow connections */}
-      {data?.sourceLabel && data?.targetLabel && (
-        <EdgeLabelRenderer>
-          {/* Source Label */}
-          <div
-            style={{
-              position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${sourceX}px,${sourceY}px)`,
-              background: 'transparent',
-              color: 'hsl(var(--muted-foreground))',
-              fontSize: '10px',
-              fontWeight: 600,
-            }}
-            className="nodrag nopan"
-          >
-          </div>
-          
-          {/* Target Label */}
-          <div
-            style={{
-              position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${targetX}px,${targetY}px)`,
-              background: 'transparent',
-              color: 'hsl(var(--muted-foreground))',
-              fontSize: '10px',
-              fontWeight: 600,
-            }}
-            className="nodrag nopan"
-          >
-          </div>
-        </EdgeLabelRenderer>
-      )}
     </>
   );
 };

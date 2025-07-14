@@ -11,13 +11,13 @@ const MAX_HANDLE_NAME_LENGTH = 12; // Maximum characters for handle names
 
 // Define color schemes
 const NODE_COLORS = {
-	purple: 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-700',
-	blue: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700',
-	green: 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700',
-	red: 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700',
-	yellow: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700',
-	orange: 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700',
-	default: 'bg-background border-input dark:bg-[#0F172A] dark:border-slate-700'
+	purple: 'bg-purple-50 border-purple-200 dark:bg-purple-900/80 dark:border-purple-700',
+	blue: 'bg-blue-50 border-blue-200 dark:bg-blue-900/80 dark:border-blue-700',
+	green: 'bg-green-50 border-green-200 dark:bg-green-900/80 dark:border-green-700',
+	red: 'bg-red-50 border-red-200 dark:bg-red-900/80 dark:border-red-700',
+	yellow: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/80 dark:border-yellow-700',
+	orange: 'bg-orange-50 border-orange-200 dark:bg-orange-900/80 dark:border-orange-700',
+	default: 'bg-background border-input dark:bg-slate-900/80 dark:border-slate-700'
 };
 
 // Map node types to colors
