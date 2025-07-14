@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import demoWorkflow from '../data/demo-workflow.json';
+import demoWorkflow from '@/data/demo-workflow.json';
 
 // Type definitions for ComfyUI workflow
 interface WorkflowNodeInput {

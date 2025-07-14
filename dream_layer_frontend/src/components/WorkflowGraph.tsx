@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -7,7 +7,6 @@ import {
   Background,
   Controls,
   MiniMap,
-  NodeTypes,
   Connection,
   ConnectionLineType,
   OnConnect,
@@ -18,9 +17,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './WorkflowGraph.css';
-import WorkflowCustomNode from './WorkflowCustomNode';
-import WorkflowEdge from './WorkflowEdge';
-import { WorkflowUploader, WorkflowData, WorkflowNodeInput, WorkflowNodeOutput } from './WorkflowUploader';
+import WorkflowCustomNode from '@/components/WorkflowCustomNode';
+import WorkflowEdge from '@/components/WorkflowEdge';
+import { WorkflowUploader, WorkflowData, WorkflowNodeInput, WorkflowNodeOutput } from '@/components/WorkflowUploader';
 
 // Custom node data type
 interface WorkflowNodeData extends Record<string, unknown> {
@@ -190,7 +189,7 @@ export const WorkflowGraph: React.FC = () => {
   return (
     <div className="w-full h-screen flex flex-col">
       <div className="flex items-center justify-between border-b border-border bg-background px-4 py-2">
-        <h1 className="text-lg font-medium text-primary">ComfyUI Workflow Graph</h1>
+        <h1 className="text-lg font-medium text-primary">DreamLayer ComfyUI Workflow Graph</h1>
         <WorkflowUploader onWorkflowLoaded={handleWorkflowLoaded} />
       </div>
       <div className="flex-1">

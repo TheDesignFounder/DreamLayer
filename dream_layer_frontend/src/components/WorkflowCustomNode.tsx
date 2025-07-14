@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import type { WorkflowReactFlowNode } from './WorkflowGraph';
+import type { WorkflowReactFlowNode } from '@/components/WorkflowGraph';
 
 interface NodeHandle {
   id: string;
@@ -10,22 +10,13 @@ interface NodeHandle {
   index: number;
 }
 
-interface WorkflowNodeData extends Record<string, unknown> {
-  label: string;
-  nodeType: string;
-  inputs?: Array<{ name: string; type: string }>;
-  outputs?: Array<{ name: string; type: string }>;
-  handles?: NodeHandle[];
-  widgetValues?: (string | number | boolean)[];
-}
+const MIN_NODE_HEIGHT = 80; // Minimum node height
+const HANDLE_HEIGHT = 8; // Height of each handle
+const VERTICAL_PADDING = 8; // Padding at top and bottom
+const HANDLE_SPACING = 8; // Space between handles
+const MAX_HANDLE_NAME_LENGTH = 12; // Maximum characters for handle names
 
 const WorkflowCustomNode: React.FC<NodeProps<WorkflowReactFlowNode>> = ({ data }) => {
-  const MIN_NODE_HEIGHT = 80; // Minimum node height
-  const HANDLE_HEIGHT = 8; // Height of each handle
-  const VERTICAL_PADDING = 8; // Padding at top and bottom
-  const HANDLE_SPACING = 8; // Space between handles
-  const MAX_HANDLE_NAME_LENGTH = 12; // Maximum characters for handle names
-
   // Calculate dynamic node height based on handles
   const leftHandles = data.handles?.filter(h => h.position === 'left') || [];
   const rightHandles = data.handles?.filter(h => h.position === 'right') || [];
