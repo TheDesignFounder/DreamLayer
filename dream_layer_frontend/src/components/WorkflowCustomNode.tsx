@@ -65,7 +65,7 @@ const WorkflowCustomNode: React.FC<NodeProps<WorkflowReactFlowNode>> = ({ data }
   const maxHandles = Math.max(leftHandles.length, rightHandles.length);
   const nodeHeight = Math.max(
     MIN_NODE_HEIGHT, 
-    VERTICAL_PADDING * 3 + // Top and bottom padding
+    VERTICAL_PADDING * 3 + // Top padding + bottom padding + extra spacing
     maxHandles * HANDLE_HEIGHT + 
     Math.max(0, maxHandles - 1) * HANDLE_SPACING
   );
