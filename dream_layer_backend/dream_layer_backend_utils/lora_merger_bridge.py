@@ -6,12 +6,7 @@ It allows DreamLayer to leverage ComfyUI's robust LoRA infrastructure while main
 """
 
 import logging
-
-from .shared_lora_utils import (
-    validate_safetensors_file,
-    check_comfyui_availability,
-    get_comfyui_version
-)
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -67,3 +62,49 @@ def merge_lora_weights(
     except Exception as e:
         logger.error(f"Error in LoRA merge bridge: {e}")
         return False
+
+
+def validate_safetensors_file(file_path: str) -> bool:
+    """
+    Bridge function to validate safetensors files using ComfyUI's validation.
+
+    Args:
+        file_path: Path to the file to validate
+
+    Returns:
+        bool: True if file is valid, False otherwise
+    """
+    try:
+        comfyui_lora_merger = get_comfyui_lora_merger()
+        return comfyui_lora_merger.validate_safetensors_file(file_path)
+    except Exception as e:
+        logger.error(f"Error in validation bridge: {e}")
+        return False
+
+
+def check_comfyui_availability() -> bool:
+    """
+    Check if ComfyUI and its LoRA merger are available.
+
+    Returns:
+        bool: True if ComfyUI is available, False otherwise
+    """
+    try:
+        get_comfyui_lora_merger()
+        return True
+    except ImportError:
+        return False
+
+
+def get_comfyui_version() -> Optional[str]:
+    """
+    Get the ComfyUI version if available.
+
+    Returns:
+        Optional[str]: ComfyUI version string or None if not available
+    """
+    try:
+        import comfy.comfyui_version
+        return getattr(comfy.comfyui_version, 'version', None)
+    except (ImportError, AttributeError):
+        return None
