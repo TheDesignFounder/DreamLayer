@@ -2,7 +2,9 @@ import os
 import sys
 import asyncio
 import traceback
-
+import hashlib
+import time
+import aiohttp.web
 import nodes
 import folder_paths
 import execution
@@ -14,6 +16,7 @@ import struct
 import ssl
 import socket
 import ipaddress
+import threading
 from PIL import Image, ImageOps
 from PIL.PngImagePlugin import PngInfo
 from io import BytesIO
@@ -33,6 +36,7 @@ from app.frontend_management import FrontendManager
 from app.user_manager import UserManager
 from app.model_manager import ModelFileManager
 from app.custom_node_manager import CustomNodeManager
+from app.debug_manager import DebugManager
 from typing import Optional, Union
 from api_server.routes.internal.internal_routes import InternalRoutes
 
@@ -147,7 +151,43 @@ def create_origin_only_middleware():
 
     return origin_only_middleware
 
+
+def get_most_recent_image_file():
+    output_dir = folder_paths.get_output_directory()
+    files = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if os.path.isfile(os.path.join(output_dir, f))]
+        
+    if files:
+        return max(files, key=os.path.getctime)
+    return None
+
+def compute_sha256_for(file):
+    with open(file,'rb') as original_most_recent_image_binary:
+        sha256 = hashlib.sha256()
+        while True:
+            data = original_most_recent_image_binary.read(4096)
+            if not data:
+                break
+            sha256.update(data)
+        return sha256.hexdigest()
+    return None
+
+def fetch_last_job_as_fake_request():
+    with open(os.path.join(folder_paths.jobs_directory,'last.json'),'r') as last_job_file:
+        last_job = json.load(last_job_file)
+        class FakeRequest:
+            json_data = ''
+            
+            def __init__(self, data):
+                self.json_data = data
+            
+            async def json(self):
+                return self.json_data
+                
+        return FakeRequest(last_job)
+    return None
+
 class PromptServer():
+
     def __init__(self, loop):
         PromptServer.instance = self
 
@@ -165,6 +205,7 @@ class PromptServer():
         self.messages = asyncio.Queue()
         self.client_session:Optional[aiohttp.ClientSession] = None
         self.number = 0
+        self.debug_prompt_lock = threading.Semaphore()
 
         middlewares = [cache_control]
         if args.enable_compress_response_body:
@@ -258,6 +299,45 @@ class PromptServer():
                     name) + "/" + os.path.relpath(f, dir).replace("\\", "/"), files)))
 
             return web.json_response(extensions)
+
+        @routes.get("/debug/reproduce")
+        async def get_debug_reproduce(request):
+            logging.info('running reproduction run')
+            original_most_recent_img_handle = get_most_recent_image_file()
+            if original_most_recent_img_handle:
+                logging.info(f'found original file at {original_most_recent_img_handle}')
+                old_hash = compute_sha256_for(original_most_recent_img_handle)
+                logging.info(f"Original file sha256:{old_hash}")
+                # Resubmit the last job
+                wrapped_fake_request = fetch_last_job_as_fake_request()
+                
+                if wrapped_fake_request:
+                    logging.info(f'resubmitting last job:{await wrapped_fake_request.json()}')
+                    
+                    #Acquire the lock
+                    self.debug_prompt_lock.acquire()
+                    # Perform the prompting
+                    await post_prompt(wrapped_fake_request) # type: ignore - quiet, pylance...
+                    # Block until unlocked by async event
+                    logging.info(f'semaphore value: {self.debug_prompt_lock._value} ')
+                    self.debug_prompt_lock.acquire()
+                    
+                    new_image_file_ref = get_most_recent_image_file()
+                    logging.info(f'found new file at {new_image_file_ref}')
+                    new_hash = compute_sha256_for(new_image_file_ref)
+                    logging.info(f"new image sha256:{new_hash}")
+                    return web.json_response({"match":old_hash == new_hash})
+            return web.json_response({"match",False})
+        
+        def log_to_jobs(json_data):
+            # Write json_data to ~/jobs/last.json
+            if not os.path.exists(folder_paths.jobs_directory):
+                os.makedirs(folder_paths.jobs_directory)
+
+            with open(os.path.join(folder_paths.jobs_directory, 'last.json'), 'w') as file:
+                json.dump(json_data, file)
+                file.flush()
+                file.close()
 
         def get_dir_by_type(dir_type):
             if dir_type is None:
@@ -631,6 +711,8 @@ class PromptServer():
             json_data =  await request.json()
             json_data = self.trigger_on_prompt(json_data)
 
+            log_to_jobs(json_data)
+
             if "number" in json_data:
                 number = float(json_data['number'])
             else:
@@ -830,6 +912,10 @@ class PromptServer():
 
     def queue_updated(self):
         self.send_sync("status", { "status": self.get_queue_info() })
+        if  self.prompt_queue.get_tasks_remaining() == 0:
+            # the queue is completed. Let the debug thread know!
+            logging.info('oop! the queue is empty, better clear the debug prompt lock!')
+            self.debug_prompt_lock.release()
 
     async def publish_loop(self):
         while True:
