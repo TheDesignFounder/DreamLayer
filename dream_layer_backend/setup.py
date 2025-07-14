@@ -3,7 +3,7 @@
 Setup script for DreamLayer CLI
 """
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 with open("requirements.txt") as f:
     requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
