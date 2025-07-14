@@ -5,16 +5,8 @@ This module provides a bridge between DreamLayer's CLI interface and ComfyUI's L
 It allows DreamLayer to leverage ComfyUI's robust LoRA infrastructure while maintaining its own interface.
 """
 
-import os
-import sys
 import logging
 from typing import Optional
-
-# Add ComfyUI to path
-current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-comfyui_dir = os.path.join(current_dir, "ComfyUI")
-if comfyui_dir not in sys.path:
-    sys.path.append(comfyui_dir)
 
 logger = logging.getLogger(__name__)
 

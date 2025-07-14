@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 dream_layer_backend/**/*.safetensors
+*.safetensors
 
 # C extensions
 *.so

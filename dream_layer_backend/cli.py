@@ -11,26 +11,13 @@ import os
 import logging
 from pathlib import Path
 
-# Add the current directory to Python path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
-
-try:
-    from .dream_layer_backend_utils.lora_merger_bridge import (
-        merge_lora_weights,
-        validate_safetensors_file,
-        check_comfyui_availability,
-        get_comfyui_version
-    )
-except ImportError:
-    # Fallback for when running as script
-    from dream_layer_backend_utils.lora_merger_bridge import (
-        merge_lora_weights,
-        validate_safetensors_file,
-        check_comfyui_availability,
-        get_comfyui_version
-    )
+# Import modules using proper package structure
+from .dream_layer_backend_utils.lora_merger_bridge import (
+    merge_lora_weights,
+    validate_safetensors_file,
+    check_comfyui_availability,
+    get_comfyui_version
+)
 
 
 def setup_logging(verbose: bool = False) -> None:

@@ -7,15 +7,9 @@ It can be used as a standalone utility or imported by other tools.
 """
 
 import os
-import sys
 import logging
 import torch
 from typing import Dict
-
-# Add ComfyUI to path
-current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
 
 import comfy.utils
 import comfy.lora

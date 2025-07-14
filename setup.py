@@ -3,12 +3,17 @@
 Setup script for DreamLayer CLI
 """
 
-from setuptools import setup
+from setuptools import setup, find_packages
+import os
 
-with open("requirements.txt") as f:
+# Read requirements from the backend directory
+requirements_path = os.path.join("dream_layer_backend", "requirements.txt")
+with open(requirements_path) as f:
     requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
-with open("README.md", "r", encoding="utf-8") as fh:
+# Read README
+readme_path = os.path.join("dream_layer_backend", "README.md")
+with open(readme_path, "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
@@ -20,7 +25,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dreamlayer-ai/DreamLayer",
-    packages=["dream_layer_backend", "dream_layer_backend.dream_layer_backend_utils"],
+    packages=find_packages(include=["dream_layer_backend*"]),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
