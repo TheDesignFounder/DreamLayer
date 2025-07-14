@@ -154,12 +154,14 @@ def merge_lora_using_comfyui(
                     # Apply difference patch
                     diff = patch_data[0]
                     if diff.shape == merged_state_dict[key].shape:
-                        merged_state_dict[key] = merged_state_dict[key] + (diff * strength_model)
+                        strength = strength_clip if "clip" in key.lower() else strength_model
+                        merged_state_dict[key] = merged_state_dict[key] + (diff * strength)
                     else:
                         logger.warning(f"Shape mismatch for key {key}: {diff.shape} vs {merged_state_dict[key].shape}")
                 elif patch_type == "set":
                     # Set the weight directly
-                    merged_state_dict[key] = patch_data[0] * strength_model
+                    strength = strength_clip if "clip" in key.lower() else strength_model
+                    merged_state_dict[key] = patch_data[0] * strength
 
         # Save the merged model
         save_safetensors_file(merged_state_dict, output_path)
