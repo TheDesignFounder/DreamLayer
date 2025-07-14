@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Accordion from '@/components/Accordion';
 import PromptInput from '@/components/PromptInput';
 import RenderSettings from '@/components/RenderSettings';
@@ -12,8 +12,11 @@ import CheckpointBrowser from '@/components/checkpoint/CheckpointBrowser';
 import LoraBrowser from '@/components/lora/LoraBrowser';
 import CustomWorkflowBrowser from '@/components/custom-workflow/CustomWorkflowBrowser';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSaveSettings } from '@/hooks/useSaveSettings';
+import { HOTKEYS } from '@/hooks/useHotkeys';
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { Txt2ImgCoreSettings, defaultTxt2ImgSettings } from '@/types/generationSettings';
@@ -33,9 +36,10 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     ...defaultTxt2ImgSettings,
     model_name: selectedModel
   });
-  const [customWorkflow, setCustomWorkflow] = useState<any | null>(null);
+  const [customWorkflow, setCustomWorkflow] = useState<Record<string, unknown> | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const isMobile = useIsMobile();
+  const { saveSettings } = useSaveSettings();
   const addImages = useTxt2ImgGalleryStore(state => state.addImages);
   const setLoading = useTxt2ImgGalleryStore(state => state.setLoading);
   const controlNetConfig = useControlNetStore(state => state.controlNetConfig);
@@ -140,7 +144,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     }
   };
 
-  const handleGenerateImage = async () => {
+  const handleGenerateImage = useCallback(async () => {
     // Handle interrupt if already generating
     if (isGenerating) {
       await fetch('http://localhost:5001/api/txt2img/interrupt', {
@@ -211,7 +215,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
       console.log('Response data:', data);
 
       if (data.comfy_response?.generated_images) {
-        const images = data.comfy_response.generated_images.map((img: any) => {
+        const images = data.comfy_response.generated_images.map((img: { url: string }) => {
           // Use the URL directly from the response
           const imageUrl = img.url;
           
@@ -248,7 +252,26 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
       setLoading(false);
       setIsGenerating(false);
     }
-  };
+  }, [isGenerating, setLoading, controlNetConfig, coreSettings, customWorkflow, loraConfig, addImages]);
+
+  // Add hotkey event listeners
+  useEffect(() => {
+    const handleHotkeyGenerate = () => {
+      handleGenerateImage();
+    };
+
+    const handleHotkeySaveSettings = () => {
+      saveSettings();
+    };
+
+    window.addEventListener('hotkey:generate', handleHotkeyGenerate);
+    window.addEventListener('hotkey:saveSettings', handleHotkeySaveSettings);
+    
+    return () => {
+      window.removeEventListener('hotkey:generate', handleHotkeyGenerate);
+      window.removeEventListener('hotkey:saveSettings', handleHotkeySaveSettings);
+    };
+  }, [handleGenerateImage, saveSettings]);
 
   const getAccordionTitle = () => {
     switch (activeSubTab) {
@@ -263,16 +286,33 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const ActionButtons = () => (
     <div className="flex space-x-2">
-      <Button 
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        onClick={handleGenerateImage}
-        disabled={false}
-      >
-        {isGenerating ? 'Interrupt' : 'Generate Image'}
-      </Button>
-      {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-        Save Settings
-      </button>}
+      <Tooltip>
+        <TooltipTrigger>
+          <Button 
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            onClick={handleGenerateImage}
+            disabled={false}
+          >
+            {isGenerating ? 'Interrupt' : 'Generate Image'}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{isGenerating ? 'Click to interrupt image generation' : `Generate image (${HOTKEYS.GENERATE})`}</p>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger>
+          <Button 
+            className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            onClick={saveSettings}
+          >
+            Save Settings
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Save current settings ({HOTKEYS.SAVE_SETTINGS})</p>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ImageUploader from '@/components/ImageUploader';
 import AdvancedSettings from '@/components/AdvancedSettings';
 import ExternalExtensions from '@/components/ExternalExtensions';
@@ -16,6 +16,8 @@ import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+import { HOTKEYS } from '@/hooks/useHotkeys';
+import { useSaveSettings } from '@/hooks/useSaveSettings';
 
 import {
   Accordion,
@@ -26,6 +28,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface Img2ImgPageProps {
@@ -41,6 +44,9 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   
+  // Add save settings hook
+  const { saveSettings } = useSaveSettings();
+  
   // ControlNet configuration will be managed by useControlNetStore
   
   const { 
@@ -55,7 +61,8 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     handleSamplingSettingsChange, 
     handleSizeSettingsChange, 
     handleBatchSettingsChange, 
-    handleSeedChange 
+    handleSeedChange,
+    updateCoreSettings
   } = useImg2ImgGalleryStore();
   const selectedLora = useLoraStore(state => state.loraConfig);
   const { controlNetConfig, setControlNetConfig } = useControlNetStore();
@@ -97,7 +104,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     setControlNetConfig(config?.enabled ? config : null);
   };
 
-  const handleGenerateImage = async () => {
+  const handleGenerateImage = useCallback(async () => {
     if (isGenerating) {
       await fetch('http://localhost:5004/api/img2img/interrupt', {
         method: 'POST',
@@ -172,7 +179,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
         
         testImage.onload = () => {
           console.log('Test image loaded successfully:', firstImageUrl);
-          const images = data.comfy_response.generated_images.map((img: any) => ({
+          const images = data.comfy_response.generated_images.map((img: { url: string; timestamp: string }) => ({
             id: `${Date.now()}-${Math.random()}`,
             url: img.url,
             prompt: requestData.prompt,
@@ -206,7 +213,26 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       setLoading(false);
       setIsGenerating(false);
     }
-  };
+  }, [isGenerating, setLoading, controlNetConfig, coreSettings, customWorkflow, selectedLora, addImages, inputImage, selectedModel]);
+
+  // Add hotkey event listeners
+  useEffect(() => {
+    const handleHotkeyGenerate = () => {
+      handleGenerateImage();
+    };
+
+    const handleHotkeySaveSettings = () => {
+      saveSettings();
+    };
+
+    window.addEventListener('hotkey:generate', handleHotkeyGenerate);
+    window.addEventListener('hotkey:saveSettings', handleHotkeySaveSettings);
+    
+    return () => {
+      window.removeEventListener('hotkey:generate', handleHotkeyGenerate);
+      window.removeEventListener('hotkey:saveSettings', handleHotkeySaveSettings);
+    };
+  }, [handleGenerateImage, saveSettings]);
 
   const getSectionTitle = () => {
     switch (activeSubTab) {
@@ -219,6 +245,40 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     }
   };
 
+  // Advanced option handlers
+  const handleRestoreFacesChange = (enabled: boolean) => {
+    updateCoreSettings({ restore_faces: enabled });
+  };
+  const handleFaceRestorationModelChange = (model: string) => {
+    updateCoreSettings({ face_restoration_model: model });
+  };
+  const handleCodeformerWeightChange = (weight: number) => {
+    updateCoreSettings({ codeformer_weight: weight });
+  };
+  const handleGfpganWeightChange = (weight: number) => {
+    updateCoreSettings({ gfpgan_weight: weight });
+  };
+  const handleTilingChange = (enabled: boolean) => {
+    updateCoreSettings({ tiling: enabled });
+  };
+  const handleTileSizeChange = (size: number) => {
+    updateCoreSettings({ tile_size: size });
+  };
+  const handleTileOverlapChange = (overlap: number) => {
+    updateCoreSettings({ tile_overlap: overlap });
+  };
+  const handleHiresFixChange = (enabled: boolean) => {
+    updateCoreSettings({ hires_fix: enabled });
+  };
+  const handleRefinerEnabledChange = (enabled: boolean) => {
+    updateCoreSettings({ refiner_enabled: enabled });
+  };
+  const handleRefinerModelChange = (model: string) => {
+    updateCoreSettings({ refiner_model: model });
+  };
+  const handleRefinerSwitchAtChange = (value: number) => {
+    updateCoreSettings({ refiner_switch_at: value });
+  };
 
 
   const renderSubTabContent = () => {
@@ -263,7 +323,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
               onChange={(value) => handlePromptChange(value, true)}
             />
             
-            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">2. Sampling Settings</h4>
+            {/* <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">2. Sampling Settings</h4> */}
             <RenderSettings 
               sampler={coreSettings.sampler_name}
               scheduler={coreSettings.scheduler}
@@ -371,16 +431,33 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <h3 className="text-base font-medium text-foreground">Image to Image Generation</h3>
             <div className="flex space-x-2">
-              <Button 
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                onClick={handleGenerateImage}
-                disabled={!inputImage}
-              >
-                {isGenerating ? 'Interrupt' : 'Generate Image'}
-              </Button>
-              {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                Save Settings
-              </button>}
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button 
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    onClick={handleGenerateImage}
+                    disabled={!inputImage}
+                  >
+                    {isGenerating ? 'Interrupt' : 'Generate Image'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isGenerating ? 'Click to interrupt image generation' : `Generate image (${HOTKEYS.GENERATE})`}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button 
+                    className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                    onClick={saveSettings}
+                  >
+                    Save Settings
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save current settings ({HOTKEYS.SAVE_SETTINGS})</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
           
@@ -421,7 +498,30 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 py-3 bg-card">
-                  <AdvancedSettings />
+                  <AdvancedSettings
+                    restoreFaces={coreSettings.restore_faces}
+                    onRestoreFacesChange={handleRestoreFacesChange}
+                    faceRestorationModel={coreSettings.face_restoration_model}
+                    onFaceRestorationModelChange={handleFaceRestorationModelChange}
+                    codeformerWeight={coreSettings.codeformer_weight}
+                    onCodeformerWeightChange={handleCodeformerWeightChange}
+                    gfpganWeight={coreSettings.gfpgan_weight}
+                    onGfpganWeightChange={handleGfpganWeightChange}
+                    tiling={coreSettings.tiling}
+                    onTilingChange={handleTilingChange}
+                    tileSize={coreSettings.tile_size}
+                    onTileSizeChange={handleTileSizeChange}
+                    overlap={coreSettings.tile_overlap}
+                    onOverlapChange={handleTileOverlapChange}
+                    hiresFix={coreSettings.hires_fix}
+                    onHiresFixChange={handleHiresFixChange}
+                    refinerEnabled={coreSettings.refiner_enabled}
+                    onRefinerEnabledChange={handleRefinerEnabledChange}
+                    refinerModel={coreSettings.refiner_model}
+                    onRefinerModelChange={handleRefinerModelChange}
+                    refinerSwitchAt={coreSettings.refiner_switch_at}
+                    onRefinerSwitchAtChange={handleRefinerSwitchAtChange}
+                  />
                 </AccordionContent>
               </AccordionItem>
             )}

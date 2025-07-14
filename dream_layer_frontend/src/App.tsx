@@ -6,11 +6,30 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import { useAppHotkeys } from "@/hooks/useHotkeys";
+import { useSaveSettings } from "@/hooks/useSaveSettings";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+const AppWithHotkeys = () => {
+  const { saveSettings } = useSaveSettings();
+  
+  // Register global hotkeys
+  useAppHotkeys({
+    onGenerate: () => {
+      // Trigger generation based on current active tab
+      const event = new CustomEvent('hotkey:generate');
+      window.dispatchEvent(event);
+    },
+    onSaveSettings: () => {
+      // Trigger save settings
+      const event = new CustomEvent('hotkey:saveSettings');
+      window.dispatchEvent(event);
+      saveSettings();
+    }
+  });
+
+  return (
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -22,6 +41,12 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+  );
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AppWithHotkeys />
   </QueryClientProvider>
 );
 
