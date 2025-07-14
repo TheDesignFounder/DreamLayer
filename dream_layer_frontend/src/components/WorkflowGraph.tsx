@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -154,11 +154,17 @@ export const WorkflowGraph: React.FC = () => {
     setEdges(processedEdges);
     
     // Fit view after setting new nodes/edges
+    let fitViewTimeoutId: NodeJS.Timeout;
     if (reactFlowInstance.current) {
-      setTimeout(() => {
+      fitViewTimeoutId = setTimeout(() => {
         reactFlowInstance.current?.fitView(fitViewOptions);
       }, 240);
     }
+    return () => {
+      if (fitViewTimeoutId) {
+        clearTimeout(fitViewTimeoutId);
+      }
+    };
   }, [fitViewOptions, setNodes, setEdges]);
 
   const handleWorkflowLoaded = useCallback((jsonData: WorkflowData) => {
