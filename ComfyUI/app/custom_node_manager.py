@@ -8,6 +8,10 @@ import json
 import logging
 from functools import lru_cache
 
+import sys
+import os
+# Add parent directory to path for utils import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.json_util import merge_json_recursive
 
 
