@@ -35,7 +35,7 @@ const WorkflowEdge: FC<EdgeProps<Edge<{
         id={id} 
         path={edgePath} 
         style={{ 
-          stroke: '#6b7280', // Tailwind gray-500
+          stroke: 'hsl(var(--muted-foreground))',
           strokeWidth: 2 
         }} 
       />
@@ -48,7 +48,7 @@ const WorkflowEdge: FC<EdgeProps<Edge<{
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${sourceX}px,${sourceY}px)`,
               background: 'transparent',
-              color: '#6b7280',
+              color: 'hsl(var(--muted-foreground))',
               fontSize: '10px',
               fontWeight: 600,
             }}
@@ -62,7 +62,7 @@ const WorkflowEdge: FC<EdgeProps<Edge<{
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${targetX}px,${targetY}px)`,
               background: 'transparent',
-              color: '#6b7280',
+              color: 'hsl(var(--muted-foreground))',
               fontSize: '10px',
               fontWeight: 600,
             }}

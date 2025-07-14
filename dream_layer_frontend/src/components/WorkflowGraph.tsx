@@ -54,10 +54,6 @@ export const WorkflowGraph: React.FC = () => {
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
-      console.log('Connection attempt:', connection);
-      console.log('Source handle details:', connection.sourceHandle);
-      console.log('Target handle details:', connection.targetHandle);
-      
       setEdges((eds) => addEdge({
         ...connection,
         data: {
@@ -66,7 +62,7 @@ export const WorkflowGraph: React.FC = () => {
         },
       }, eds));
     },
-    [],
+    [setEdges],
   );
 
   const fitViewOptions: FitViewOptions = useMemo(() => ({
@@ -163,7 +159,7 @@ export const WorkflowGraph: React.FC = () => {
         reactFlowInstance.current?.fitView(fitViewOptions);
       }, 240);
     }
-  }, [fitViewOptions]);
+  }, [fitViewOptions, setNodes, setEdges]);
 
   const handleWorkflowLoaded = useCallback((jsonData: WorkflowData) => {
     parseWorkflowJson(jsonData);

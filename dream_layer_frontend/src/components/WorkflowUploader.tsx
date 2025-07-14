@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import demoWorkflow from '@/data/demo-workflow.json';
 
 // Type definitions for ComfyUI workflow
@@ -45,13 +45,62 @@ interface WorkflowUploaderProps {
   onWorkflowLoaded: (data: WorkflowData) => void;
 }
 
+// Runtime type guard to validate WorkflowData
+function isWorkflowData(obj: unknown): obj is WorkflowData {
+  if (!obj || typeof obj !== 'object') {
+    return false;
+  }
+
+  const data = obj as Record<string, unknown>;
+
+  // Check if nodes exists and is an array
+  if (!Array.isArray(data.nodes)) {
+    return false;
+  }
+
+  // Check if links exists and is an array
+  if (!Array.isArray(data.links)) {
+    return false;
+  }
+
+  // Validate each node has required properties
+  for (const node of data.nodes) {
+    if (!node || typeof node !== 'object') {
+      return false;
+    }
+    const nodeObj = node as Record<string, unknown>;
+    if (typeof nodeObj.id !== 'number' || typeof nodeObj.type !== 'string') {
+      return false;
+    }
+  }
+
+  // Validate each link is an array with expected structure
+  for (const link of data.links) {
+    if (!Array.isArray(link) || link.length < 6) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export const WorkflowUploader: React.FC<WorkflowUploaderProps> = ({ onWorkflowLoaded }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Reusable demo loading logic
+  const loadDemoWorkflow = useCallback(() => {
+    if (isWorkflowData(demoWorkflow)) {
+      onWorkflowLoaded(demoWorkflow);
+    } else {
+      console.error('Demo workflow data is invalid');
+      alert('Demo workflow data is corrupted. Please refresh the page.');
+    }
+  }, [onWorkflowLoaded]);
+  
   // Load demo workflow on component mount
   useEffect(() => {
-    onWorkflowLoaded(demoWorkflow as unknown as WorkflowData);
-  }, [onWorkflowLoaded]);
+    loadDemoWorkflow();
+  }, [loadDemoWorkflow]);
   
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -59,11 +108,17 @@ export const WorkflowUploader: React.FC<WorkflowUploaderProps> = ({ onWorkflowLo
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const jsonData = JSON.parse(e.target?.result as string) as WorkflowData;
-          onWorkflowLoaded(jsonData);
+          const parsedData = JSON.parse(e.target?.result as string);
+          
+          if (!isWorkflowData(parsedData)) {
+            throw new Error('Invalid workflow data format. Expected nodes and links arrays with proper structure.');
+          }
+          
+          onWorkflowLoaded(parsedData);
         } catch (error) {
-          console.error('Error parsing workflow JSON', error);
-          alert('Failed to parse workflow JSON. Please check the file format.');
+          console.error('Error processing workflow JSON', error);
+          const errorMessage = error instanceof Error ? error.message : 'Failed to parse workflow JSON. Please check the file format.';
+          alert(errorMessage);
         } finally {
           // Reset the input value so the same file can be uploaded again
           if (fileInputRef.current) {
@@ -81,7 +136,7 @@ export const WorkflowUploader: React.FC<WorkflowUploaderProps> = ({ onWorkflowLo
   };
 
   const loadDemo = () => {
-    onWorkflowLoaded(demoWorkflow as unknown as WorkflowData);
+    loadDemoWorkflow();
   };
 
   return (
