@@ -65,15 +65,12 @@ def merge_lora_command(args: argparse.Namespace) -> int:
         if comfyui_version:
             logging.info(f"🔧 Using ComfyUI version: {comfyui_version}")
 
-        base_arg = validate_safetensors_file(args.base)
-        lora_arg = validate_safetensors_file(args.lora)
-
         # Validate input files
-        if not base_arg:
+        if not (_ := validate_safetensors_file(args.base)):
             logging.error(f"❌ Error: Invalid base model file: {args.base}")
             return 1
 
-        if not lora_arg:
+        if not (_ := validate_safetensors_file(args.lora)):
             logging.error(f"❌ Error: Invalid LoRA file: {args.lora}")
             return 1
 
