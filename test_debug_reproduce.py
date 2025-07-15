@@ -9,15 +9,6 @@ from pathlib import Path
 
 client = TestClient(app)
 
-
-def test_404_if_no_last_job():
-     response = client.get("/debug/reproduce")
-     if not jobs_path_exists:
-        assert response.status_code == 404
-        assert response.json()["error"] == "No last job or file found"
-
-
-
 @pytest.fixture
 def setup_job(tmp_path):
     JOBS_DIR = Path("jobs")
@@ -55,6 +46,9 @@ def setup_job(tmp_path):
 
 def test_reproduce_detects_mismatch(setup_job):
     response = client.get("/debug/reproduce")
-    if jobs_path_exists:
+    if not jobs_path_exists:
+        assert response.status_code == 404
+        assert response.json()["error"] == "No last job or file found"
+    else:
         assert response.status_code == 200
         assert response.json()["match"] is False
