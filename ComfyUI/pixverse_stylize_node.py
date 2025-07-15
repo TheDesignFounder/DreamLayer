@@ -3,21 +3,19 @@ from PIL import Image
 class PixVerseStylize:
     NAME = "PixVerseStylize"
 
-    def __init__(self):
-        self.allowed_styles = [
-            "watercolor", "oil painting", "sketch", "manga", "cartoon",
-            "cyberpunk", "pixel art", "charcoal", "realism", "pop art",
-            "comic", "vintage", "pastel", "gothic", "anime", "steampunk",
-            "neon", "3d render", "graffiti", "low poly"
-        ]
+    # Static set of allowed styles for fast lookups
+    ALLOWED_STYLES = {
+        "watercolor", "oil painting", "sketch", "manga", "cartoon",
+        "cyberpunk", "pixel art", "charcoal", "realism", "pop art",
+        "comic", "vintage", "pastel", "gothic", "anime", "steampunk",
+        "neon", "3d render", "graffiti", "low poly"
+    }
 
     def process(self, image: Image.Image, style: str) -> Image.Image:
-        if style not in self.allowed_styles:
+        # Normalize input style for case-insensitive match
+        style = style.strip().lower()
+        if style not in {s.lower() for s in self.ALLOWED_STYLES}:
             raise ValueError(
-                f"Unsupported style '{style}'. Supported styles: {', '.join(self.allowed_styles)}"
+                f"Unsupported style '{style}'. Supported styles: {', '.join(sorted(self.ALLOWED_STYLES))}"
             )
-        return image  # Currently, it just returns the original image
-
-NODE_CLASS_MAPPINGS = {
-    "PixVerseStylize": PixVerseStylize
-}
+        return image  # Stub output for now
