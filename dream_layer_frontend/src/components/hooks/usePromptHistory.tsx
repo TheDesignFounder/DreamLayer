@@ -24,18 +24,12 @@ export const usePromptHistory = (key?: string) => {
     }
   }, [key]);
 
-  const refreshHistory = () => {
-    if (key) {
-      setHistory(getPromptHistory(key));
-    }
-  };
 
   const addPrompt = (prompt: string) => {
-    console.log('got here==')
     if (!key) return;
     const updated = savePromptToHistory(key, prompt);
     setHistory(updated);
   };
 
-  return { history, addPrompt, refreshHistory };
+  return { history, addPrompt };
 };

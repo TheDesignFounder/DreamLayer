@@ -27,12 +27,8 @@ const PromptInput: React.FC<PromptInputProps> = ({
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const { history, addPrompt, refreshHistory } = usePromptHistory(historyKey);
+  const { history, addPrompt } = usePromptHistory(historyKey);
 
-  useEffect(() => {
-    refreshHistory();
-  }, [value]);
-  
 
 
   const handleAddRandom = async () => {
