@@ -33,7 +33,10 @@ Text-to-Image API: http://localhost:5001/api/txt2img
 
 Image-to-Image API: http://localhost:5001/api/img2img
 
-CLI Options
-Flag	Description
---safe	Limit VRAM usage by lowering batch size to 1 and using fp16 precision
+## CLI Options
+
+| Flag     | Description |
+|----------|-------------|
+| `--safe` | Limit VRAM usage by lowering batch size to 1 and using fp16 precision |
+
 ```
