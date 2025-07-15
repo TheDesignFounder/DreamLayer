@@ -36,7 +36,6 @@ from app.frontend_management import FrontendManager
 from app.user_manager import UserManager
 from app.model_manager import ModelFileManager
 from app.custom_node_manager import CustomNodeManager
-from app.debug_manager import DebugManager
 from typing import Optional, Union
 from api_server.routes.internal.internal_routes import InternalRoutes
 
@@ -178,6 +177,7 @@ def fetch_last_job_as_fake_request():
             json_data = ''
             
             def __init__(self, data):
+                data['client_id'] = str(uuid.uuid4())
                 self.json_data = data
             
             async def json(self):
@@ -205,7 +205,8 @@ class PromptServer():
         self.messages = asyncio.Queue()
         self.client_session:Optional[aiohttp.ClientSession] = None
         self.number = 0
-        self.debug_prompt_lock = threading.Semaphore()
+        self.debug_prompt_lock = threading.Semaphore(1)
+        self.is_debug_regen = False
 
         middlewares = [cache_control]
         if args.enable_compress_response_body:
@@ -316,16 +317,19 @@ class PromptServer():
                     
                     #Acquire the lock
                     self.debug_prompt_lock.acquire()
+                    self.is_debug_regen = True
                     # Perform the prompting
-                    await post_prompt(wrapped_fake_request) # type: ignore - quiet, pylance...
+                    response = await post_prompt(wrapped_fake_request) # type: ignore - quiet, pylance...
+                    logging.info(response.body)
                     # Block until unlocked by async event
-                    logging.info(f'semaphore value: {self.debug_prompt_lock._value} ')
+                    #logging.info(f'semaphore value: {self.debug_prompt_lock._value} ')
                     self.debug_prompt_lock.acquire()
-                    
+                    self.is_debug_regen = False                    
                     new_image_file_ref = get_most_recent_image_file()
                     logging.info(f'found new file at {new_image_file_ref}')
                     new_hash = compute_sha256_for(new_image_file_ref)
                     logging.info(f"new image sha256:{new_hash}")
+                    self.debug_prompt_lock.release()
                     return web.json_response({"match":old_hash == new_hash})
             return web.json_response({"match",False})
         
@@ -335,7 +339,11 @@ class PromptServer():
                 os.makedirs(folder_paths.jobs_directory)
 
             with open(os.path.join(folder_paths.jobs_directory, 'last.json'), 'w') as file:
-                json.dump(json_data, file)
+                json_copy = dict(json_data)
+                #json_copy['client_id'] = ''
+                #json_copy['extra_data']['extra_pnginfo']['workflow']['id'] = ''
+                #print(json_copy.keys)
+                json.dump(json_copy, file)
                 file.flush()
                 file.close()
 
@@ -710,7 +718,6 @@ class PromptServer():
             logging.info("got prompt")
             json_data =  await request.json()
             json_data = self.trigger_on_prompt(json_data)
-
             log_to_jobs(json_data)
 
             if "number" in json_data:
@@ -736,6 +743,7 @@ class PromptServer():
                     prompt_id = str(uuid.uuid4())
                     outputs_to_execute = valid[2]
                     self.prompt_queue.put((number, prompt_id, prompt, extra_data, outputs_to_execute))
+                    print(f'Queueing up: {number}, {prompt_id},{prompt},{extra_data},{outputs_to_execute}')
                     response = {"prompt_id": prompt_id, "number": number, "node_errors": valid[3]}
                     return web.json_response(response)
                 else:
@@ -912,7 +920,7 @@ class PromptServer():
 
     def queue_updated(self):
         self.send_sync("status", { "status": self.get_queue_info() })
-        if  self.prompt_queue.get_tasks_remaining() == 0:
+        if  self.prompt_queue.get_tasks_remaining() == 0 and self.is_debug_regen:
             # the queue is completed. Let the debug thread know!
             logging.info('oop! the queue is empty, better clear the debug prompt lock!')
             self.debug_prompt_lock.release()
