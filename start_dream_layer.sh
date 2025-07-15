@@ -1,6 +1,4 @@
-export PATH="/usr/local/bin:$PATH"
 #!/bin/bash
-
 # Dream Layer Startup Script
 # This script starts all the necessary services for the Dream Layer application
 
