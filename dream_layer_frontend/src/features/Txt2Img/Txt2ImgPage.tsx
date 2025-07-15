@@ -21,12 +21,16 @@ import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import useLoraStore from '@/stores/useLoraStore';
 import { LoraRequest } from '@/types/lora';
-import { savePromptToHistory } from '@/components/PromptInput'
+import { usePromptHistory } from "@/components/hooks/usePromptHistory";
+
 
 interface Txt2ImgPageProps {
   selectedModel: string;
   onTabChange: (tabId: string) => void;
 }
+
+const promptHistoryKey = "promptHistory";
+
 
 const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange }) => {
   const [activeSubTab, setActiveSubTab] = useState("generation");
@@ -42,6 +46,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const controlNetConfig = useControlNetStore(state => state.controlNetConfig);
   const { setControlNetConfig } = useControlNetStore();
   const loraConfig = useLoraStore(state => state.loraConfig);
+  const { addPrompt } = usePromptHistory(promptHistoryKey);
 
   // Add effect to update model when selectedModel prop changes
   useEffect(() => {
@@ -142,8 +147,10 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   };
 
   const handleGenerateImage = async () => {
+    if (!isGenerating) {
+      addPrompt(coreSettings.prompt);
+    }
     // Handle interrupt if already generating
-    savePromptToHistory('promptHistory', coreSettings.prompt);
     if (isGenerating) {
       await fetch('http://localhost:5001/api/txt2img/interrupt', {
         method: 'POST',

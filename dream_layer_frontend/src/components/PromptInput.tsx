@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchRandomPrompt } from "@/services/modelService";
+import { usePromptHistory } from "./hooks/usePromptHistory";
 
 interface PromptInputProps {
   label: string;
@@ -14,20 +15,6 @@ interface PromptInputProps {
   historyKey?: string;
 }
 
-const getPromptHistory = (key: string): string[] => {
-  try {
-    return JSON.parse(localStorage.getItem(key) || '[]');
-  } catch {
-    return [];
-  }
-};
-
-const savePromptToHistory = (key: string, prompt: string) => {
-  let history = getPromptHistory(key);
-  history = [prompt, ...history.filter(p => p !== prompt)].slice(0, 10);
-  localStorage.setItem(key, JSON.stringify(history));
-};
-
 const PromptInput: React.FC<PromptInputProps> = ({
   label,
   maxLength = 500,
@@ -39,7 +26,14 @@ const PromptInput: React.FC<PromptInputProps> = ({
   historyKey
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
-  const history = historyKey ? getPromptHistory(historyKey) : [];
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const { history, addPrompt, refreshHistory } = usePromptHistory(historyKey);
+
+  useEffect(() => {
+    refreshHistory();
+  }, [value]);
+  
+
 
   const handleAddRandom = async () => {
     try {
@@ -51,10 +45,21 @@ const PromptInput: React.FC<PromptInputProps> = ({
       
       // Replace existing value with random prompt
       onChange(randomPrompt);
+      addPrompt(randomPrompt)
     } catch (error) {
       console.error('❌ Frontend: Failed to fetch random prompt:', error);
     }
   };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="space-y-2">
@@ -81,7 +86,7 @@ const PromptInput: React.FC<PromptInputProps> = ({
         onChange={(e) => onChange(e.target.value)}
       />
 
-      {historyKey && history.length > 0 && (
+      {history?.length > 0 && (
           <button
             className="absolute top-2 right-2 text-gray-500 hover:text-black"
              onClick={() => setShowDropdown((prev) => !prev)}
@@ -110,5 +115,5 @@ const PromptInput: React.FC<PromptInputProps> = ({
   );
 };
 
-export {savePromptToHistory}
+
 export default PromptInput;
