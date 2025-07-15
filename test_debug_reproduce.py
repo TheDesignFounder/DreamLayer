@@ -3,20 +3,27 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app, process_image, jobs_path_exists
 from PIL import Image, ImageDraw
-import tempfile
 import shutil
 import json
 from pathlib import Path
 
 client = TestClient(app)
 
-JOBS_DIR = Path("jobs")
-JOBS_DIR.mkdir(parents=True, exist_ok=True)
-LAST_JOB_FILE = JOBS_DIR / "last.json"
+
+def test_404_if_no_last_job():
+     response = client.get("/debug/reproduce")
+     if not jobs_path_exists:
+        assert response.status_code == 404
+        assert response.json()["error"] == "No last job or file found"
+
 
 
 @pytest.fixture
 def setup_job(tmp_path):
+    JOBS_DIR = Path("jobs")
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    LAST_JOB_FILE = JOBS_DIR / "last.json"
+
     input_image = tmp_path / "input.png"
     output_image = tmp_path / "output.png"
 
@@ -48,12 +55,6 @@ def setup_job(tmp_path):
 
 def test_reproduce_detects_mismatch(setup_job):
     response = client.get("/debug/reproduce")
-    if not jobs_path_exists:
-        response = client.get("/debug/reproduce")
-        assert response.status_code == 404
-        assert response.json()["error"] == "No last job or file found"
-    else:
+    if jobs_path_exists:
         assert response.status_code == 200
         assert response.json()["match"] is False
-   
-#pytest test_debug_reproduce.py
