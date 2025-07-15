@@ -91,7 +91,7 @@ const PromptInput: React.FC<PromptInputProps> = ({
         )}
        </div>
       {showDropdown && history.length > 0 && (
-      <div className="absolute z-10 mt-1 w-full bg-background border border-input rounded-md shadow-md max-h-40 overflow-y-auto">
+      <div className="absolute z-10 mt-1 w-1/4 bg-background border border-input rounded-md shadow-md max-h-40 overflow-y-auto">
         {history.map((item, idx) => (
           <div
             key={idx}
@@ -99,7 +99,7 @@ const PromptInput: React.FC<PromptInputProps> = ({
               onChange(item);
               setShowDropdown(false);
             }}
-            className="cursor-pointer text-sm px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+            className="cursor-pointer text-sm px-3 py-2 hover:bg-accent hover:text-accent-foreground truncate "
           >
             {item}
           </div>
