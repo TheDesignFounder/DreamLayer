@@ -28,7 +28,6 @@ def setup_job(tmp_path):
         f.write(output_bytes)
 
     # Save last job record
-    JOBS_DIR.mkdir(parents=True, exist_ok=True)
     LAST_JOB_FILE.write_text(json.dumps({
         "input_path": str(input_image),
         "output_path": str(output_image),
