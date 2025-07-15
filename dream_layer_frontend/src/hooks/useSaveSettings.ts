@@ -6,19 +6,7 @@ export const useSaveSettings = () => {
 
   const saveSettings = async () => {
     try {
-      // Convert settings to JSON
-      const settingsData = {
-        modelPath: settingsStore.modelPath,
-        enableLowVRAM: settingsStore.enableLowVRAM,
-        uiTheme: settingsStore.uiTheme,
-        language: settingsStore.language,
-        showQuickSettings: settingsStore.showQuickSettings,
-        showProgressInTitle: settingsStore.showProgressInTitle,
-        computeDevice: settingsStore.computeDevice,
-        vramUsageTarget: settingsStore.vramUsageTarget,
-        parallelProcessing: settingsStore.parallelProcessing,
-        useXformers: settingsStore.useXformers,
-        optimizeMedVram: settingsStore.optimizeMedVram,
+      const pathSettings = {
         outputDirectory: settingsStore.outputDirectory,
         modelsDirectory: settingsStore.modelsDirectory,
         controlNetModelsPath: settingsStore.controlNetModelsPath,
@@ -26,24 +14,33 @@ export const useSaveSettings = () => {
         vaeModelsPath: settingsStore.vaeModelsPath,
         loraEmbeddingsPath: settingsStore.loraEmbeddingsPath,
         filenameFormat: settingsStore.filenameFormat,
-        saveMetadata: settingsStore.saveMetadata,
-        updateChannel: settingsStore.updateChannel,
-        autoUpdate: settingsStore.autoUpdate,
+        saveMetadata: settingsStore.saveMetadata
       };
 
-      // Save settings to localStorage for now
-      // In a real app, you'd want to send this to a backend API
-      localStorage.setItem('dreamLayerSettings', JSON.stringify(settingsData));
-      
-      // Show success toast
-      toast({
-        title: "Settings Saved",
-        description: "Your settings have been saved successfully.",
+      const response = await fetch('http://localhost:5002/api/settings/paths', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pathSettings),
       });
+
+      const data = await response.json();
       
-      return true;
+      if (data.status === 'success') {
+        // Add toast notification for success
+        toast({
+          title: "Settings Saved",
+          description: "Your settings have been saved successfully.",
+        });
+        console.log('Settings saved successfully');
+        return true;
+      } else {
+        throw new Error(data.message);
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
+      // Add toast notification for error
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
