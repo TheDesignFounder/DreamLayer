@@ -263,53 +263,9 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Resize Mode Header and Section - only show if showResizeMode is true */}
-      {showResizeMode && (
-        <>
-          <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">3. Resize Mode</h4>
-
-          {/* Resize Mode Section */}
-          <div className="mb-4">
-            <RadioGroup 
-              value={resizeMode} 
-              onValueChange={setResizeMode}
-              className="grid grid-cols-4 gap-3"
-            >
-              <div className="relative">
-                <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${resizeMode === "just-resize" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
-                  <RadioGroupItem id="just-resize" value="just-resize" className="h-4 w-4" />
-                  <label htmlFor="just-resize" className="text-sm font-medium cursor-pointer w-full">Just Resize</label>
-                </Card>
-              </div>
-              
-              <div className="relative">
-                <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${resizeMode === "crop-resize" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
-                  <RadioGroupItem id="crop-resize" value="crop-resize" className="h-4 w-4" />
-                  <label htmlFor="crop-resize" className="text-sm font-medium cursor-pointer w-full">Crop & Resize</label>
-                </Card>
-              </div>
-              
-              <div className="relative">
-                <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${resizeMode === "resize-fill" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
-                  <RadioGroupItem id="resize-fill" value="resize-fill" className="h-4 w-4" />
-                  <label htmlFor="resize-fill" className="text-sm font-medium cursor-pointer w-full">Resize & Fill</label>
-                </Card>
-              </div>
-              
-              <div className="relative">
-                <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${resizeMode === "just-resize-latent" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
-                  <RadioGroupItem id="just-resize-latent" value="just-resize-latent" className="h-4 w-4" />
-                  <label htmlFor="just-resize-latent" className="text-sm font-medium cursor-pointer w-full">Just Resize (latent upscale)</label>
-                </Card>
-              </div>
-            </RadioGroup>
-          </div>
-        </>
-      )}
-
       {/* Sampling Settings Header */}
       <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
-        {showResizeMode ? "4. Sampling Settings" : "2. Sampling Settings"}
+        {showResizeMode ? "2. Sampling Settings" : "2. Sampling Settings"}
       </h4>
 
       {/* Sampling Method Section */}
@@ -366,6 +322,50 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
             sublabel=""
           />
         </div>
+      )}
+
+      {/* Resize Mode Header and Section - moved to after sampling settings */}
+      {showResizeMode && (
+        <>
+          <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">3. Resize Mode</h4>
+
+          {/* Resize Mode Section */}
+          <div className="mb-4">
+            <RadioGroup 
+              value={resizeMode} 
+              onValueChange={setResizeMode}
+              className="grid grid-cols-4 gap-3"
+            >
+              <div className="relative">
+                <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${resizeMode === "just-resize" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
+                  <RadioGroupItem id="just-resize" value="just-resize" className="h-4 w-4" />
+                  <label htmlFor="just-resize" className="text-sm font-medium cursor-pointer w-full">Just Resize</label>
+                </Card>
+              </div>
+              
+              <div className="relative">
+                <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${resizeMode === "crop-resize" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
+                  <RadioGroupItem id="crop-resize" value="crop-resize" className="h-4 w-4" />
+                  <label htmlFor="crop-resize" className="text-sm font-medium cursor-pointer w-full">Crop & Resize</label>
+                </Card>
+              </div>
+              
+              <div className="relative">
+                <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${resizeMode === "resize-fill" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
+                  <RadioGroupItem id="resize-fill" value="resize-fill" className="h-4 w-4" />
+                  <label htmlFor="resize-fill" className="text-sm font-medium cursor-pointer w-full">Resize & Fill</label>
+                </Card>
+              </div>
+              
+              <div className="relative">
+                <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${resizeMode === "just-resize-latent" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
+                  <RadioGroupItem id="just-resize-latent" value="just-resize-latent" className="h-4 w-4" />
+                  <label htmlFor="just-resize-latent" className="text-sm font-medium cursor-pointer w-full">Just Resize (latent upscale)</label>
+                </Card>
+              </div>
+            </RadioGroup>
+          </div>
+        </>
       )}
     </div>
   );
