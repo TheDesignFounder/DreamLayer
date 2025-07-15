@@ -16,6 +16,8 @@ import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+import { useHotkeys } from '@/hooks/useHotkeys';
+import ShortcutTooltip from '@/components/ui/ShortcutTooltip';
 
 import {
   Accordion,
@@ -255,6 +257,10 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     updateCoreSettings({ refiner_switch_at: value });
   };
 
+  useHotkeys({
+    'Ctrl+Enter': handleGenerateImage,
+    'Ctrl+C': handleCopyPrompts,
+  });
 
   const renderSubTabContent = () => {
     switch (activeSubTab) {
@@ -272,15 +278,17 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
             
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-bold text-primary">1. Prompt Input</h4>
-              <Button 
-                onClick={handleCopyPrompts}
-                variant="outline"
-                size="sm"
-                className="text-xs px-2 py-1 h-auto flex items-center gap-1"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copy Prompts
-              </Button>
+              <ShortcutTooltip content="Copy Prompts (Ctrl+C)">
+                <Button 
+                  onClick={handleCopyPrompts}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs px-2 py-1 h-auto flex items-center gap-1"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy Prompts
+                </Button>
+              </ShortcutTooltip>
             </div>
             <PromptInput 
               label="a) Prompt"
@@ -406,13 +414,15 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <h3 className="text-base font-medium text-foreground">Image to Image Generation</h3>
             <div className="flex space-x-2">
-              <Button 
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                onClick={handleGenerateImage}
-                disabled={!inputImage}
-              >
-                {isGenerating ? 'Interrupt' : 'Generate Image'}
-              </Button>
+              <ShortcutTooltip content={`${isGenerating ? 'Interrupt' : 'Generate Image'} (Ctrl+Enter)`}>
+                <Button 
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  onClick={handleGenerateImage}
+                  disabled={!inputImage}
+                >
+                  {isGenerating ? 'Interrupt' : 'Generate Image'}
+                </Button>
+              </ShortcutTooltip>
               {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
                 Save Settings
               </button>}
