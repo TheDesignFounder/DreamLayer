@@ -288,6 +288,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
               placeholder="Enter your prompt here"
               value={coreSettings.prompt}
               onChange={(value) => handlePromptChange(value)}
+              historyKey="promptHistory"
             />
             <PromptInput 
               label="b) Negative Prompt"

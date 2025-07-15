@@ -1,3 +1,4 @@
+export PATH="/usr/local/bin:$PATH"
 #!/bin/bash
 
 # Dream Layer Startup Script

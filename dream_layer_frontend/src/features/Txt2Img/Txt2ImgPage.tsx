@@ -21,6 +21,7 @@ import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import useLoraStore from '@/stores/useLoraStore';
 import { LoraRequest } from '@/types/lora';
+import { savePromptToHistory } from '@/components/PromptInput'
 
 interface Txt2ImgPageProps {
   selectedModel: string;
@@ -142,6 +143,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const handleGenerateImage = async () => {
     // Handle interrupt if already generating
+    savePromptToHistory('promptHistory', coreSettings.prompt);
     if (isGenerating) {
       await fetch('http://localhost:5001/api/txt2img/interrupt', {
         method: 'POST',
@@ -340,6 +342,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
               placeholder="Enter your prompt here"
               value={coreSettings.prompt}
               onChange={(value) => handlePromptChange(value)}
+              historyKey="promptHistory"
             />
             <PromptInput 
               label="b) Negative Prompt"

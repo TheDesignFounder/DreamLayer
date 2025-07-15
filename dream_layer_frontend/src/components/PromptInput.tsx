@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import React, { useState } from 'react';
 import { fetchRandomPrompt } from "@/services/modelService";
 
 interface PromptInputProps {
@@ -10,7 +11,22 @@ interface PromptInputProps {
   showAddRandom?: boolean;
   value: string;
   onChange: (value: string) => void;
+  historyKey?: string;
 }
+
+const getPromptHistory = (key: string): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(key) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const savePromptToHistory = (key: string, prompt: string) => {
+  let history = getPromptHistory(key);
+  history = [prompt, ...history.filter(p => p !== prompt)].slice(0, 10);
+  localStorage.setItem(key, JSON.stringify(history));
+};
 
 const PromptInput: React.FC<PromptInputProps> = ({
   label,
@@ -19,8 +35,12 @@ const PromptInput: React.FC<PromptInputProps> = ({
   negative = false,
   showAddRandom = true,
   value,
-  onChange
+  onChange,
+  historyKey
 }) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const history = historyKey ? getPromptHistory(historyKey) : [];
+
   const handleAddRandom = async () => {
     try {
       const promptType = negative ? 'negative' : 'positive';
@@ -49,8 +69,9 @@ const PromptInput: React.FC<PromptInputProps> = ({
           </button>
         )}
       </div>
+      <div className="relative w-full">
       <textarea
-        className={`w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`w-full pr-10 rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
           negative ? 'text-red-500' : ''
         }`}
         rows={3}
@@ -59,8 +80,35 @@ const PromptInput: React.FC<PromptInputProps> = ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+
+      {historyKey && history.length > 0 && (
+          <button
+            className="absolute top-2 right-2 text-gray-500 hover:text-black"
+             onClick={() => setShowDropdown((prev) => !prev)}
+           >
+            ▼
+          </button>
+        )}
+       </div>
+      {showDropdown && history.length > 0 && (
+      <div className="absolute z-10 mt-1 w-full bg-background border border-input rounded-md shadow-md max-h-40 overflow-y-auto">
+        {history.map((item, idx) => (
+          <div
+            key={idx}
+            onClick={() => {
+              onChange(item);
+              setShowDropdown(false);
+            }}
+            className="cursor-pointer text-sm px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+          >
+            {item}
+          </div>
+        ))}
+      </div>
+    )}
     </div>
   );
 };
 
+export {savePromptToHistory}
 export default PromptInput;
