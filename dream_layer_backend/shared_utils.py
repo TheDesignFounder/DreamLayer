@@ -3,6 +3,7 @@ import shutil
 import time
 import requests
 import copy
+import argparse
 from typing import List, Dict, Any
 from dream_layer import get_directories
 from dream_layer_backend_utils.update_custom_workflow import find_save_node
@@ -286,4 +287,38 @@ def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
         return {
             "status": "error",
             "message": str(e)
-        }, 500 
+        }, 500
+
+_args = None
+
+def get_args():
+    """
+    Parse (or return cached) command-line/config args.
+    Usage: args = get_args(); value = args.max_disk_gb
+    """
+    global _args
+    if _args is None:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--max-disk-gb", type=float, default=20,
+                            help="Minimum free disk space (GB) required for jobs")
+        # Add any other global CLI options here
+        _args, _ = parser.parse_known_args()
+    return _args
+
+def get_max_disk_gb():
+    """
+    Get the current max disk GB quota from global args/config.
+    """
+    return get_args().max_disk_gb
+
+def check_disk_quota(output_dir, min_gb):
+    """
+    Returns True if at least `min_gb` free in `output_dir`'s partition, else False.
+    """
+    try:
+        total, used, free = shutil.disk_usage(output_dir)  # [2][7]
+        free_gb = free / (1024 ** 3)
+        return free_gb >= min_gb
+    except Exception as e:
+        print(f"Disk quota check failed: {e}")
+        return False

@@ -7,7 +7,7 @@ import os
 from PIL import Image
 import io
 import time
-from shared_utils import send_to_comfyui
+from shared_utils import send_to_comfyui, get_max_disk_gb, check_disk_quota
 from img2img_workflow import transform_to_img2img_workflow
 from shared_utils import COMFY_API_URL
 from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
@@ -70,6 +70,13 @@ def handle_img2img():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
         return response
+    max_disk_gb = get_max_disk_gb()
+    # Now use in your quota check
+    if not check_disk_quota(COMFY_OUTPUT_DIR, max_disk_gb):
+        return jsonify({
+            "status": "error",
+            "message": "Disk quota exceeded. Free space is below configured limit."
+        }), 507
 
     try:
         # Verify input directory before processing
