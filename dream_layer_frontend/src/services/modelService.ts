@@ -58,3 +58,23 @@ export const fetchUpscalerModels = async () => {
   const data = await response.json();
   return data.models;
 }; 
+
+export const addAPIBasedModel = async (alias: string, apiKey: string): Promise<boolean> => {
+  const response = await fetch('http://localhost:5002/api/add-api-key', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      alias, 
+      'api-key': apiKey
+    }),
+  });
+
+  if (!response.ok) {
+    console.error('Failed to add API-based model');
+    return false;
+  }
+
+  return true;
+};

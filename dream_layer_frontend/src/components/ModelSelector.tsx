@@ -1,4 +1,4 @@
-import { RefreshCw, Save } from "lucide-react";
+import { CirclePlus, RefreshCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -7,7 +7,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import ApiBasedModelForm from "@/components/AliasKeyInputs";
 import { useEffect, useState } from "react";
+import PopupBox from "@/components/ui/pop-up"
 import { CheckpointModel, fetchAvailableModels } from "@/services/modelService";
 
 interface ModelSelectorProps {
@@ -19,6 +21,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false)
 
   const loadModels = async () => {
     try {
@@ -52,6 +55,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
   return (
     <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
       <div className="flex flex-col flex-1">
+      <PopupBox isOpen={open} onClose={() => setOpen(false)} title="API-Based Model"> <ApiBasedModelForm></ApiBasedModelForm>
+      </PopupBox>
         <label htmlFor="model" className="mb-1 text-sm font-medium">
           Select Stable Diffusion Checkpoint:
         </label>
@@ -73,6 +78,15 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
         {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
       </div>
       <div className="flex flex-1 space-x-2 sm:justify-end">
+        <Button 
+          variant="outline" 
+          className="flex items-center space-x-2 mr-5 dark:bg-[#0F172A] dark:border-slate-700 dark:text-white dark:hover:bg-slate-800"
+          onClick={()=>setOpen(true)}
+          disabled={isLoading}
+        >
+          <CirclePlus className={`h-5 w-5`} />
+          <span>Add API KEY</span>
+        </Button>
         <Button 
           variant="outline" 
           className="flex items-center space-x-2 dark:bg-[#0F172A] dark:border-slate-700 dark:text-white dark:hover:bg-slate-800"

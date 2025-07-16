@@ -296,6 +296,12 @@ def get_available_lora_models():
     
     return formatted_models
 
+@app.route('/', methods=['GET'])
+def is_server_running():
+    return jsonify({
+        "status": "success"
+        })
+
 @app.route('/api/lora-models', methods=['GET'])
 def handle_get_lora_models():
     """
@@ -312,6 +318,45 @@ def handle_get_lora_models():
             "status": "error",
             "message": str(e)
         }), 500
+        
+@app.route('/api/add-api-key', methods=['POST'])
+def add_api_key():
+    """
+    Update or add an API key in the .env file.
+    Expects JSON: { "alias": "OPENAI_API_KEY", "api-key": "sk-..." }
+    """
+    try:
+        data = request.get_json()
+        alias = data.get('alias')
+        api_key = data.get('api-key')
+
+        if not alias or not api_key:
+            return jsonify({"status": "error", "message": "Missing alias or api_key"}), 400
+
+        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+        lines = []
+        found = False
+        
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                lines = f.readlines()
+
+        new_lines = []
+        for line in lines:
+            if line.strip().startswith(f"{alias}="):
+                new_lines.append(f"{alias}={api_key}\n")
+                found = True
+            else:
+                new_lines.append(line)
+        if not found:
+            new_lines.append(f"\n{alias}={api_key}")
+
+        with open(env_path, 'w') as f:
+            f.writelines(new_lines)
+
+        return jsonify({"status": "success", "message": f"{alias} updated in .env"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/fetch-prompt', methods=['GET'])
 def fetch_prompt():
