@@ -12,6 +12,10 @@ import subprocess
 from dream_layer_backend_utils.random_prompt_generator import fetch_positive_prompt, fetch_negative_prompt
 from dream_layer_backend_utils.fetch_advanced_models import get_lora_models, get_settings, is_valid_directory, get_upscaler_models, get_controlnet_models
 from dream_layer_backend_utils.random_prompt_generator import fetch_positive_prompt, fetch_negative_prompt
+import sys
+sys.path.insert(0, '/Users/venkateshlavanreddy/Downloads/DreamLayer/ComfyUI')
+
+from utils import extra_config
 # Add ComfyUI directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
