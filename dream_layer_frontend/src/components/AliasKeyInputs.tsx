@@ -21,13 +21,19 @@ const fields = [
     placeholder: "Enter Ideogram API Key",
     docs: "https://developer.ideogram.ai/ideogram-api/api-setup",
   },
+  {
+    name: "Gemini - Google AI",
+    alias: "GEMINI_API_KEY",
+    placeholder: "Enter Gemini API Key",
+    docs: "https://ai.google.dev/gemini-api/docs/api-key",
+  },
 ];
 
 const ApiKeysForm: React.FC = () => {
-  const [keys, setKeys] = useState<string[]>(["", "", ""]);
-  const [submitted, setSubmitted] = useState<boolean[]>([false, false, false]);
-  const [loading, setLoading] = useState<boolean[]>([false, false, false]);
-  const [showText, setShowText] = useState<boolean[]>([false, false, false]);
+  const [keys, setKeys] = useState<string[]>(["", "", "", ""]);
+  const [submitted, setSubmitted] = useState<boolean[]>([false, false, false, false]);
+  const [loading, setLoading] = useState<boolean[]>([false, false, false, false]);
+  const [showText, setShowText] = useState<boolean[]>([false, false, false, false]);
 
   const handleChange = (index: number, value: string) => {
     setKeys((prev) => {

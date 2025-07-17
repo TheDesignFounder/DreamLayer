@@ -30,6 +30,10 @@ API_KEY_TO_MODELS = {
     ],
     "IDEOGRAM_API_KEY": [
         {"id": "ideogram-v3", "name": "Ideogram V3", "filename": "ideogram-v3"},
+    ],
+    "GEMINI_API_KEY": [
+        {"id": "gemini-pro-vision", "name": "Gemini Pro Vision", "filename": "gemini-pro-vision"},
+        {"id": "gemini-pro", "name": "Gemini Pro", "filename": "gemini-pro"},
     ]
 }
 
