@@ -432,7 +432,7 @@ function Set-Environment {
     }
     
     # Create .env template if it doesn't exist
-    if (-not (Test-Path "dream_layer_backend\.env")) {
+    if (-not (Test-Path ".env")) {
         Write-Step "Creating .env template..."
         $envContent = @"
 # Dream Layer Environment Configuration
@@ -451,9 +451,9 @@ COMFYUI_PATH=../ComfyUI
 COMFYUI_HOST=127.0.0.1
 COMFYUI_PORT=8188
 "@
-        $envContent | Out-File -FilePath "dream_layer_backend\.env" -Encoding UTF8
+        $envContent | Out-File -FilePath ".env" -Encoding UTF8
         Write-Success "Created .env template"
-        Write-Warning "Please update dream_layer_backend\.env with your actual configuration"
+        Write-Warning "Please update .env with your actual configuration"
     }
     
     Write-Success "Environment setup completed"
@@ -517,7 +517,7 @@ function Show-FinalInstructions {
     Write-Host "1. " -ForegroundColor $Colors.Yellow -NoNewline
     Write-Host "Configure your environment:" -ForegroundColor $Colors.Yellow
     Write-Host "   • Edit " -NoNewline
-    Write-Host "dream_layer_backend\.env" -ForegroundColor $Colors.Blue -NoNewline
+    Write-Host ".env" -ForegroundColor $Colors.Blue -NoNewline
     Write-Host " with your API keys and preferences"
     Write-Host ""
     

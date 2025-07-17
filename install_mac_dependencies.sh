@@ -245,9 +245,9 @@ setup_environment() {
     fi
     
     # Create a simple .env template if it doesn't exist
-    if [ ! -f "dream_layer_backend/.env" ]; then
+    if [ ! -f ".env" ]; then
         print_step "Creating .env template..."
-        cat > dream_layer_backend/.env << EOF
+        cat > .env << EOF
 # Dream Layer Environment Configuration
 # Copy this file and update with your actual values
 
@@ -265,7 +265,7 @@ COMFYUI_HOST=127.0.0.1
 COMFYUI_PORT=8188
 EOF
         print_success "Created .env template"
-        print_warning "Please update dream_layer_backend/.env with your actual configuration"
+        print_warning "Please update .env with your actual configuration"
     fi
     
     print_success "Environment setup completed"
@@ -305,7 +305,7 @@ display_final_instructions() {
     
     echo -e "${CYAN}Next steps:${NC}"
     echo -e "1. ${YELLOW}Configure your environment:${NC}"
-    echo -e "   • Edit ${BLUE}dream_layer_backend/.env${NC} with your API keys and preferences"
+    echo -e "   • Edit ${BLUE}.env${NC} with your API keys and preferences"
     echo -e ""
     echo -e "2. ${YELLOW}Start the application:${NC}"
     echo -e "   • Run: ${BLUE}./start_dream_layer.sh${NC}"

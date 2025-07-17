@@ -66,8 +66,6 @@ start_dream_layer.bat
 - **Frontend:** http://localhost:8080
 - **ComfyUI:** http://localhost:8188
 
----
-
 ## Why DreamLayer AI?
 
 | 🔍 Feature                      | 🚀 How it’s better                                                                                          |
@@ -128,6 +126,26 @@ No key = feature stays hidden.
 > Tip: Use symbolic links if your checkpoints live on another drive.
 
 _The installation scripts will automatically install all dependencies and set up the environment._
+
+---
+
+## Why DreamLayer AI?
+
+| 🔍 Feature                      | 🚀 How it’s better                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Familiar Layout**             | If you’ve used A1111 or Forge, you’ll feel at home in sec. Zero learning curve                              |
+| **Modern UX**                   | Responsive design with light & dark themes and a clutter-free interface that lets you work faster           |
+| **ComfyUI Engine Inside**       | All generation runs on a proven, modular, stable ComfyUI backend. Ready for custom nodes and advanced hacks |
+| **Closed-Source Model Support** | One-click swap to GPT-4o Image, Ideogram V3, Runway Gen-4, Recraft V3, and more                             |
+| **Local first**                 | Runs entirely on your GPU with no hosting fees, full privacy, and instant acceleration out of the box       |
+
+---
+
+## Requirements
+
+- Python 3.8+
+- Node.js 16+
+- 8GB+ RAM recommended
 
 ---
 
