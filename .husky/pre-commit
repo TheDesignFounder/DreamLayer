@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+echo "✅ Husky pre-commit running!"
+cd dream_layer_frontend || exit 1
+echo "✅ Changed dir to frontend: $(pwd)"
+npx lint-staged || echo "lint-staged failed"
