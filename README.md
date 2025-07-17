@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <b>⭐ Star to Get Early-Supporter Perks ⭐</b> 
+  <b>⭐ Star to Get Early-Supporter Perks ⭐</b>
 </p>
 
 <p align="center">
@@ -18,12 +18,12 @@
 
 ## What is DreamLayer AI?
 
-DreamLayer AI is an open-source Stable Diffusion WebUI that keeps the familiar Automatic1111 ⁄ Forge layout you know, replaces the clutter with a modern design system, and runs every generation step on ComfyUI in the background.  
+DreamLayer AI is an open-source Stable Diffusion WebUI that keeps the familiar Automatic1111 ⁄ Forge layout you know, replaces the clutter with a modern design system, and runs every generation step on ComfyUI in the background.
 No node graph on screen, no server rental, just a lightning-fast local interface for:
 
-* **AI artists** producing portfolio-ready images  
-* **Developers and prompt engineers** iterating on prompts and LoRAs  
-* **Researchers** benchmarking new models and samplers  
+* **AI artists** producing portfolio-ready images
+* **Developers and prompt engineers** iterating on prompts and LoRAs
+* **Researchers** benchmarking new models and samplers
 
 > **Status:** ✨ **Now live:** Open Alpha • **Beta V1 ships:** **Mid-July 2025**
 
@@ -69,7 +69,7 @@ DreamLayer ships without weights to keep the download small. You have two ways t
 
 ### a) Closed-source API models
 
-DreamLayer can also call external APIs (OpenAI DALL·E, Flux, Ideogram). 
+DreamLayer can also call external APIs (OpenAI DALL·E, Flux, Ideogram).
 
 To enable them:
 
@@ -101,7 +101,48 @@ No key = feature stays hidden.
 
 > Tip: Use symbolic links if your checkpoints live on another drive.
 
-*The installation scripts will automatically install all dependencies and set up the environment.* 
+*The installation scripts will automatically install all dependencies and set up the environment.*
+
+### c) LoRA Auto-Merge Utility
+
+DreamLayer includes a command-line utility for merging LoRA weights with base models, powered by ComfyUI's robust LoRA infrastructure:
+
+```bash
+# Install the CLI
+cd dream_layer_backend
+pip install -e .
+
+# Merge LoRA with base model
+dreamlayer merge-lora base.safetensors lora.safetensors merged.safetensors
+
+# Merge with custom scaling
+dreamlayer merge-lora base.safetensors lora.safetensors merged.safetensors --scale 0.8
+
+# Test the merge functionality
+dreamlayer test
+```
+
+The utility leverages ComfyUI's LoRA infrastructure for robust merging and supports `.safetensors` file formats. It can handle various LoRA formats including diffusers, OneTrainer, SimpleTuner, and more.
+
+### Testing the LoRA Merger
+
+To test the LoRA merger functionality, you can use the included test tensor generator:
+
+```bash
+# Navigate to the backend directory
+cd dream_layer_backend
+
+# Generate test tensor files
+python create_test_tensors.py
+
+# Test the merger with the generated files
+python -m dream_layer_backend.cli merge-lora test_base.safetensors test_lora.safetensors test_merged.safetensors
+
+# Test with custom scaling
+python -m dream_layer_backend.cli merge-lora test_base.safetensors test_lora.safetensors test_merged.safetensors --scale 0.8
+```
+
+The test script creates dummy `.safetensors` files that simulate real model and LoRA structures, allowing you to verify that the merger is working correctly without needing actual model files.
 
 
 ---
@@ -130,13 +171,13 @@ No key = feature stays hidden.
 
 ## ⭐ Why Star This Repo Now?
 
-Starring helps us trend on GitHub which brings more contributors and faster features.  
+Starring helps us trend on GitHub which brings more contributors and faster features.
 Early stargazers get perks:
 
-* **GitHub Hall of Fame**: Your handle listed forever in the README under Founding Supporter  
+* **GitHub Hall of Fame**: Your handle listed forever in the README under Founding Supporter
 * **Early Builds**: Download private binaries before everyone else
-* **Community first hiring**: We prioritize contributors and stargazers for all freelance, full-time, and AI artist or engineering roles.    
-* **Closed Beta Invites**: Give feedback that shapes 1.0  
+* **Community first hiring**: We prioritize contributors and stargazers for all freelance, full-time, and AI artist or engineering roles.
+* **Closed Beta Invites**: Give feedback that shapes 1.0
 * **Discord badge**: Exclusive Founding Supporter role
 
 > ⭐ **Hit the star button right now** and join us at the ground floor ☺️
@@ -145,8 +186,8 @@ Early stargazers get perks:
 
 ## Get Involved Today
 
-1. **Star** this repository.  
-2. **Watch** releases for the July code drop.  
+1. **Star** this repository.
+2. **Watch** releases for the July code drop.
 3. **Join** the Discord (link coming soon) and say hi.
 4. **Open issues** for ideas or feedback & Submit PRs once the code is live
 5. **Share** the screenshot on X ⁄ Twitter with `#DreamLayerAI` to spread the word.
@@ -171,7 +212,7 @@ Full docs will ship with the first code release.
 
 ## License
 
-DreamLayer AI will ship under the GPL-3.0 license when the code is released.  
+DreamLayer AI will ship under the GPL-3.0 license when the code is released.
 All trademarks and closed-source models referenced belong to their respective owners.
 
 ---
