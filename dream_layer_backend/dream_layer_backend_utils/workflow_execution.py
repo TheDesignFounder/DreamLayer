@@ -20,3 +20,16 @@ def interrupt_workflow():
     except Exception as e:
         logger.error(f"Error interrupting workflow: {str(e)}")
         return False 
+    
+def execute_workflow(workflow):
+    """
+    Execute a workflow via ComfyUI API
+    """
+    try:
+        response = requests.post(f"{COMFY_API_URL}/prompt", json=workflow)
+        response.raise_for_status()
+        logger.info("Workflow execution request sent successfully.")
+        return response.json()
+    except requests.RequestException as e:
+        logger.error(f"Workflow execution request failed: {str(e)}")
+        return None

@@ -9,9 +9,12 @@ from flask_cors import CORS
 import requests
 import json
 import subprocess
+import hashlib
 from dream_layer_backend_utils.random_prompt_generator import fetch_positive_prompt, fetch_negative_prompt
 from dream_layer_backend_utils.fetch_advanced_models import get_lora_models, get_settings, is_valid_directory, get_upscaler_models, get_controlnet_models
 from dream_layer_backend_utils.random_prompt_generator import fetch_positive_prompt, fetch_negative_prompt
+from dream_layer_backend_utils.workflow_execution import execute_workflow
+
 # Add ComfyUI directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -527,6 +530,36 @@ def get_controlnet_models_endpoint():
             "status": "error",
             "message": f"Failed to fetch ControlNet models: {str(e)}"
         }), 500
+    
+@app.route('/debug/reproduce', methods=['GET'])
+def debug_reproduce():
+    last_job_path = os.path.expanduser('~/jobs/last.json')
+
+    if not os.path.exists(last_job_path):
+        return jsonify({"error": "No last job found"}), 404
+
+    with open(last_job_path, 'r') as f:
+        job_data = json.load(f)
+
+    original_output_path = job_data.get('output_path')
+
+    if not os.path.exists(original_output_path):
+        return jsonify({"error": "Original output not found"}), 404
+
+    # Compute hash of the original output
+    with open(original_output_path, 'rb') as original_file:
+        original_hash = hashlib.sha256(original_file.read()).hexdigest()
+
+    # Re-run the job
+    execute_workflow(job_data['workflow'])
+
+    # Compute hash of the new output
+    with open(original_output_path, 'rb') as new_file:
+        new_hash = hashlib.sha256(new_file.read()).hexdigest()
+
+    match = original_hash == new_hash
+
+    return jsonify({"match": match})
 
 if __name__ == "__main__":
     print("Starting Dream Layer backend services...")
