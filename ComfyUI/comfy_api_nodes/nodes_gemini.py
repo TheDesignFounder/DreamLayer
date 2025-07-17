@@ -352,10 +352,11 @@ class GeminiNode(ComfyNodeABC):
         except Exception as e:
             # Handle API errors, network issues, and validation failures gracefully
             error_message = f"Gemini API Error: {str(e)}"
-            print(f"[GeminiNode] {error_message}")
+            print(f"[GeminiNode] {error_message}")  # Log full error for debugging
+            sanitized_message = "An error occurred while processing your request. Please try again later."
             if unique_id:
-                PromptServer.instance.send_progress_text(error_message, node_id=unique_id)
-            output_text = error_message
+                PromptServer.instance.send_progress_text(sanitized_message, node_id=unique_id)
+            output_text = sanitized_message
 
         return (output_text or "Empty response from Gemini model...",)
 
