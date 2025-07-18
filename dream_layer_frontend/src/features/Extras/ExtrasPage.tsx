@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Accordion from '@/components/Accordion';
 import Slider from '@/components/Slider';
 import SubTabNavigation from '@/components/SubTabNavigation';
@@ -19,6 +19,8 @@ import { ExtrasRequest, ExtrasResponse } from './types';
 import { toast } from 'sonner';
 import ImageUploadButton from '@/components/ImageUploadButton';
 import { fetchUpscalerModels } from "@/services/modelService";
+import useHotkeyStore from '@/stores/useHotkeyStore';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const ExtrasPage = () => {
   const [activeSubTab, setActiveSubTab] = useState("upscale");
@@ -27,7 +29,7 @@ const ExtrasPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [availableUpscalers, setAvailableUpscalers] = useState([]);
-  
+  const { registerHotkey, unregisterHotkey } = useHotkeyStore();
   // New state for advanced upscaling options
   const [upscaleMethod, setUpscaleMethod] = useState("upscale-by");
   const [upscaleFactor, setUpscaleFactor] = useState(2.5);
@@ -102,7 +104,7 @@ const ExtrasPage = () => {
     };
   }, [imagePreview]);
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     if (!selectedImage) {
       toast.error("Please select an image first");
       return;
@@ -145,7 +147,15 @@ const ExtrasPage = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [selectedImage, selectedUpscaler, selectedUpscaler2, upscaler2Visibility, gfpganVisibility, codeformerVisibility, codeformerWeight]);
+
+  useEffect(() => {
+    registerHotkey("Ctrl+Enter", handleGenerate);
+
+    return () => {
+      unregisterHotkey("Ctrl+Enter");
+    }
+  }, [registerHotkey, unregisterHotkey, handleGenerate]);
 
   const renderUpscalingOptions = () => {
     return (
@@ -379,13 +389,20 @@ const ExtrasPage = () => {
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <h3 className="text-base font-medium">Image Post-Processing</h3>
             <div className="flex space-x-2">
-              <Button 
-                onClick={handleGenerate}
-                disabled={!selectedImage || isProcessing}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                {isProcessing ? 'Processing...' : 'Generate Image'}
-              </Button>
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={handleGenerate}
+                    disabled={!selectedImage || isProcessing}
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    {isProcessing ? 'Processing...' : 'Generate Image'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Hotkey: <kbd>Ctrl</kbd> + <kbd>Enter</kbd></p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
           

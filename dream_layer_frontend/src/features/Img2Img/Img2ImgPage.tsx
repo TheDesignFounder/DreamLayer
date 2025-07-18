@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback} from 'react';
 import ImageUploader from '@/components/ImageUploader';
 import AdvancedSettings from '@/components/AdvancedSettings';
 import ExternalExtensions from '@/components/ExternalExtensions';
@@ -16,6 +16,7 @@ import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+import useHotkeyStore from '@/stores/useHotkeyStore';
 
 import {
   Accordion,
@@ -27,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Img2ImgPageProps {
   selectedModel: string;
@@ -40,7 +42,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const [batchSize, setBatchSize] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  
+  const { registerHotkey, unregisterHotkey } = useHotkeyStore();
   // ControlNet configuration will be managed by useControlNetStore
   
   const { 
@@ -98,7 +100,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     setControlNetConfig(config?.enabled ? config : null);
   };
 
-  const handleGenerateImage = async () => {
+  const handleGenerateImage = useCallback(async () => {
     if (isGenerating) {
       await fetch('http://localhost:5004/api/img2img/interrupt', {
         method: 'POST',
@@ -207,7 +209,15 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       setLoading(false);
       setIsGenerating(false);
     }
-  };
+  }, [isGenerating, setIsGenerating, inputImage, selectedModel, setLoading, controlNetConfig, customWorkflow, selectedLora, addImages, coreSettings]);
+
+  useEffect(() => {
+    registerHotkey("Ctrl+Enter", handleGenerateImage);
+
+    return () => {
+      unregisterHotkey("Ctrl+Enter");
+    };
+  }, [registerHotkey, unregisterHotkey, handleGenerateImage]);
 
   const getSectionTitle = () => {
     switch (activeSubTab) {
@@ -406,13 +416,21 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <h3 className="text-base font-medium text-foreground">Image to Image Generation</h3>
             <div className="flex space-x-2">
-              <Button 
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                onClick={handleGenerateImage}
-                disabled={!inputImage}
-              >
-                {isGenerating ? 'Interrupt' : 'Generate Image'}
-              </Button>
+              <Tooltip delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <Button 
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    onClick={handleGenerateImage}
+                    disabled={!inputImage}
+                  >
+                    {isGenerating ? 'Interrupt' : 'Generate Image'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Hotkey: <kbd>Ctrl</kbd> + <kbd>Enter</kbd></p>
+                </TooltipContent>
+              </Tooltip>
+             
               {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
                 Save Settings
               </button>}

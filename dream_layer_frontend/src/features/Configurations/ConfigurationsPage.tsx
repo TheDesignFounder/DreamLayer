@@ -1,7 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import Accordion from '@/components/Accordion';
 import Slider from '@/components/Slider';
 import { useSettingsStore } from './useSettingsStore';
+import useHotkeyStore from '@/stores/useHotkeyStore';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const ConfigurationsPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -31,8 +33,9 @@ const ConfigurationsPage = () => {
     saveMetadata, setSaveMetadata,
     autoUpdate, setAutoUpdate
   } = useSettingsStore();
-
-  const handleSaveSettings = async () => {
+  const { registerHotkey, unregisterHotkey } = useHotkeyStore();
+  
+  const handleSaveSettings = useCallback(async () => {
     try {
       const pathSettings = {
         outputDirectory,
@@ -65,7 +68,15 @@ const ConfigurationsPage = () => {
       console.error('Error saving settings:', error);
       // TODO: Add a toast notification for error
     }
-  };
+  }, [outputDirectory, modelsDirectory, controlNetModelsPath, upscalerModelsPath, vaeModelsPath, loraEmbeddingsPath, filenameFormat, saveMetadata]);
+
+  useEffect(() => {
+    registerHotkey("Shift+S", handleSaveSettings);
+
+    return () => {
+      unregisterHotkey("Shift+S");
+    }
+  }, [registerHotkey, unregisterHotkey, handleSaveSettings]);
 
   const handleDirectoryBrowse = async (
     setter: (path: string) => void,
@@ -100,12 +111,19 @@ const ConfigurationsPage = () => {
       <div className="flex flex-col">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-base font-medium">System Configurations</h3>
-          <button 
-            onClick={handleSaveSettings}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Save Settings
-          </button>
+          <Tooltip delayDuration={100}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleSaveSettings}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Save Settings
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Hotkey: <kbd>Shift</kbd> + <kbd>S</kbd></p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         
         <Accordion title="UI Settings" number="1" defaultOpen={true}>
