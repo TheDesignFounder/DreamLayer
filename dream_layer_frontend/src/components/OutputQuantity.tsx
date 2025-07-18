@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import Slider from "./Slider";
 
 interface OutputQuantityProps {
@@ -10,7 +11,7 @@ interface OutputQuantityProps {
 const OutputQuantity: React.FC<OutputQuantityProps> = ({
   batchSize,
   batchCount,
-  onChange
+  onChange,
 }) => {
   const handleBatchSizeChange = (newSize: number) => {
     onChange(newSize, batchCount);
@@ -33,7 +34,7 @@ const OutputQuantity: React.FC<OutputQuantityProps> = ({
       <div className="hidden"><Slider
         min={1}
         max={25}
-        defaultValue={25}
+        value={batchCount}
         label={getBatchCountLabel()}
         onChange={handleBatchCountChange}
       /></div>
@@ -41,7 +42,7 @@ const OutputQuantity: React.FC<OutputQuantityProps> = ({
       <Slider
         min={1}
         max={8}
-        defaultValue={4}
+        value={batchSize}
         label={getBatchSizeLabel()}
         onChange={handleBatchSizeChange}
       />

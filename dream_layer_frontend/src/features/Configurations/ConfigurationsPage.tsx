@@ -1,7 +1,9 @@
 import React, { useRef } from 'react';
 import Accordion from '@/components/Accordion';
 import Slider from '@/components/Slider';
+import FloatingUndoRedo from '@/components/FloatingUndoRedo';
 import { useSettingsStore } from './useSettingsStore';
+import { useHistoryReducer } from '@/hooks/useHistoryReducer';
 
 const ConfigurationsPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -31,6 +33,83 @@ const ConfigurationsPage = () => {
     saveMetadata, setSaveMetadata,
     autoUpdate, setAutoUpdate
   } = useSettingsStore();
+  
+  // Undo/Redo functionality for configuration settings
+  const {
+    state: configSettings,
+    set: setConfigSettings,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    isSettingRef
+  } = useHistoryReducer({
+    uiTheme,
+    showQuickSettings,
+    showProgressInTitle,
+    computeDevice,
+    vramUsageTarget,
+    parallelProcessing,
+    useXformers,
+    optimizeMedVram,
+    outputDirectory,
+    modelsDirectory,
+    controlNetModelsPath,
+    upscalerModelsPath,
+    vaeModelsPath,
+    loraEmbeddingsPath,
+    filenameFormat,
+    saveMetadata,
+    autoUpdate
+  });
+  
+  // Sync changes to store when history state changes
+  React.useEffect(() => {
+    if (isSettingRef.current) {
+      setUiTheme(configSettings.uiTheme);
+      setShowQuickSettings(configSettings.showQuickSettings);
+      setShowProgressInTitle(configSettings.showProgressInTitle);
+      setComputeDevice(configSettings.computeDevice);
+      setVramUsageTarget(configSettings.vramUsageTarget);
+      setParallelProcessing(configSettings.parallelProcessing);
+      setUseXformers(configSettings.useXformers);
+      setOptimizeMedVram(configSettings.optimizeMedVram);
+      setOutputDirectory(configSettings.outputDirectory);
+      setModelsDirectory(configSettings.modelsDirectory);
+      setControlNetModelsPath(configSettings.controlNetModelsPath);
+      setUpscalerModelsPath(configSettings.upscalerModelsPath);
+      setVaeModelsPath(configSettings.vaeModelsPath);
+      setLoraEmbeddingsPath(configSettings.loraEmbeddingsPath);
+      setFilenameFormat(configSettings.filenameFormat);
+      setSaveMetadata(configSettings.saveMetadata);
+      setAutoUpdate(configSettings.autoUpdate);
+    }
+  }, [configSettings]);
+  
+  // Sync store changes back to history
+  React.useEffect(() => {
+    if (!isSettingRef.current) {
+      setConfigSettings({
+        uiTheme,
+        showQuickSettings,
+        showProgressInTitle,
+        computeDevice,
+        vramUsageTarget,
+        parallelProcessing,
+        useXformers,
+        optimizeMedVram,
+        outputDirectory,
+        modelsDirectory,
+        controlNetModelsPath,
+        upscalerModelsPath,
+        vaeModelsPath,
+        loraEmbeddingsPath,
+        filenameFormat,
+        saveMetadata,
+        autoUpdate
+      });
+    }
+  }, [uiTheme, showQuickSettings, showProgressInTitle, computeDevice, vramUsageTarget, parallelProcessing, useXformers, optimizeMedVram, outputDirectory, modelsDirectory, controlNetModelsPath, upscalerModelsPath, vaeModelsPath, loraEmbeddingsPath, filenameFormat, saveMetadata, autoUpdate]);
 
   const handleSaveSettings = async () => {
     try {
@@ -428,6 +507,14 @@ const ConfigurationsPage = () => {
           </div>
         </Accordion>
       </div>
+      
+      {/* Floating Undo/Redo Button */}
+      <FloatingUndoRedo 
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+      />
     </div>
   );
 };

@@ -11,11 +11,14 @@ import SizingSettings from '@/components/SizingSettings';
 import OutputQuantity from '@/components/OutputQuantity';
 import GenerationID from '@/components/GenerationID';
 import ImagePreview from '@/components/tabs/img2img/ImagePreview';
+import FloatingUndoRedo from '@/components/FloatingUndoRedo';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+import { useHistoryReducer } from '@/hooks/useHistoryReducer';
+import { CoreGenerationSettings } from '@/types/generationSettings';
 
 import {
   Accordion,
@@ -40,6 +43,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const [batchSize, setBatchSize] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [customWorkflow, setCustomWorkflow] = useState<any | null>(null);
   
   // ControlNet configuration will be managed by useControlNetStore
   
@@ -47,19 +51,36 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     inputImage, 
     setLoading, 
     addImages, 
-    clearImages, 
-    coreSettings, 
-    customWorkflow,
-    setCustomWorkflow,
-    handlePromptChange, 
-    handleSamplingSettingsChange, 
-    handleSizeSettingsChange, 
-    handleBatchSettingsChange, 
-    handleSeedChange,
-    updateCoreSettings
+    clearImages
   } = useImg2ImgGalleryStore();
   const selectedLora = useLoraStore(state => state.loraConfig);
   const { controlNetConfig, setControlNetConfig } = useControlNetStore();
+  
+  // Undo/Redo functionality for core settings
+  const {
+    state: coreSettings,
+    set: setCoreSettings,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    isSettingRef
+  } = useHistoryReducer<CoreGenerationSettings>({
+    prompt: '',
+    negative_prompt: '',
+    sampler_name: 'euler',
+    scheduler: 'normal',
+    steps: 20,
+    cfg_scale: 7.0,
+    width: 512,
+    height: 512,
+    seed: -1,
+    random_seed: true,
+    batch_count: 1,
+    batch_size: 1,
+    denoising_strength: 0.75,
+    model_name: selectedModel
+  });
   
   useEffect(() => {
     setIsLoaded(true);
@@ -77,8 +98,48 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const handleLocalBatchSettingsChange = (newBatchSize: number, newBatchCount: number) => {
     setBatchSize(newBatchSize);
     setBatchCount(newBatchCount);
-    // Also update the store
-    handleBatchSettingsChange(newBatchCount, newBatchSize);
+    setCoreSettings({
+      ...coreSettings,
+      batch_count: newBatchCount,
+      batch_size: newBatchSize
+    });
+  };
+  
+  const handlePromptChange = (value: string, isNegative?: boolean) => {
+    setCoreSettings({
+      ...coreSettings,
+      [isNegative ? 'negative_prompt' : 'prompt']: value
+    });
+  };
+  
+  const handleSamplingSettingsChange = (sampler: string, scheduler: string, steps: number, cfg: number) => {
+    setCoreSettings({
+      ...coreSettings,
+      sampler_name: sampler,
+      scheduler: scheduler,
+      steps: steps,
+      cfg_scale: cfg
+    });
+  };
+  
+  const handleSizeSettingsChange = (width: number, height: number) => {
+    setCoreSettings({
+      ...coreSettings,
+      width,
+      height
+    });
+  };
+  
+  const handleSeedChange = (seed: number, random?: boolean) => {
+    setCoreSettings({
+      ...coreSettings,
+      seed,
+      random_seed: random ?? true
+    });
+  };
+  
+  const updateCoreSettings = (updates: Partial<CoreGenerationSettings>) => {
+    setCoreSettings({ ...coreSettings, ...updates });
   };
 
   const handleCopyPrompts = () => {
@@ -506,6 +567,14 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       <div className="w-full lg:w-[512px] space-y-4">
         <ImagePreview onTabChange={onTabChange} />
       </div>
+      
+      {/* Floating Undo/Redo Button */}
+      <FloatingUndoRedo 
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+      />
     </div>
   );
 };

@@ -5,7 +5,8 @@ import { Slider as ShadcnSlider } from "@/components/ui/slider";
 interface SliderProps {
   min: number;
   max: number;
-  defaultValue: number;
+  defaultValue?: number;
+  value?: number;
   label: string;
   sublabel?: string;
   inputWidth?: string;
@@ -18,6 +19,7 @@ const Slider = ({
   min,
   max,
   defaultValue,
+  value: controlledValue,
   label,
   sublabel,
   inputWidth = "w-16",
@@ -25,18 +27,22 @@ const Slider = ({
   hideInput = false,
   step,
 }: SliderProps) => {
-  const [value, setValue] = useState(defaultValue);
+  const [internalValue, setInternalValue] = useState(defaultValue || 0);
+  const isControlled = controlledValue !== undefined;
+  const value = isControlled ? controlledValue : internalValue;
 
   const handleChange = (newValue: number[]) => {
-    setValue(newValue[0]);
+    if (!isControlled) {
+      setInternalValue(newValue[0]);
+    }
     if (onChange) {
       onChange(newValue[0]);
     }
   };
   
   useEffect(() => {
-    // Call onChange with initial value
-    if (onChange) {
+    // Call onChange with initial value only for uncontrolled component
+    if (!isControlled && onChange && defaultValue !== undefined) {
       onChange(defaultValue);
     }
   }, []);
@@ -63,7 +69,9 @@ const Slider = ({
               value={value}
               onChange={(e) => {
                 const newValue = Number(e.target.value);
-                setValue(newValue);
+                if (!isControlled) {
+                  setInternalValue(newValue);
+                }
                 if (onChange) {
                   onChange(newValue);
                 }

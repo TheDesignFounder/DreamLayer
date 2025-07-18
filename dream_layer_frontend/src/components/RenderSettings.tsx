@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import Slider from "./Slider";
 import {
   Select,
@@ -229,7 +230,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
   scheduler,
   steps,
   cfg,
-  onChange
+  onChange,
 }) => {
   const [selectedStyle, setSelectedStyle] = useState<RenderStyleOption>(
     renderStyles.find(style => style.id === sampler) || renderStyles[0]
@@ -264,9 +265,11 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
   return (
     <div className="space-y-4">
       {/* Sampling Settings Header */}
-      <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
-        {showResizeMode ? "2. Sampling Settings" : "2. Sampling Settings"}
-      </h4>
+      <div className="flex items-center justify-between mb-2 mt-6">
+        <h4 className="text-sm font-bold text-[#2563EB]">
+          {showResizeMode ? "2. Sampling Settings" : "2. Sampling Settings"}
+        </h4>
+      </div>
 
       {/* Sampling Method Section */}
       <div className="mb-4">
@@ -292,7 +295,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         <Slider
           min={1}
           max={150}
-          defaultValue={steps}
+          value={steps}
           label={getStepsLabel()}
           sublabel=""
           onChange={handleStepsChange}
@@ -303,7 +306,7 @@ const RenderSettings: React.FC<RenderSettingsProps> = ({
         <Slider
           min={1}
           max={30}
-          defaultValue={cfg}
+          value={cfg}
           label={getCfgLabel()}
           sublabel=""
           onChange={handleCfgChange}

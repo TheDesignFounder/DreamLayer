@@ -3,6 +3,7 @@ import Accordion from '@/components/Accordion';
 import Slider from '@/components/Slider';
 import SubTabNavigation from '@/components/SubTabNavigation';
 import SizingSettings from '@/components/SizingSettings';
+import FloatingUndoRedo from '@/components/FloatingUndoRedo';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Select,
@@ -19,6 +20,7 @@ import { ExtrasRequest, ExtrasResponse } from './types';
 import { toast } from 'sonner';
 import ImageUploadButton from '@/components/ImageUploadButton';
 import { fetchUpscalerModels } from "@/services/modelService";
+import { useHistoryReducer } from '@/hooks/useHistoryReducer';
 
 const ExtrasPage = () => {
   const [activeSubTab, setActiveSubTab] = useState("upscale");
@@ -28,19 +30,41 @@ const ExtrasPage = () => {
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [availableUpscalers, setAvailableUpscalers] = useState([]);
   
-  // New state for advanced upscaling options
-  const [upscaleMethod, setUpscaleMethod] = useState("upscale-by");
-  const [upscaleFactor, setUpscaleFactor] = useState(2.5);
-  const [selectedUpscaler, setSelectedUpscaler] = useState("Real_ESRGAN_x4plus");
-  const [selectedUpscaler2, setSelectedUpscaler2] = useState("4x-ultrasharp");
-  const [resizeWidth, setResizeWidth] = useState(1024);
-  const [resizeHeight, setResizeHeight] = useState(1024);
+  // Undo/Redo functionality for extras settings
+  const {
+    state: extrasSettings,
+    set: setExtrasSettings,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    isSettingRef
+  } = useHistoryReducer({
+    upscaleMethod: "upscale-by",
+    upscaleFactor: 2.5,
+    selectedUpscaler: "Real_ESRGAN_x4plus",
+    selectedUpscaler2: "4x-ultrasharp",
+    resizeWidth: 1024,
+    resizeHeight: 1024,
+    upscaler2Visibility: 0.25,
+    gfpganVisibility: 0.8,
+    codeformerVisibility: 0.7,
+    codeformerWeight: 0.2
+  });
   
-  // New state for the 4 sliders
-  const [upscaler2Visibility, setUpscaler2Visibility] = useState(0.25);
-  const [gfpganVisibility, setGfpganVisibility] = useState(0.8);
-  const [codeformerVisibility, setCodeformerVisibility] = useState(0.7);
-  const [codeformerWeight, setCodeformerWeight] = useState(0.2);
+  // Extract individual values from extrasSettings for easier use
+  const {
+    upscaleMethod,
+    upscaleFactor,
+    selectedUpscaler,
+    selectedUpscaler2,
+    resizeWidth,
+    resizeHeight,
+    upscaler2Visibility,
+    gfpganVisibility,
+    codeformerVisibility,
+    codeformerWeight
+  } = extrasSettings;
 
   const subtabs = [
     { id: "upscale", label: "Single Image", active: activeSubTab === "upscale" },
@@ -189,7 +213,7 @@ const ExtrasPage = () => {
           <div className="text-sm font-medium text-foreground mb-2">a) Set Upscale Size:</div>
           <RadioGroup 
             value={upscaleMethod} 
-            onValueChange={setUpscaleMethod}
+            onValueChange={(value) => setExtrasSettings({ ...extrasSettings, upscaleMethod: value })}
             className="grid grid-cols-2 gap-3"
           >
             <div className="relative">
@@ -216,7 +240,7 @@ const ExtrasPage = () => {
               step={0.1}
               defaultValue={upscaleFactor}
               label="Upscale"
-              onChange={(value) => setUpscaleFactor(value)}
+              onChange={(value) => setExtrasSettings({ ...extrasSettings, upscaleFactor: value })}
               inputWidth="w-16"
             />
           </div>
@@ -225,8 +249,8 @@ const ExtrasPage = () => {
             <SizingSettings 
               widthValue={resizeWidth} 
               heightValue={resizeHeight}
-              onWidthChange={setResizeWidth}
-              onHeightChange={setResizeHeight}
+              onWidthChange={(value) => setExtrasSettings({ ...extrasSettings, resizeWidth: value })}
+              onHeightChange={(value) => setExtrasSettings({ ...extrasSettings, resizeHeight: value })}
             />
           </div>
         )}
@@ -235,7 +259,7 @@ const ExtrasPage = () => {
           <div className="text-sm font-medium text-foreground mb-2">b) Upscaling Model #1</div>
           <Select 
             defaultValue={selectedUpscaler} 
-            onValueChange={(value) => setSelectedUpscaler(value)}
+            onValueChange={(value) => setExtrasSettings({ ...extrasSettings, selectedUpscaler: value })}
           >
             <SelectTrigger className="w-full" id="upscaling-model">
               <SelectValue placeholder="Select an upscaling model" />
@@ -259,7 +283,7 @@ const ExtrasPage = () => {
           <div className="text-sm font-medium text-foreground mb-2">c) Upscaling Model #2</div>
           <Select 
             defaultValue={selectedUpscaler2} 
-            onValueChange={(value) => setSelectedUpscaler2(value)}
+            onValueChange={(value) => setExtrasSettings({ ...extrasSettings, selectedUpscaler2: value })}
           >
             <SelectTrigger className="w-full" id="upscaling-model-2">
               <SelectValue placeholder="Select an upscaling model" />
@@ -286,7 +310,7 @@ const ExtrasPage = () => {
             step={0.05}
             defaultValue={upscaler2Visibility}
             label={`d) Upscaler 2 visibility | <span style='color: #64748B;'>Optimal Level: 0.25</span>`}
-            onChange={(value) => setUpscaler2Visibility(value)}
+            onChange={(value) => setExtrasSettings({ ...extrasSettings, upscaler2Visibility: value })}
             inputWidth="w-16"
           />
         </div>
@@ -298,7 +322,7 @@ const ExtrasPage = () => {
             step={0.05}
             defaultValue={gfpganVisibility}
             label={`e) GFPGAN visibility | <span style='color: #64748B;'>Optimal Level: 0.8</span>`}
-            onChange={(value) => setGfpganVisibility(value)}
+            onChange={(value) => setExtrasSettings({ ...extrasSettings, gfpganVisibility: value })}
             inputWidth="w-16"
           />
         </div>
@@ -310,7 +334,7 @@ const ExtrasPage = () => {
             step={0.05}
             defaultValue={codeformerVisibility}
             label={`f) CodeFormer visibility | <span style='color: #64748B;'>Optimal Level: 0.7</span>`}
-            onChange={(value) => setCodeformerVisibility(value)}
+            onChange={(value) => setExtrasSettings({ ...extrasSettings, codeformerVisibility: value })}
             inputWidth="w-16"
           />
         </div>
@@ -322,7 +346,7 @@ const ExtrasPage = () => {
             step={0.05}
             defaultValue={codeformerWeight}
             label={`g) CodeFormer weight | <span style='color: #64748B;'>Optimal Level: 0.2</span>`}
-            onChange={(value) => setCodeformerWeight(value)}
+            onChange={(value) => setExtrasSettings({ ...extrasSettings, codeformerWeight: value })}
             inputWidth="w-16"
           />
         </div>
@@ -421,6 +445,14 @@ const ExtrasPage = () => {
           )}
         </div>
       </div>
+      
+      {/* Floating Undo/Redo Button */}
+      <FloatingUndoRedo 
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+      />
     </div>
   );
 };

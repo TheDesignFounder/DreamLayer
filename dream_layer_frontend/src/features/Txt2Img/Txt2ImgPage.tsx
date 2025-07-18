@@ -13,6 +13,7 @@ import LoraBrowser from '@/components/lora/LoraBrowser';
 import CustomWorkflowBrowser from '@/components/custom-workflow/CustomWorkflowBrowser';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Copy } from "lucide-react";
+import FloatingUndoRedo from '@/components/FloatingUndoRedo';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
@@ -21,6 +22,7 @@ import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import useLoraStore from '@/stores/useLoraStore';
 import { LoraRequest } from '@/types/lora';
+import { useHistoryReducer } from '@/hooks/useHistoryReducer';
 
 interface Txt2ImgPageProps {
   selectedModel: string;
@@ -29,7 +31,15 @@ interface Txt2ImgPageProps {
 
 const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange }) => {
   const [activeSubTab, setActiveSubTab] = useState("generation");
-  const [coreSettings, setCoreSettings] = useState<Txt2ImgCoreSettings>({
+  const {
+    state: coreSettings,
+    set: setCoreSettings,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    isSettingRef
+  } = useHistoryReducer<Txt2ImgCoreSettings>({
     ...defaultTxt2ImgSettings,
     model_name: selectedModel
   });
@@ -468,6 +478,14 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
           <ImagePreview onTabChange={onTabChange} />
         </div>
       )}
+      
+      {/* Floating Undo/Redo Button */}
+      <FloatingUndoRedo 
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+      />
     </div>
   );
 };

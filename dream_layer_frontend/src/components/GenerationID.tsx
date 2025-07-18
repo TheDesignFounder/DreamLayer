@@ -13,7 +13,7 @@ interface GenerationIDProps {
 const GenerationID: React.FC<GenerationIDProps> = ({
   seed,
   random,
-  onChange
+  onChange,
 }) => {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [widthValue, setWidthValue] = useState(2500);
