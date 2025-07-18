@@ -128,6 +128,34 @@ No key = feature stays hidden.
 
 ---
 
+## 🛠️ New Feature: LoRA Auto-Merge CLI Utility
+
+DreamLayer now includes a command-line tool to merge a base Stable Diffusion checkpoint and a LoRA weights file into a single .safetensors file, locally and securely.
+
+**Why?**
+- Easily combine LoRA fine-tunings with your base model for deployment or sharing.
+- No need for extra tools or cloud services.
+
+**How to use:**
+
+1. Install backend dependencies:
+   ```bash
+   cd DreamLayer/dream_layer_backend
+   pip install -r requirements.txt
+   ```
+2. Run the merge command:
+   ```bash
+   python merge_lora.py /path/to/base.safetensors /path/to/lora.safetensors /path/to/out.safetensors
+   ```
+3. To test the utility (no real models needed):
+   ```bash
+   python merge_lora.py --test
+   ```
+
+See `dream_layer_backend/README.md` for more details.
+
+---
+
 ## ⭐ Why Star This Repo Now?
 
 Starring helps us trend on GitHub which brings more contributors and faster features.  

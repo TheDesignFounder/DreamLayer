@@ -28,3 +28,19 @@ python img2img_server.py
 The servers will be available at:
 - Text-to-Image API: http://localhost:5001/api/txt2img
 - Image-to-Image API: http://localhost:5001/api/img2img 
+
+## LoRA Auto-Merge Utility
+
+You can merge a base .safetensors checkpoint and a LoRA .safetensors file into a merged checkpoint using the CLI utility:
+
+```bash
+python merge_lora.py base.safetensors lora.safetensors out.safetensors
+```
+
+To test the merge utility with dummy files:
+
+```bash
+python merge_lora.py --test
+```
+
+This uses the diffusers library to merge LoRA weights locally. 
