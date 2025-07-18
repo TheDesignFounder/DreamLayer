@@ -168,10 +168,19 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({
       console.log("ControlNet config is enabled?", controlNetConfig?.enabled);
 
       // Send the request data as multipart/form-data
-      const response = await fetch("http://localhost:5004/api/img2img", {
-        method: "POST",
-        body: formData,
-      });
+      // Use a 2-hour timeout for very slow CPU jobs (inpainting with SDXL etc.)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120 * 60 * 1000); // 2 hours
+      let response;
+      try {
+        response = await fetch("http://localhost:5004/api/img2img", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

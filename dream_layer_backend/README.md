@@ -49,3 +49,15 @@ This will:
 - Set a 30 minute (1800 seconds) timeout for requests, so even very slow jobs do not fail
 
 If waitress is not installed, the server will fall back to Flask's development server, which is not recommended for production or long jobs.
+
+## Inpainting Mask Support
+
+- The backend now supports inpainting with masks by inserting a `VAEEncodeForInpaint` node into the workflow when a mask is uploaded.
+- The output of `VAEEncodeForInpaint` is used as the `latent_image` input to the `KSampler` node. **Do not** add a `mask` input to `KSampler`.
+- This matches ComfyUI's standard inpainting design and avoids errors.
+
+### Troubleshooting
+
+- **Error:** `KSampler.sample() got an unexpected keyword argument 'mask'`
+  - **Cause:** The workflow tried to pass a `mask` input to the `KSampler` node, which is not supported.
+  - **Fix:** The workflow builder now uses `VAEEncodeForInpaint` to encode the image and mask, and wires its output to `KSampler`'s `latent_image` input. No `mask` input is added to `KSampler`.

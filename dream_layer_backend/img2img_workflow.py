@@ -282,23 +282,37 @@ def get_img2img_workflow_template(model_name, use_controlnet=False, use_lora=Fal
 
 def inject_mask_into_workflow(workflow, mask_filename, comfy_input_dir):
     """
-    Inject mask file into ComfyUI workflow for inpainting
-
+    Inject mask file into ComfyUI workflow for inpainting using VAEEncodeForInpaint.
     Args:
         workflow: ComfyUI workflow dictionary
         mask_filename: Filename of the mask file in ComfyUI input directory
         comfy_input_dir: Path to ComfyUI input directory
-
     Returns:
         dict: Updated workflow with mask nodes
     """
     mask_path = os.path.join(comfy_input_dir, mask_filename)
 
     # Find the next available node ID
-    max_node_id = max(int(k) for k in workflow["prompt"].keys() if k.isdigit())
+    max_node_id = max(int(k) for k in workflow["prompt"].keys(
+    ) if k.replace('.', '', 1).isdigit())
+    next_id = str(max_node_id + 1)
+
+    # Find the input image node (LoadImage or similar)
+    input_image_node_id = None
+    vae_node_id = None
+    for node_id, node_data in workflow["prompt"].items():
+        if node_data.get("class_type", "").startswith("LoadImage"):
+            input_image_node_id = node_id
+        if node_data.get("class_type") in ("VAELoader", "CheckpointLoaderSimple"):
+            vae_node_id = node_id
+    if not input_image_node_id:
+        raise RuntimeError(
+            "Could not find input image node for inpainting workflow.")
+    if not vae_node_id:
+        raise RuntimeError("Could not find VAE node for inpainting workflow.")
 
     # Add LoadImageMask node for the mask
-    mask_node_id = str(max_node_id + 1)
+    mask_node_id = next_id
     workflow["prompt"][mask_node_id] = {
         "class_type": "LoadImageMask",
         "inputs": {
@@ -306,20 +320,34 @@ def inject_mask_into_workflow(workflow, mask_filename, comfy_input_dir):
             "channel": "alpha"
         }
     }
+    next_id = str(int(next_id) + 1)
 
-    # Find the KSampler node and update it to use the mask
+    # Add VAEEncodeForInpaint node
+    vae_encode_inpaint_node_id = next_id
+    workflow["prompt"][vae_encode_inpaint_node_id] = {
+        "class_type": "VAEEncodeForInpaint",
+        "inputs": {
+            "pixels": [input_image_node_id, 0],
+            "vae": [vae_node_id, 2],
+            "mask": [mask_node_id, 0],
+            "grow_mask_by": 6
+        }
+    }
+
+    # Find the KSampler node and update its latent_image input
     ksampler_node_id = None
     for node_id, node_data in workflow["prompt"].items():
         if node_data.get("class_type") == "KSampler":
             ksampler_node_id = node_id
             break
-
     if ksampler_node_id:
-        # Update KSampler to use the mask
-        workflow["prompt"][ksampler_node_id]["inputs"]["mask"] = [
-            mask_node_id, 0]
+        # Remove any mask input from KSampler
+        workflow["prompt"][ksampler_node_id]["inputs"].pop("mask", None)
+        # Set latent_image to output of VAEEncodeForInpaint
+        workflow["prompt"][ksampler_node_id]["inputs"]["latent_image"] = [
+            vae_encode_inpaint_node_id, 0]
         logger.info(
-            f"Updated KSampler node {ksampler_node_id} to use mask from node {mask_node_id}")
+            f"Updated KSampler node {ksampler_node_id} to use latent from VAEEncodeForInpaint node {vae_encode_inpaint_node_id}")
     else:
         logger.warning("Could not find KSampler node in workflow")
 
