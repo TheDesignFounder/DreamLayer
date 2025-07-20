@@ -81,7 +81,7 @@ start_python_server() {
     
     # Start the server in background
     cd dream_layer_backend
-    python "$server_file" > "../$log_file" 2>&1 &
+    "$PYTHON_INTERPRETER" "$server_file" > "../$log_file" 2>&1 &
     local pid=$!
     cd ..
     
@@ -145,9 +145,11 @@ main() {
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     cd "$SCRIPT_DIR"
     
-    # Check if Python is available
-    if ! command -v python &> /dev/null; then
-        print_error "Python is not installed or not in PATH"
+    # Determine Python interpreter
+    PYTHON_INTERPRETER="${PYTHON_INTERPRETER:-python3}"
+    # Check if Python 3 is available
+    if ! command -v "$PYTHON_INTERPRETER" &> /dev/null; then
+        print_error "Python 3 is not installed or not in PATH. Set PYTHON_INTERPRETER to specify a custom interpreter."
         exit 1
     fi
     

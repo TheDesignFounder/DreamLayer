@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import datetime
 import json
@@ -7,7 +9,7 @@ import folder_paths
 # Get the logger instance
 logger = logging.getLogger(__name__)
 
-def get_log_directory():
+def get_log_directory() -> str:
     """
     Ensures the API log directory exists within ComfyUI's temp directory
     and returns its path.
@@ -22,7 +24,7 @@ def get_log_directory():
         return base_temp_dir
     return log_dir
 
-def _format_data_for_logging(data):
+def _format_data_for_logging(data: "dict | list | str | bytes | None") -> str:
     """Helper to format data (dict, str, bytes) for logging."""
     if isinstance(data, bytes):
         try:
@@ -40,14 +42,14 @@ def log_request_response(
     operation_id: str,
     request_method: str,
     request_url: str,
-    request_headers: dict | None = None,
-    request_params: dict | None = None,
-    request_data: any = None,
-    response_status_code: int | None = None,
-    response_headers: dict | None = None,
-    response_content: any = None,
-    error_message: str | None = None
-):
+    request_headers: "dict | None" = None,
+    request_params: "dict | None" = None,
+    request_data: "dict | None" = None,
+    response_status_code: "int | None" = None,
+    response_headers: "dict | None" = None,
+    response_content: "str | None" = None,
+    error_message: "str | None" = None
+) -> None:
     """
     Logs API request and response details to a file in the temp/api_logs directory.
     """
@@ -93,7 +95,7 @@ if __name__ == '__main__':
     # Mock folder_paths for direct execution if not running within ComfyUI full context
     if not hasattr(folder_paths, 'get_temp_directory'):
         class MockFolderPaths:
-            def get_temp_directory(self):
+            def get_temp_directory(self) -> str:
                 # Create a local temp dir for testing if needed
                 p = os.path.join(os.path.dirname(__file__), 'temp_test_logs')
                 os.makedirs(p, exist_ok=True)

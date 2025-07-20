@@ -160,7 +160,7 @@ class handle_recraft_image_output:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None and exc_type is UnidentifiedImageError:
-            raise Exception("Received output data was not an image; likely an SVG. If you used style_id, make sure it is not a Vector art style.")
+            raise ValueError("Received output data was not an image; likely an SVG. If you used style_id, make sure it is not a Vector art style.")
 
 
 class RecraftColorRGBNode:
@@ -317,7 +317,7 @@ class RecraftStyleInfiniteStyleLibrary:
 
     def create_style(self, style_id: str):
         if not style_id:
-            raise Exception("The style_id input cannot be empty.")
+            raise ValueError("The style_id input cannot be empty.")
         return (RecraftStyle(style_id=style_id),)
 
 
@@ -1098,10 +1098,245 @@ class RecraftCreativeUpscaleNode(RecraftCrispUpscaleNode):
     RECRAFT_PATH = "/proxy/recraft/images/creativeUpscale"
 
 
+class RecraftTextToImageDirectNode:
+    """
+    Build a recraft_text2img node that sends a JSON POST to https://external.api.recraft.ai/v1/images/generations
+
+    This node directly integrates with the Recraft V2 API to generate images from text prompts.
+    It can be chained after a CLIPTextEncode block and outputs valid ComfyUI images.
+    
+    Parameters:
+    - prompt: Text description for image generation
+    - size: Image dimensions (default: "1024x1024")
+    - n: Number of images to generate (1-4, default: 1)
+    - seed: Random seed for reproducibility (default: -1 for random, 0+ for specific seed)
+    - negative_prompt: Optional negative prompt to avoid unwanted elements
+    - style: Optional style to apply (e.g., "realistic_image", "digital_illustration")
+    - timeout: Request timeout in seconds (default: 30)
+    
+    Environment Variables:
+    - RECRAFT_API_KEY: Required API key for Recraft service
+    
+    API Key Configuration:
+    By default, 'comfy_api_key' parameter takes precedence over RECRAFT_API_KEY environment variable.
+    Set 'prefer_env=True' to prefer the environment variable instead.
+    
+    Timeout Configuration:
+    The default timeout is 30 seconds but can be adjusted by modifying the timeout parameter
+    in the SynchronousOperation. For longer generation times, increase the timeout value.
+    """
+
+    RETURN_TYPES = (IO.IMAGE,)
+    DESCRIPTION = cleandoc(__doc__ or "")
+    FUNCTION = "api_call"
+    API_NODE = True
+    CATEGORY = "api node/image/Recraft"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt": (
+                    IO.STRING,
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Text prompt for image generation. Can be connected from CLIPTextEncode.",
+                    },
+                ),
+                "size": (
+                    ["1024x1024", "1024x1792", "1792x1024", "512x512", "768x768"],
+                    {
+                        "default": "1024x1024",
+                        "tooltip": "The size of the generated image.",
+                    },
+                ),
+                "n": (
+                    IO.INT,
+                    {
+                        "default": 1,
+                        "min": 1,
+                        "max": 4,
+                        "tooltip": "Number of images to generate (1-4).",
+                    },
+                ),
+                "seed": (
+                    IO.INT,
+                    {
+                        "default": -1,
+                        "min": -1,
+                        "max": 0xFFFFFFFFFFFFFFFF,
+                        "control_after_generate": True,
+                        "tooltip": "Random seed for generation reproducibility. Use -1 for random seed, 0 or higher for specific seed.",
+                    },
+                ),
+            },
+            "optional": {
+                "negative_prompt": (
+                    IO.STRING,
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "tooltip": "Optional negative prompt to avoid unwanted elements.",
+                    },
+                ),
+                "style": (
+                    ["realistic_image", "digital_illustration", "vector_illustration", ""],
+                    {
+                        "default": "",
+                        "tooltip": "Optional style to apply to the generated image.",
+                    },
+                ),
+            },
+            "hidden": {
+                "auth_token": "AUTH_TOKEN_COMFY_ORG",
+                "comfy_api_key": "API_KEY_COMFY_ORG",
+                "unique_id": "UNIQUE_ID",
+                "prefer_env": "PREFER_ENV_API_KEY",
+            },
+        }
+
+    def _download_and_process_images(self, image_urls: list[str], unique_id: str = None) -> list:
+        """Download and convert image URLs to tensors."""
+        images = []
+        with handle_recraft_image_output():
+            for url in image_urls:
+                if unique_id:
+                    PromptServer.instance.send_progress_text(
+                        f"Downloading image: {url}", unique_id
+                    )
+                
+                # Download image and convert to tensor
+                image_bytesio = download_url_to_bytesio(url, timeout=30)
+                image_tensor = bytesio_to_image_tensor(image_bytesio)
+                images.append(image_tensor)
+        return images
+    
+    def api_call(
+        self,
+        prompt: str,
+        size: str = "1024x1024",
+        n: int = 1,
+        seed: int = -1,
+        negative_prompt: str = "",
+        style: str = "",
+        unique_id = None,
+        prefer_env: bool = False,
+        **kwargs,
+    ):
+        """
+        Execute the Recraft text-to-image generation API call.
+        
+        Args:
+            prompt: Text description for image generation
+            size: Image dimensions 
+            n: Number of images to generate
+            seed: Random seed (-1 for random, 0+ for specific seed)
+            negative_prompt: Optional negative prompt
+            style: Optional style to apply
+            unique_id: Node ID for progress tracking
+            prefer_env: If True, prefer RECRAFT_API_KEY env var over comfy_api_key param
+            **kwargs: Contains auth credentials
+            
+        Returns:
+            Tuple containing generated image tensor(s)
+            
+        Raises:
+            Exception: When RECRAFT_API_KEY is missing or API call fails
+        """
+        import os
+        
+        # Validate required inputs
+        validate_string(prompt, strip_whitespace=False, max_length=1000)
+        
+        # Handle seed: -1 means no seed specified, 0 or higher means use specific seed
+        
+        # Extract API key from environment or kwargs
+        # By default, the 'comfy_api_key' in kwargs takes precedence over the RECRAFT_API_KEY environment variable.
+        # Set 'prefer_env=True' in kwargs to prefer the environment variable instead.
+        if prefer_env:
+            recraft_api_key = os.getenv('RECRAFT_API_KEY') or kwargs.get('comfy_api_key')
+        else:
+            recraft_api_key = kwargs.get('comfy_api_key') or os.getenv('RECRAFT_API_KEY')
+        
+        # Check for missing API key with clear error message
+        if not recraft_api_key:
+            raise ValueError(
+                "Recraft API key is required but not found. "
+                "Please provide the API key via either: "
+                "1. RECRAFT_API_KEY environment variable, or "
+                "2. comfy_api_key parameter in kwargs. "
+                f"Current preference: {'Environment variable first' if prefer_env else 'kwargs first'}. "
+                "If the API key is not available, this node will not crash the system but will "
+                "raise this clear error message instead."
+            )
+        
+        # Prepare request data
+        request_data = {
+            "prompt": prompt,
+            "size": size,
+            "n": n,
+            "model": "recraftv3",
+        }
+        
+        # Add optional parameters
+        if negative_prompt and negative_prompt.strip():
+            request_data["negative_prompt"] = negative_prompt
+            
+        if style and style.strip():
+            request_data["style"] = style
+            
+        if seed >= 0:
+            request_data["random_seed"] = seed
+
+        # Create and execute the API operation
+        operation = SynchronousOperation(
+            endpoint=ApiEndpoint(
+                path="/v1/images/generations",
+                method=HttpMethod.POST,
+                request_model=dict,
+                response_model=dict,
+            ),
+            request=request_data,
+            api_base="https://external.api.recraft.ai",
+            auth_token=recraft_api_key,
+            timeout=30.0,
+        )
+        
+        try:
+            response = operation.execute()
+            
+            # Extract image URLs from response
+            if not response or 'data' not in response:
+                raise ValueError("Invalid response from Recraft API: missing 'data' field")
+                
+            image_urls = [item['url'] for item in response['data'] if 'url' in item]
+                    
+            if not image_urls:
+                raise ValueError("No image URLs found in Recraft API response")
+            
+            # Download and convert images to tensors
+            images = self._download_and_process_images(image_urls, unique_id)
+            
+            # Combine multiple images into batch if needed
+            if len(images) == 1:
+                return (images[0],)
+            
+            # Stack multiple images into a batch
+            import torch
+            batch_tensor = torch.cat(images, dim=0)
+            return (batch_tensor,)
+                
+        except Exception as e:
+            # Re-raise with context about the direct API call
+            raise RuntimeError(f"Recraft direct API call failed: {str(e)}") from e
+
+
 # A dictionary that contains all nodes you want to export with their names
 # NOTE: names should be globally unique
 NODE_CLASS_MAPPINGS = {
     "RecraftTextToImageNode": RecraftTextToImageNode,
+    "RecraftTextToImageDirectNode": RecraftTextToImageDirectNode,
     "RecraftImageToImageNode": RecraftImageToImageNode,
     "RecraftImageInpaintingNode": RecraftImageInpaintingNode,
     "RecraftTextToVectorNode": RecraftTextToVectorNode,
@@ -1121,6 +1356,7 @@ NODE_CLASS_MAPPINGS = {
 # A dictionary that contains the friendly/humanly readable titles for the nodes
 NODE_DISPLAY_NAME_MAPPINGS = {
     "RecraftTextToImageNode": "Recraft Text to Image",
+    "RecraftTextToImageDirectNode": "Recraft Text to Image (Direct API)",
     "RecraftImageToImageNode": "Recraft Image to Image",
     "RecraftImageInpaintingNode": "Recraft Image Inpainting",
     "RecraftTextToVectorNode": "Recraft Text to Vector",
