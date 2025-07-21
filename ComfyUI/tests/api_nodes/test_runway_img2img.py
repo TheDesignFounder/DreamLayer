@@ -81,9 +81,9 @@ def test_runway_node_file_not_found(mock_post):
 def test_runway_node_timeout(mock_post, mock_file, mock_exists):
     """Test that timeout errors are handled properly."""
     mock_post.side_effect = requests.exceptions.Timeout("Request timed out")
-    
+
     os.environ["RUNWAY_API_KEY"] = "fake-key"
-    
+
     try:
         node = RunwayImg2Img(timeout=1)
         with pytest.raises(requests.exceptions.Timeout):
