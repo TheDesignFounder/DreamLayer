@@ -22,7 +22,16 @@ class RunwayImg2Img:
         Raises:
             EnvironmentError: If RUNWAY_API_KEY is missing.
             requests.HTTPError: For API call errors.
+            ValueError: If input parameters are invalid.
+            FileNotFoundError: If input image file doesn't exist.
         """
+        # Input validation
+        if not input_image or not isinstance(input_image, str):
+            raise ValueError("input_image must be a non-empty string path")
+        if not prompt or not isinstance(prompt, str):
+            raise ValueError("prompt must be a non-empty string")
+        if not os.path.exists(input_image):
+            raise FileNotFoundError(f"Input image not found: {input_image}")
 
         # Open the image file in binary mode to send as 'promptImage' in multipart/form-data
         with open(input_image, "rb") as f:
@@ -31,7 +40,7 @@ class RunwayImg2Img:
             # Authorization and version headers required by Runway API
             headers = {
                 "Authorization": f"Bearer {self.api_key}",  # Include API key securely in the request
-                "X-Runway-Version": "2024-11-06"  # Specific API version to ensure compatibility
+                "X-Runway-Version": os.getenv("RUNWAY_API_VERSION", "2024-11-06")  # Specific API version to ensure compatibility
             }
 
             # Prompt payload that guides image generation
