@@ -1,15 +1,16 @@
 #!/bin/bash
 
 set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 case "$(uname)" in
   Darwin)
     echo "[INFO] Detected macOS"
-    exec ./start_dream_layer_mac.sh "$@"
+    exec "${SCRIPT_DIR}/start_dream_layer_mac.sh" "$@"
     ;;
   Linux)
     echo "[INFO] Detected Linux"
-    exec ./start_dream_layer_linux.sh "$@"
+    exec "${SCRIPT_DIR}/start_dream_layer_linux.sh" "$@"
     ;;
   *)
     echo "[ERROR] Unsupported OS: $(uname)"
