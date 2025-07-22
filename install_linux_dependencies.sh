@@ -123,21 +123,20 @@ install_python() {
     fi
 
     # Create persistent venv (don't delete it!)
-    VENV_DIR="/tmp/dlvenv"
-    if [ ! -d "$VENV_DIR" ]; then
-        print_step "Creating virtual environment at $VENV_DIR..."
-        python3 -m venv "$VENV_DIR"
+    if [ ! -d "$DLVENV_PATH" ]; then
+        print_step "Creating virtual environment at $DLVENV_PATH..."
+        python3 -m venv "$DLVENV_PATH"
     fi
     
     # shellcheck disable=SC1090
-    source "$VENV_DIR/bin/activate"
+    source "$DLVENV_PATH/bin/activate"
 
     print_step "Upgrading pip, setuptools, wheel INSIDE venv..."
     pip install --upgrade pip setuptools wheel
     print_success "Inside venv pip is now: $(pip --version)"
 
     # Keep venv activated for subsequent installations
-    print_success "✅ Virtual environment ready at $VENV_DIR"
+    print_success "✅ Virtual environment ready at $DLVENV_PATH"
 }
 
 # Function to install Node.js
@@ -290,7 +289,7 @@ install_python_dependencies() {
     print_step "Installing additional ML/AI dependencies..."
     python3 -m pip install --upgrade torch torchvision torchaudio
 
-    print_success "✅ Dependencies installed inside virtual environment: /tmp/dlvenv"
+    print_success "✅ Dependencies installed inside virtual environment: $DLVENV_PATH"
 }
 
 # Function to install frontend dependencies
@@ -421,13 +420,13 @@ display_final_instructions() {
     echo -e "   • ComfyUI: ${BLUE}http://localhost:8188${NC}"
     echo -e ""
     echo -e "${CYAN}Virtual Environment:${NC}"
-    echo -e "• Activate with: ${BLUE}source /tmp/dlvenv/bin/activate${NC}"
+    echo -e "• Activate with: ${BLUE}source ${DLVENV_PATH}/bin/activate${NC}"
     echo -e "• Deactivate with: ${BLUE}deactivate${NC}"
     echo -e ""
     echo -e "${CYAN}Troubleshooting:${NC}"
     echo -e "• Check logs in the ${BLUE}logs/${NC} directory"
     echo -e "• Ensure all ports (8080, 5001-5004, 8188) are available"
-    echo -e "• Update Python packages: ${BLUE}source /tmp/dlvenv/bin/activate && pip install --upgrade -r requirements.txt${NC}"
+    echo -e "• Update Python packages: ${BLUE}source ${DLVENV_PATH}/bin/activate && pip install --upgrade -r requirements.txt${NC}"
     echo -e "• Update Node packages: ${BLUE}cd dream_layer_frontend && npm update${NC}"
     echo -e ""
     echo -e "${GREEN}Happy creating with Dream Layer! 🎨✨${NC}"
