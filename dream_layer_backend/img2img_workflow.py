@@ -292,9 +292,13 @@ def inject_mask_into_workflow(workflow, mask_filename, comfy_input_dir):
     """
     mask_path = os.path.join(comfy_input_dir, mask_filename)
 
+    # Verify the mask file exists and is accessible
+    if not os.path.exists(mask_path):
+        raise FileNotFoundError(f"Mask file not found at: {mask_path}")
+
     # Find the next available node ID
-    max_node_id = max(int(k) for k in workflow["prompt"].keys(
-    ) if k.replace('.', '', 1).isdigit())
+    max_node_id = max(int(k) for k in workflow["prompt"].keys()
+                      if k.replace('.', '').isdigit())
     next_id = str(max_node_id + 1)
 
     # Find the input image node (LoadImage or similar)
@@ -305,6 +309,7 @@ def inject_mask_into_workflow(workflow, mask_filename, comfy_input_dir):
             input_image_node_id = node_id
         if node_data.get("class_type") in ("VAELoader", "CheckpointLoaderSimple"):
             vae_node_id = node_id
+
     if not input_image_node_id:
         raise RuntimeError(
             "Could not find input image node for inpainting workflow.")
@@ -316,7 +321,7 @@ def inject_mask_into_workflow(workflow, mask_filename, comfy_input_dir):
     workflow["prompt"][mask_node_id] = {
         "class_type": "LoadImageMask",
         "inputs": {
-            "image": mask_filename,
+            "image": mask_filename,  # Just the filename, not full path
             "channel": "alpha"
         }
     }
@@ -328,7 +333,7 @@ def inject_mask_into_workflow(workflow, mask_filename, comfy_input_dir):
         "class_type": "VAEEncodeForInpaint",
         "inputs": {
             "pixels": [input_image_node_id, 0],
-            "vae": [vae_node_id, 2],
+            "vae": [vae_node_id, 0] if workflow["prompt"][vae_node_id].get("class_type") == "VAELoader" else [vae_node_id, 2],
             "mask": [mask_node_id, 0],
             "grow_mask_by": 6
         }
@@ -340,8 +345,9 @@ def inject_mask_into_workflow(workflow, mask_filename, comfy_input_dir):
         if node_data.get("class_type") == "KSampler":
             ksampler_node_id = node_id
             break
+
     if ksampler_node_id:
-        # Remove any mask input from KSampler
+        # Remove any mask input from KSampler (we're using VAEEncodeForInpaint instead)
         workflow["prompt"][ksampler_node_id]["inputs"].pop("mask", None)
         # Set latent_image to output of VAEEncodeForInpaint
         workflow["prompt"][ksampler_node_id]["inputs"]["latent_image"] = [
