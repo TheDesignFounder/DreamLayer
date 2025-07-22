@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Slider from "@/components/Slider";
 import { fetchUpscalerModels } from "@/services/modelService";
+import { useModelRefresh } from "@/hooks/useModelRefresh";
 
 const SDUpscalerSettings = () => {
   const [tileOverlap, setTileOverlap] = useState(32);
@@ -10,7 +11,17 @@ const SDUpscalerSettings = () => {
   const [selectedModel, setSelectedModel] = useState("RealESRGAN_x4plus.pth");
   const [models, setModels] = useState([]);
 
-  useEffect(() => { fetchUpscalerModels().then(setModels); }, []);
+  const loadUpscalerModels = useCallback(async () => {
+    try {
+      const models = await fetchUpscalerModels();
+      setModels(models);
+    } catch (error) {
+      console.error('Error fetching upscaler models:', error);
+    }
+  }, []);
+
+  // Use WebSocket auto-refresh hook for upscaler models
+  useModelRefresh(loadUpscalerModels, 'upscale_models');
 
   const modelData = models.find(m => m.id === selectedModel);
 

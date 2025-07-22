@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Accordion from '@/components/Accordion';
 import Slider from '@/components/Slider';
 import SubTabNavigation from '@/components/SubTabNavigation';
@@ -19,6 +19,7 @@ import { ExtrasRequest, ExtrasResponse } from './types';
 import { toast } from 'sonner';
 import ImageUploadButton from '@/components/ImageUploadButton';
 import { fetchUpscalerModels } from "@/services/modelService";
+import { useModelRefresh } from "@/hooks/useModelRefresh";
 
 const ExtrasPage = () => {
   const [activeSubTab, setActiveSubTab] = useState("upscale");
@@ -50,16 +51,26 @@ const ExtrasPage = () => {
     setActiveSubTab(tabId);
   };
 
+  const loadUpscalerModels = useCallback(async () => {
+    try {
+      const models = await fetchUpscalerModels();
+      setAvailableUpscalers(models);
+    } catch (error) {
+      console.error('Error fetching upscaler models:', error);
+    }
+  }, []);
+
+  // Use WebSocket auto-refresh hook for upscaler models
+  useModelRefresh(loadUpscalerModels, 'upscale_models');
+
   useEffect(() => {
-    fetchUpscalerModels().then(setAvailableUpscalers);
-    
     // Check for image from txt2img
     const extrasImageStr = window.sessionStorage.getItem('extrasImage');
     if (extrasImageStr) {
       try {
         const extrasImage = JSON.parse(extrasImageStr);
         setImagePreview(extrasImage.preview);
-        
+
         // Create a new File object
         fetch(extrasImage.preview)
           .then(r => r.blob())
@@ -69,7 +80,7 @@ const ExtrasPage = () => {
             });
             setSelectedImage(file);
           });
-        
+
         // Clear the storage
         window.sessionStorage.removeItem('extrasImage');
       } catch (error) {

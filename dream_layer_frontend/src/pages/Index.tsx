@@ -5,6 +5,7 @@ import TabsNav from '@/components/Navigation/TabsNav';
 import { Txt2ImgPage } from '@/features/Txt2Img';
 import { Img2ImgPage } from '@/features/Img2Img';
 import ExtrasPage from '@/features/Extras';
+import { ModelManagerPage } from '@/features/ModelManager';
 import { PNGInfoPage } from '@/features/PNGInfo';
 import { ConfigurationsPage } from '@/features/Configurations';
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
@@ -35,6 +36,8 @@ const Index = () => {
         return <Img2ImgPage selectedModel={selectedModel} onTabChange={handleTabChange} />;
       case "extras":
         return <ExtrasPage />;
+      case "models":
+        return <ModelManagerPage />;
       case "pnginfo":
         return <PNGInfoPage />;
       case "configurations":

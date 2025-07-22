@@ -199,6 +199,9 @@ Dream_Layer_Resources/
 # DreamLayer Backend Generated Files
 dream_layer_backend/served_images/
 
+# Model display names mapping
+model_display_names.json
+
 # macOS
 .DS_Store
  
