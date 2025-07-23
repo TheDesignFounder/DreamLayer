@@ -38,10 +38,13 @@ class GeminiVisionNode:
         image_np = (image_tensor.numpy().transpose(1, 2, 0) * 255).astype(np.uint8)
         return Image.fromarray(image_np)
 
+    def __init__(self):
+        super().__init__()
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
+
     def generate(self, prompt, image):
         pil_image = self.tensor_to_pil(image)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content([prompt, pil_image])
+        response = self.model.generate_content([prompt, pil_image])
         return (response.text,)
 
 NODE_CLASS_MAPPINGS = {
