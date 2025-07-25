@@ -132,7 +132,40 @@ def send_to_extras():
     """
 ```
 
-#### Image Upload
+#### File Upload
+
+**POST `/api/upload-model`** - Upload model files to ComfyUI models directory
+```python
+# [Source: dream_layer.py lines 456-481]
+def upload_model():
+    """
+    Upload model files to appropriate ComfyUI model directories
+    Request: Multipart form data with model file and model_type
+    Supports: .safetensors, .ckpt, .pth, .pt, .bin formats
+    """
+```
+
+**Request Format:**
+```
+Content-Type: multipart/form-data
+
+file: <model file>
+model_type: checkpoints|loras|controlnet|upscale_models|vae|embeddings|hypernetworks
+```
+
+**Response Format:**
+```json
+{
+    "status": "success",
+    "filename": "timestamped_filename.safetensors",
+    "original_filename": "original_name.safetensors",
+    "display_name": "Original Name",
+    "model_type": "checkpoints",
+    "filepath": "/path/to/saved/file",
+    "size": 1234567890,
+    "message": "Model uploaded successfully to checkpoints"
+}
+```
 
 **POST `/api/upload-controlnet-image`** - Upload ControlNet image
 ```python

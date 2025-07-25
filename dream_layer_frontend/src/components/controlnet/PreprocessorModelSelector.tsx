@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { RefreshCw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { preprocessors } from "./controlnet-data";
+import { useModelRefresh } from "@/hooks/useModelRefresh";
 
 interface PreprocessorModelSelectorProps {
   unitIndex: number;
@@ -29,7 +30,7 @@ const PreprocessorModelSelector: React.FC<PreprocessorModelSelectorProps> = ({
   const [models, setModels] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchModels = async () => {
+  const fetchModels = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch('http://localhost:5001/api/controlnet/models');
@@ -37,7 +38,6 @@ const PreprocessorModelSelector: React.FC<PreprocessorModelSelectorProps> = ({
         const data = await response.json();
         if (data.status === 'success') {
           setModels(data.models);
-          console.log('Fetched ControlNet models:', data.models);
         } else {
           console.error('Failed to fetch models:', data.message);
         }
@@ -49,11 +49,10 @@ const PreprocessorModelSelector: React.FC<PreprocessorModelSelectorProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchModels();
   }, []);
+
+  // Use WebSocket auto-refresh hook for ControlNet models
+  useModelRefresh(fetchModels, 'controlnet');
 
   const handleRefreshModels = () => {
     fetchModels();

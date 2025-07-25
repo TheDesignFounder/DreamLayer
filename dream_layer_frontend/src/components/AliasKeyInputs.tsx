@@ -75,7 +75,7 @@ const ApiKeysForm: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col items-center justify-center space-y-4">
       {fields.map((field, idx) => (
         <div
           key={field.name}
@@ -136,6 +136,7 @@ const ApiKeysForm: React.FC = () => {
           )}
         </div>
       ))}
+      <div className="space-y-6">* Please Click of Refresh Models After Adding the Keys to View the Models</div>
     </div>
   );
 };

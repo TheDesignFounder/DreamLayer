@@ -3,7 +3,9 @@ import shutil
 import time
 import requests
 import copy
+import json
 from typing import List, Dict, Any
+from pathlib import Path
 from dream_layer import get_directories
 from dream_layer_backend_utils.update_custom_workflow import find_save_node
 from dream_layer_backend_utils.shared_workflow_parameters import increment_seed_in_workflow
@@ -11,6 +13,44 @@ from dream_layer_backend_utils.shared_workflow_parameters import increment_seed_
 # Global constants
 COMFY_API_URL = "http://127.0.0.1:8188"
 SERVED_IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'served_images')
+
+# Model display name mapping file
+MODEL_DISPLAY_NAMES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model_display_names.json')
+
+# Display names are user-friendly names for models, stored in a JSON file
+def load_model_display_names() -> Dict[str, str]:
+    """Load the mapping of actual filenames to display names"""
+    try:
+        if os.path.exists(MODEL_DISPLAY_NAMES_FILE):
+            with open(MODEL_DISPLAY_NAMES_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Warning: Could not load model display names: {e}")
+    return {}
+
+def save_model_display_names(mapping: Dict[str, str]) -> None:
+    """Save the mapping of actual filenames to display names"""
+    try:
+        with open(MODEL_DISPLAY_NAMES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(mapping, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Warning: Could not save model display names: {e}")
+
+def add_model_display_name(filename: str, display_name: str) -> None:
+    """Add a new filename -> display name mapping"""
+    mapping = load_model_display_names()
+    mapping[filename] = display_name
+    save_model_display_names(mapping)
+
+def get_model_display_name(filename: str) -> str:
+    """Get the display name for a filename, fallback to processed filename"""
+    mapping = load_model_display_names()
+    if filename in mapping:
+        return mapping[filename]
+
+    # Fallback: process the filename to create a display name
+    name = Path(filename).stem.replace('-', ' ').replace('_', ' ')
+    return ' '.join(word.capitalize() for word in name.split())
 
 # Sampler name mapping from frontend to ComfyUI
 SAMPLER_NAME_MAP = {
@@ -286,4 +326,247 @@ def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
         return {
             "status": "error",
             "message": str(e)
-        }, 500 
+        }, 500
+
+
+def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
+    """
+    Upload model files to appropriate ComfyUI model directories
+    Supports: .safetensors, .ckpt, .pth, .pt, .bin formats
+    Implements atomic write and path traversal protection
+
+    Args:
+        file: Flask file object from request.files
+        model_type: Type of model (checkpoints, loras, controlnet, upscale_models, etc.)
+
+    Returns:
+        Dict containing status, filename, and other metadata
+    """
+    try:
+        print(f"🤖 Model upload request received for type: {model_type}")
+
+        if not file or file.filename == '':
+            return {
+                "status": "error",
+                "message": "No file provided or no file selected"
+            }, 400
+
+        # Validate file extension - support common model formats
+        allowed_extensions = {'.safetensors', '.ckpt', '.pth', '.pt', '.bin'}
+        file_ext = Path(file.filename).suffix.lower()
+
+        if file_ext not in allowed_extensions:
+            return {
+                "status": "error",
+                "message": f"Invalid file type. Supported formats: {', '.join(sorted(allowed_extensions))}"
+            }, 400
+
+        print(f"📁 Uploading model: {file.filename}")
+        print(f"📊 File content type: {file.content_type}")
+        print(f"🏷️ Model type: {model_type}")
+
+        # Get ComfyUI models directory structure
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        comfyui_models_dir = os.path.join(project_root, "ComfyUI", "models")
+
+        # Map model types to directories
+        model_type_dirs = {
+            "checkpoints": "checkpoints",
+            "loras": "loras",
+            "controlnet": "controlnet",
+            "upscale_models": "upscale_models",
+            "vae": "vae",
+            "embeddings": "embeddings",
+            "hypernetworks": "hypernetworks"
+        }
+
+        if model_type not in model_type_dirs:
+            return {
+                "status": "error",
+                "message": f"Invalid model type. Allowed: {', '.join(model_type_dirs.keys())}"
+            }, 400
+
+        target_dir = os.path.join(comfyui_models_dir, model_type_dirs[model_type])
+
+        models_base_dir = Path(comfyui_models_dir).resolve()
+        target_dir_path = Path(target_dir).resolve()
+
+        try:
+            is_safe = target_dir_path.is_relative_to(models_base_dir)
+        except AttributeError:
+            is_safe = str(target_dir_path).startswith(str(models_base_dir))
+
+        if not is_safe:
+            print(f"❌ Path traversal attempt detected: {target_dir}")
+            return {
+                "status": "error",
+                "message": "Invalid target directory"
+            }, 400
+
+        # Create target directory if it doesn't exist
+        os.makedirs(target_dir, exist_ok=True)
+        print(f"📁 Target directory: {target_dir}")
+
+        # Generate safe filename with timestamp for storage
+        timestamp = int(time.time() * 1000)
+        safe_filename = f"{Path(file.filename).stem}_{timestamp}{file_ext}"
+        target_path = Path(target_dir) / safe_filename
+
+        # Create display name from original filename (without timestamp)
+        original_display_name = Path(file.filename).stem.replace('-', ' ').replace('_', ' ')
+        original_display_name = ' '.join(word.capitalize() for word in original_display_name.split())
+
+        final_target_path = target_path.resolve()
+        try:
+            is_safe = final_target_path.is_relative_to(models_base_dir)
+        except AttributeError:
+            is_safe = str(final_target_path).startswith(str(models_base_dir))
+
+        if not is_safe:
+            print(f"❌ Final path traversal check failed: {final_target_path}")
+            return {
+                "status": "error",
+                "message": "Invalid file path"
+            }, 400
+
+        print(f"📄 Saving to: {target_path}")
+
+        # 🔒 ATOMIC WRITE: Write to temporary file first
+        temp_path = target_path.with_suffix(target_path.suffix + '.tmp')
+
+        try:
+            file.save(str(temp_path))
+
+            with open(temp_path, 'ab') as f:
+                f.flush()
+                os.fsync(f.fileno())
+
+            # Atomic rename to final destination
+            temp_path.rename(target_path)
+
+            print(f"✅ Atomic write completed: {safe_filename}")
+
+        except Exception as e:
+            # Clean up temp file if something went wrong
+            if temp_path.exists():
+                temp_path.unlink()
+            raise e
+
+        # Verify file was created successfully
+        if target_path.exists():
+            file_size = target_path.stat().st_size
+            print(f"✅ Successfully saved model: {safe_filename}")
+            print(f"📏 File size: {file_size} bytes")
+
+            # 💾 DISPLAY NAME: Save the display name mapping
+            add_model_display_name(safe_filename, original_display_name)
+            print(f"📝 Display name mapping saved: {safe_filename} -> {original_display_name}")
+
+            # 🔄 WEBSOCKET: Emit model refresh event
+            try:
+                emit_model_refresh(model_type, safe_filename)
+                print(f"📡 WebSocket event emitted: models-refresh for {model_type}")
+            except Exception as ws_error:
+                print(f"⚠️ Warning: Failed to emit WebSocket event: {ws_error}")
+                # Don't fail the upload if WebSocket fails
+
+            return {
+                "status": "success",
+                "filename": safe_filename,
+                "original_filename": file.filename,
+                "display_name": original_display_name,
+                "model_type": model_type,
+                "filepath": str(target_path),
+                "size": file_size,
+                "message": f"Model uploaded successfully to {model_type}"
+            }
+        else:
+            print(f"❌ File was not created: {target_path}")
+            return {
+                "status": "error",
+                "message": "Failed to save file"
+            }, 500
+
+    except Exception as e:
+        print(f"❌ Error uploading model: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": "error",
+            "message": str(e)
+        }, 500
+
+
+def _setup_comfyui_websocket():
+    """
+    Setup ComfyUI WebSocket connection and return PromptServer instance
+
+    Returns:
+        PromptServer instance if available, None otherwise
+    """
+    try:
+        # Import ComfyUI server here to avoid circular imports
+        import sys
+        import os
+
+        # Add ComfyUI to path if not already there
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        comfyui_dir = os.path.join(project_root, "ComfyUI")
+
+        if comfyui_dir not in sys.path:
+            sys.path.insert(0, comfyui_dir)
+
+        # Import PromptServer from ComfyUI
+        from server import PromptServer
+
+        # Check if PromptServer instance exists
+        if hasattr(PromptServer, 'instance') and PromptServer.instance is not None:
+            return PromptServer.instance
+
+        return None
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to setup ComfyUI WebSocket: {e}")
+        return None
+
+
+def emit_model_refresh(model_type: str, filename: str) -> None:
+    """
+    Emit WebSocket event to notify clients that a new model has been uploaded
+    Uses ComfyUI's PromptServer WebSocket infrastructure
+
+    Args:
+        model_type: Type of model (checkpoints, loras, etc.)
+        filename: Name of the uploaded file
+    """
+    try:
+        prompt_server = _setup_comfyui_websocket()
+
+        if prompt_server is not None:
+            # Create the WebSocket event data
+            event_data = {
+                "model_type": model_type,
+                "filename": filename,
+                "action": "added",
+                "timestamp": int(time.time() * 1000)
+            }
+
+            print("📡 Emitting WebSocket event: models-refresh")
+            print(f"📊 Event data: {event_data}")
+
+            # Emit the event using ComfyUI's WebSocket infrastructure
+            prompt_server.send_sync("models-refresh", event_data)
+
+            print("✅ WebSocket event sent successfully")
+
+        else:
+            print("⚠️ Warning: PromptServer instance not available for WebSocket emission")
+
+    except ImportError as e:
+        print(f"⚠️ Warning: Could not import ComfyUI server for WebSocket: {e}")
+    except Exception as e:
+        print(f"❌ Error emitting WebSocket event: {e}")
+        import traceback
+        traceback.print_exc()
+        # Don't raise - we don't want WebSocket failures to break uploads

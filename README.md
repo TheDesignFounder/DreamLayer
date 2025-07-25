@@ -35,6 +35,11 @@ No node graph on screen, no server rental, just a lightning-fast local interface
 
 ### Installation
 
+**linux:**
+```bash
+./install_linux_dependencies.sh
+```
+
 **macOS:**
 ```bash
 ./install_mac_dependencies.sh
@@ -47,6 +52,11 @@ install_windows_dependencies.ps1
 
 ### Start Application
 
+**linux:**
+```bash
+./start_dream_layer.sh
+```
+
 **macOS:**
 ```bash
 ./start_dream_layer.sh
@@ -56,35 +66,20 @@ install_windows_dependencies.ps1
 ```bash
 start_dream_layer.bat
 ```
+### Env Variables
+**install_dependencies_linux**
+DLVENV_PATH // preferred path to python virtual env. default is /tmp/dlvenv
+
+**start_dream_layer**
+DREAMLAYER_COMFYUI_CPU_MODE // if no nvidia drivers available run using CPU only.  default is false
 
 ### Access
 
 - **Frontend:** http://localhost:8080
 - **ComfyUI:** http://localhost:8188
 
----
 
-## Why DreamLayer AI?
-
-| 🔍 Feature | 🚀 How it’s better |
-|------------|-----------|
-| **Familiar Layout** | If you’ve used A1111 or Forge, you’ll feel at home in sec. Zero learning curve |
-| **Modern UX** | Responsive design with light & dark themes and a clutter-free interface that lets you work faster |
-| **ComfyUI Engine Inside** | All generation runs on a proven, modular, stable ComfyUI backend. Ready for custom nodes and advanced hacks |
-| **Closed-Source Model Support** | One-click swap to GPT-4o Image, Ideogram V3, Runway Gen-4, Recraft V3, and more |
-| **Local first** | Runs entirely on your GPU with no hosting fees, full privacy, and instant acceleration out of the box |
-
-
-
----
-
-## Requirements
-
-- Python 3.8+
-- Node.js 16+
-- 8GB+ RAM recommended
-
-## Installing Models ⭐️
+### Installing Models ⭐️
 
 DreamLayer ships without weights to keep the download small. You have two ways to add models:
 
@@ -123,6 +118,29 @@ No key = feature stays hidden.
 > Tip: Use symbolic links if your checkpoints live on another drive.
 
 *The installation scripts will automatically install all dependencies and set up the environment.* 
+
+
+---
+
+## Why DreamLayer AI?
+
+| 🔍 Feature | 🚀 How it’s better |
+|------------|-----------|
+| **Familiar Layout** | If you’ve used A1111 or Forge, you’ll feel at home in sec. Zero learning curve |
+| **Modern UX** | Responsive design with light & dark themes and a clutter-free interface that lets you work faster |
+| **ComfyUI Engine Inside** | All generation runs on a proven, modular, stable ComfyUI backend. Ready for custom nodes and advanced hacks |
+| **Closed-Source Model Support** | One-click swap to GPT-4o Image, Ideogram V3, Runway Gen-4, Recraft V3, and more |
+| **Local first** | Runs entirely on your GPU with no hosting fees, full privacy, and instant acceleration out of the box |
+
+
+
+---
+
+## Requirements
+
+- Python 3.8+
+- Node.js 16+
+- 8GB+ RAM recommended
 
 ---
 
