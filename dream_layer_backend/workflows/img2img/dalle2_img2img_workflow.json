@@ -1,0 +1,37 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "OpenAIDalle2",
+      "inputs": {
+        "prompt": "beautiful",
+        "image": "input_image.png",
+        "mask": null,
+        "size": "1024x1024",
+        "n": 1,
+        "seed": 0
+      }
+    },
+    "2": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["1", 0],
+        "filename_prefix": "DreamLayer_DALLE2_img2img"
+      }
+    }
+  },
+  "meta": {
+    "description": "DALL-E 2 Img2Img Core Generation Workflow",
+    "model_options": {
+      "dalle_2": "OpenAIDalle2"
+    },
+    "core_settings": {
+      "prompt": "Main generation prompt",
+      "image": "Input image for img2img",
+      "mask": "Optional mask for inpainting (white areas will be replaced)",
+      "size": "Image dimensions",
+      "n": "Number of images to generate (1-8)",
+      "seed": "Random seed (0 for random)"
+    },
+    "size_options": ["256x256", "512x512", "1024x1024"]
+  }
+}
