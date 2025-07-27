@@ -33,7 +33,31 @@ No node graph on screen, no server rental, just a lightning-fast local interface
 
 ## Quick Start
 
+### ⭐️ Run with Cursor (Smooth Setup with a Few Clicks)
+
+Easiest way to run DreamLayer 😃 Best for non-technical users
+
+1. **Download this repo**
+2. **Open the folder in [Cursor](https://www.cursor.so/)** (an AI-native code editor)
+3. Type `run it` or press the **"Run"** button — then follow the guided steps
+
+Cursor will:
+- Walk you through each setup step
+- Install Python and Node dependencies
+- Create a virtual environment
+- Start the backend and frontend
+- Output a **localhost:8080** link you can open in your browser
+
+⏱️ Takes about 5-10 minutes. No terminal needed. Just click, run, and you’re in. 🚀
+
+> On macOS, PyTorch setup may take a few retries. Just keep pressing **Run** when prompted. Cursor will guide you through it.
+
 ### Installation
+
+**linux:**
+```bash
+./install_linux_dependencies.sh
+```
 
 **macOS:**
 
@@ -49,6 +73,11 @@ install_windows_dependencies.ps1
 
 ### Start Application
 
+**linux:**
+```bash
+./start_dream_layer.sh
+```
+
 **macOS:**
 
 ```bash
@@ -60,6 +89,12 @@ install_windows_dependencies.ps1
 ```bash
 start_dream_layer.bat
 ```
+### Env Variables
+**install_dependencies_linux**
+DLVENV_PATH // preferred path to python virtual env. default is /tmp/dlvenv
+
+**start_dream_layer**
+DREAMLAYER_COMFYUI_CPU_MODE // if no nvidia drivers available run using CPU only.  default is false
 
 ### Access
 

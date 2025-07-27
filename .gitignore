@@ -236,3 +236,6 @@ out/
 # OS files
 .DS_Store
 Thumbs.db
+# DreamLayer logs and test logs
+logs
+test-logs
