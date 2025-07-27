@@ -26,6 +26,8 @@ def _determine_workflow_path(workflow_request: Dict[str, Any]) -> str:
         filename = "dalle_core_generation_workflow.json"
     elif 'ideogram' in model_name:  # Changed to check if 'ideogram' is in model_name
         filename = "ideogram_core_generation_workflow.json"
+    elif 'stability' in model_name:
+        filename = "stability_core_generation_workflow.json"
     elif controlnet and lora:
         filename = "local_controlnet_lora.json"
     elif controlnet:

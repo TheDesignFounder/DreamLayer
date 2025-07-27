@@ -127,6 +127,12 @@ class StabilityStableImageUltraNode:
     def api_call(self, prompt: str, aspect_ratio: str, style_preset: str, seed: int,
                  negative_prompt: str=None, image: torch.Tensor = None, image_denoise: float=None,
                  **kwargs):
+        # Debug logging for kwargs
+        print(f"[DEBUG] StabilityStableImageUltraNode kwargs received: {list(kwargs.keys())}")
+        for key, value in kwargs.items():
+            if 'token' in key.lower() or 'key' in key.lower():
+                print(f"[DEBUG] {key}: {value[:10] + '...' if value and len(str(value)) > 10 else value}")
+        
         validate_string(prompt, strip_whitespace=False)
         # prepare image binary if image present
         image_binary = None

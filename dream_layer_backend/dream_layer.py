@@ -29,6 +29,10 @@ API_KEY_TO_MODELS = {
     ],
     "IDEOGRAM_API_KEY": [
         {"id": "ideogram-v3", "name": "Ideogram V3", "filename": "ideogram-v3"},
+    ],
+    "STABILITY_API_KEY": [
+        {"id": "stability-sdxl", "name": "Stability SDXL", "filename": "stability-sdxl"},
+        {"id": "stability-sd-turbo", "name": "Stability SD Turbo", "filename": "stability-sd-turbo"}
     ]
 }
 
