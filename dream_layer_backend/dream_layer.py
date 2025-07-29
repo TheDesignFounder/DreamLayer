@@ -18,6 +18,9 @@ comfyui_dir = os.path.join(parent_dir, "ComfyUI")
 
 # Mapping of API keys to available models
 API_KEY_TO_MODELS = {
+    "RECRAFT_API_KEY": [
+        {"id": "recraft-v3", "name": "Recraft V3", "filename": "recraft-v3"},
+    ],
     "BFL_API_KEY": [
         {"id": "flux-pro", "name": "FLUX Pro", "filename": "flux-pro"},
         {"id": "flux-dev", "name": "FLUX Dev", "filename": "flux-dev"},
