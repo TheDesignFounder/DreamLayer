@@ -1,0 +1,40 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "GeminiNode",
+      "inputs": {
+        "prompt": "Generate a creative story about a magical forest",
+        "model": "gemini-2.5-pro-preview-05-06",
+        "seed": 42
+      }
+    }
+  },
+  "meta": {
+    "description": "Gemini Text Generation Workflow",
+    "model_options": {
+      "gemini-pro-vision": "GeminiNode",
+      "gemini-pro": "GeminiNode"
+    },
+    "core_settings": {
+      "prompt": "Text prompt for Gemini analysis or generation",
+      "model": "Gemini model to use (gemini-2.5-pro-preview-05-06, gemini-2.5-flash-preview-04-17)",
+      "seed": "Random seed for deterministic output (0 for random)",
+      "images": "Optional images for multimodal analysis",
+      "audio": "Optional audio input for analysis",
+      "video": "Optional video input for analysis",
+      "files": "Optional files for context"
+    },
+    "model_options_detailed": [
+      "gemini-2.5-pro-preview-05-06",
+      "gemini-2.5-flash-preview-04-17"
+    ],
+    "capabilities": [
+      "Text generation",
+      "Image analysis", 
+      "Multimodal understanding",
+      "Document analysis",
+      "Code generation",
+      "Creative writing"
+    ]
+  }
+} 

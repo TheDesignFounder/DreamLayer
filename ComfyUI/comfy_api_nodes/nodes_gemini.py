@@ -312,41 +312,51 @@ class GeminiNode(ComfyNodeABC):
         unique_id: Optional[str] = None,
         **kwargs,
     ) -> tuple[str]:
-        # Validate inputs
-        validate_string(prompt, strip_whitespace=False)
+        try:
+            # Validate inputs
+            validate_string(prompt, strip_whitespace=False)
 
-        # Create parts list with text prompt as the first part
-        parts: list[GeminiPart] = [self.create_text_part(prompt)]
+            # Create parts list with text prompt as the first part
+            parts: list[GeminiPart] = [self.create_text_part(prompt)]
 
-        # Add other modal parts
-        if images is not None:
-            image_parts = self.create_image_parts(images)
-            parts.extend(image_parts)
-        if audio is not None:
-            parts.extend(self.create_audio_parts(audio))
-        if video is not None:
-            parts.extend(self.create_video_parts(video))
-        if files is not None:
-            parts.extend(files)
+            # Add other modal parts
+            if images is not None:
+                image_parts = self.create_image_parts(images)
+                parts.extend(image_parts)
+            if audio is not None:
+                parts.extend(self.create_audio_parts(audio))
+            if video is not None:
+                parts.extend(self.create_video_parts(video))
+            if files is not None:
+                parts.extend(files)
 
-        # Create response
-        response = SynchronousOperation(
-            endpoint=get_gemini_endpoint(model),
-            request=GeminiGenerateContentRequest(
-                contents=[
-                    GeminiContent(
-                        role="user",
-                        parts=parts,
-                    )
-                ]
-            ),
-            auth_kwargs=kwargs,
-        ).execute()
+            # Create response
+            response = SynchronousOperation(
+                endpoint=get_gemini_endpoint(model),
+                request=GeminiGenerateContentRequest(
+                    contents=[
+                        GeminiContent(
+                            role="user",
+                            parts=parts,
+                        )
+                    ]
+                ),
+                auth_kwargs=kwargs,
+            ).execute()
 
-        # Get result output
-        output_text = self.get_text_from_response(response)
-        if unique_id and output_text:
-            PromptServer.instance.send_progress_text(output_text, node_id=unique_id)
+            # Get result output
+            output_text = self.get_text_from_response(response)
+            if unique_id and output_text:
+                PromptServer.instance.send_progress_text(output_text, node_id=unique_id)
+        
+        except Exception as e:
+            # Handle API errors, network issues, and validation failures gracefully
+            error_message = f"Gemini API Error: {str(e)}"
+            print(f"[GeminiNode] {error_message}")  # Log full error for debugging
+            sanitized_message = "An error occurred while processing your request. Please try again later."
+            if unique_id:
+                PromptServer.instance.send_progress_text(sanitized_message, node_id=unique_id)
+            output_text = sanitized_message
 
         return (output_text or "Empty response from Gemini model...",)
 
@@ -429,10 +439,17 @@ class GeminiInputFiles(ComfyNodeABC):
         """
         Loads and formats input files for Gemini API.
         """
-        file_path = folder_paths.get_annotated_filepath(file)
-        input_file_content = self.create_file_part(file_path)
-        files = [input_file_content] + GEMINI_INPUT_FILES
-        return (files,)
+        try:
+            file_path = folder_paths.get_annotated_filepath(file)
+            input_file_content = self.create_file_part(file_path)
+            files = [input_file_content] + GEMINI_INPUT_FILES
+            return (files,)
+        except Exception as e:
+            # Handle file processing errors gracefully
+            error_message = f"File processing error: {str(e)}"
+            print(f"[GeminiInputFiles] {error_message}")
+            # Return empty list on error
+            return ([],)
 
 
 NODE_CLASS_MAPPINGS = {

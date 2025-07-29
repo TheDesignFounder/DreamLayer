@@ -34,6 +34,10 @@ NODE_TO_API_KEY_MAPPING = {
     "IdeogramV1": "IDEOGRAM_API_KEY",
     "IdeogramV2": "IDEOGRAM_API_KEY",
     "IdeogramV3": "IDEOGRAM_API_KEY",
+    
+    # Gemini Nodes
+    "GeminiNode": "GEMINI_API_KEY",
+    "GeminiInputFiles": "GEMINI_API_KEY",
 }
 
 # Mapping of environment variable names to ComfyUI extra_data keys
@@ -41,8 +45,8 @@ ENV_KEY_TO_EXTRA_DATA_MAPPING = {
     "BFL_API_KEY": "api_key_comfy_org",
     "OPENAI_API_KEY": "api_key_comfy_org",
     "IDEOGRAM_API_KEY": "api_key_comfy_org",
+    "GEMINI_API_KEY": "api_key_comfy_org",
     # Future additions:
-    # "GEMINI_API_KEY": "api_key_gemini",
     # "ANTHROPIC_API_KEY": "api_key_anthropic",
 }
 
