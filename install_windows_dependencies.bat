@@ -63,34 +63,34 @@ set PS_EXIT_CODE=%errorlevel%
 
 if %PS_EXIT_CODE% equ 0 (
     echo.
-    echo %GREEN%================================================%NC%
-    echo %GREEN%    INSTALLATION COMPLETE!%NC%
-    echo %GREEN%================================================%NC%
+    echo "%GREEN%================================================%NC%"
+    echo "%GREEN%    INSTALLATION COMPLETE!%NC%"
+    echo "%GREEN%================================================%NC%"
     echo.
-    echo %CYAN%Next steps:%NC%
-    echo   1. %YELLOW%Configure your environment:%NC%
-    echo      • Create %BLUE%.env%NC% with your API keys (optional)
+    echo "%CYAN%Next steps:%NC%"
+    echo   "1. %YELLOW%Configure your environment:%NC%"
+    echo      "• Create %BLUE%.env%NC% with your API keys (optional)"
     echo.
-    echo   2. %YELLOW%Start the application:%NC%
-    echo      • Run: %BLUE%start_dream_layer.bat%NC%
+    echo   "2. %YELLOW%Start the application:%NC%"
+    echo      "• Run: %BLUE%start_dream_layer.bat%NC%"
     echo.
-    echo   3. %YELLOW%Access the application:%NC%
-    echo      • Frontend: %BLUE%http://localhost:8080%NC%
-    echo      • Main API: %BLUE%http://localhost:5002%NC%
-    echo      • ComfyUI: %BLUE%http://localhost:8188%NC%
+    echo   3. "%YELLOW%Access the application:%NC%"
+    echo      "• Frontend: %BLUE%http://localhost:8080%NC%"
+    echo      "• Main API: %BLUE%http://localhost:5002%NC%"
+    echo      "• ComfyUI: %BLUE%http://localhost:8188%NC%"
     echo.
-    echo %GREEN%Happy creating with Dream Layer! 🎨✨%NC%
+    echo "%GREEN%Happy creating with Dream Layer! 🎨✨%NC%"
     echo.
 ) else (
     echo.
-    echo %RED%================================================%NC%
-    echo %RED%    INSTALLATION FAILED!%NC%
-    echo %RED%================================================%NC%
+    echo "%RED%================================================%NC%"
+    echo "%RED%    INSTALLATION FAILED! %NC%"
+    echo "%RED%================================================%NC%"
     echo.
-    echo %YELLOW%The PowerShell script failed with exit code: %PS_EXIT_CODE%%NC%
-    echo %YELLOW%Please check the errors above and try again.%NC%
+    echo "%YELLOW%The PowerShell script failed with exit code: %PS_EXIT_CODE%%NC%"
+    echo "%YELLOW%Please check the errors above and try again.%NC%"
     echo.
 )
 
 pause
-exit /b %PS_EXIT_CODE%
+exit /b "%PS_EXIT_CODE%"
