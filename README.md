@@ -99,7 +99,7 @@ start_dream_layer.bat
 DLVENV_PATH // preferred path to python virtual env. default is /tmp/dlvenv
 
 **start_dream_layer**
-DREAMLAYER_COMFYUI_CPU_MODE // if no nvidia drivers available run using CPU only. default is false
+DREAMLAYER_COMFYUI_CPU_MODE // if no NVIDIA drivers available run using CPU only. default is false
 
 ### Access
 

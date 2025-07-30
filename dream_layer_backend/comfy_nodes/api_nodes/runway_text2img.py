@@ -21,10 +21,14 @@ import httpx
 import torch
 import numpy as np
 import time
+import logging
 from PIL import Image
 from io import BytesIO
-from typing import Optional, List, Dict, Any
+from typing import Dict
 from inspect import cleandoc
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 # Try to import ComfyUI types, fall back to simplified interface if not available
 try:
@@ -49,13 +53,12 @@ class RunwayText2ImgNode(ComfyNodeABC):
     following the complete API specification including task polling and all supported parameters.
     
     Parameters:
-    - promptText (str): Text description of the image to generate (supports @tag references)
+    - promptText (str): Text description of the image to generate
     - ratio (str, default="1024:1024"): Aspect ratio in format "width:height" 
     - seed (int, optional): Random seed for reproducible generation
     - timeout (int, default=120): Maximum time to wait for completion in seconds
     
     Advanced Features:
-    - Reference images: Upload images and reference them using @tag syntax in prompts
     - Multiple aspect ratios: Support for various ratios like "1920:1080", "1024:1024", etc.
     - Task polling: Automatically polls until generation completes
     - Comprehensive error handling: Handles all API error states gracefully
@@ -65,8 +68,7 @@ class RunwayText2ImgNode(ComfyNodeABC):
     
     Examples:
     - Simple: "A beautiful landscape at sunset"
-    - With references: "@EiffelTower painted in the style of @StarryNight" 
-      (requires reference images with matching tags)
+    - Creative: "A cyberpunk cityscape with neon lights, highly detailed, 8k"
     
     API Version: 2024-11-06
     """
@@ -97,7 +99,7 @@ class RunwayText2ImgNode(ComfyNodeABC):
                 "promptText": (IO.STRING, {
                     "multiline": True,
                     "default": "A futuristic cityscape at dusk, cinematic lighting",
-                    "tooltip": "Text description of the image to generate. Use @tag to reference uploaded images."
+                    "tooltip": "Text description of the image to generate"
                 }),
                 "ratio": (cls.ASPECT_RATIOS, {
                     "default": "1024:1024",
@@ -182,7 +184,7 @@ class RunwayText2ImgNode(ComfyNodeABC):
         try:
             # Create task via text-to-image endpoint
             with httpx.Client(timeout=30) as client:
-                print(f"[RunwayText2Img] Creating task with prompt: {promptText[:50]}...")
+                logger.info(f"Creating task with prompt: {promptText[:50]}...")
                 
                 response = client.post(
                     "https://api.dev.runwayml.com/v1/text_to_image",
@@ -200,13 +202,13 @@ class RunwayText2ImgNode(ComfyNodeABC):
                     raise RuntimeError("No task ID returned from Runway API")
                 
                 task_id = result["id"]
-                print(f"[RunwayText2Img] Task created with ID: {task_id}")
+                logger.info(f"Task created with ID: {task_id}")
                 
                 # Poll for completion
                 image_url = self._poll_for_completion(client, task_id, headers, timeout)
                 
                 # Download the final image
-                print(f"[RunwayText2Img] Downloading image from: {image_url}")
+                logger.info(f"Downloading image from: {image_url}")
                 image_response = client.get(image_url)
                 image_response.raise_for_status()
                 
@@ -221,23 +223,23 @@ class RunwayText2ImgNode(ComfyNodeABC):
                 image_array = np.array(image, dtype=np.float32) / 255.0
                 image_tensor = torch.from_numpy(image_array).unsqueeze(0)  # Add batch dimension
                 
-                print(f"[RunwayText2Img] Image generated successfully: {image_tensor.shape}")
+                logger.info(f"Image generated successfully: {image_tensor.shape}")
                 return (image_tensor,)
                 
-        except httpx.TimeoutException:
-            raise RuntimeError(f"Request timed out. Try increasing the timeout parameter.")
+        except httpx.TimeoutException as e:
+            raise RuntimeError("Request timed out. Try increasing the timeout parameter.") from e
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 401:
-                raise RuntimeError("Invalid RUNWAY_API_KEY. Please check your API key.")
+                raise RuntimeError("Invalid RUNWAY_API_KEY. Please check your API key.") from e
             elif e.response.status_code == 429:
-                raise RuntimeError("Rate limit exceeded. Please wait and try again.")
+                raise RuntimeError("Rate limit exceeded. Please wait and try again.") from e
             elif e.response.status_code == 400:
                 error_detail = e.response.text
-                raise RuntimeError(f"Invalid request: {error_detail}")
+                raise RuntimeError(f"Invalid request: {error_detail}") from e
             else:
-                raise RuntimeError(f"Runway API error {e.response.status_code}: {e.response.text}")
+                raise RuntimeError(f"Runway API error {e.response.status_code}: {e.response.text}") from e
         except Exception as e:
-            raise RuntimeError(f"Failed to generate image: {str(e)}")
+            raise RuntimeError(f"Failed to generate image: {str(e)}") from e
     
     def _poll_for_completion(
         self, 
@@ -278,7 +280,7 @@ class RunwayText2ImgNode(ComfyNodeABC):
                 status_data = response.json()
                 status = status_data.get("status")
                 
-                print(f"[RunwayText2Img] Task {task_id} status: {status}")
+                logger.debug(f"Task {task_id} status: {status}")
                 
                 if status == "SUCCEEDED":
                     # Task completed successfully
@@ -297,26 +299,26 @@ class RunwayText2ImgNode(ComfyNodeABC):
                     # Task is still processing, continue polling
                     progress = status_data.get("progress")
                     if progress is not None:
-                        print(f"[RunwayText2Img] Progress: {progress:.1%}")
+                        logger.debug(f"Progress: {progress:.1%}")
                     
-                    time.sleep(poll_interval)
+                    time.sleep(poll_interval)  # Intentional delay for API polling
                     
                     # Gradually increase poll interval to reduce API calls
                     poll_interval = min(poll_interval * 1.2, max_poll_interval)
                     
                 else:
                     # Unknown status
-                    print(f"[RunwayText2Img] Unknown status: {status}, continuing to poll...")
-                    time.sleep(poll_interval)
+                    logger.warning(f"Unknown status: {status}, continuing to poll...")
+                    time.sleep(poll_interval)  # Intentional delay for API polling
                     
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 404:
-                    raise RuntimeError(f"Task {task_id} not found")
+                    raise RuntimeError(f"Task {task_id} not found") from e
                 else:
-                    raise RuntimeError(f"Error polling task status: {e.response.status_code}")
-            except httpx.TimeoutException:
-                print(f"[RunwayText2Img] Polling timeout, retrying...")
-                time.sleep(poll_interval)
+                    raise RuntimeError(f"Error polling task status: {e.response.status_code}") from e
+            except httpx.TimeoutException as e:
+                logger.warning("Polling timeout, retrying...")
+                time.sleep(poll_interval)  # Intentional delay before retry
         
         # If we get here, we've timed out
         raise RuntimeError(f"Task did not complete within {timeout} seconds")

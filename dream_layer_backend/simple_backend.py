@@ -40,4 +40,7 @@ if __name__ == "__main__":
     print("Starting Dream Layer Backend (Simple Mode)...")
     print("Backend will be available at: http://localhost:5002")
     print("Frontend is available at: http://localhost:8080")
-    app.run(host='0.0.0.0', port=5002, debug=True, use_reloader=False) 
+    
+    # Use environment variable for debug mode (default to False for production safety)
+    debug_mode = os.environ.get('DEBUG', 'false').lower() in ('true', '1', 'yes', 'on')
+    app.run(host='0.0.0.0', port=5002, debug=debug_mode, use_reloader=False) 
