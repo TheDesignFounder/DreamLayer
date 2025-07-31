@@ -15,21 +15,21 @@ class TestLumaText2Img:
     @pytest.fixture
     def luma_node(self):
         """Create a LumaText2Img node instance"""
-        return LumaText2Img()
+        yield LumaText2Img()
 
     @pytest.fixture
     def mock_env_with_key(self):
         """Mock environment with LUMA_API_KEY"""
         with patch.dict(os.environ, {'LUMA_API_KEY': 'test_api_key_123'}):
             # Recreate the node with the mocked environment
-            yield LumaText2Img()
+            return LumaText2Img()
 
     @pytest.fixture
     def mock_env_without_key(self):
         """Mock environment without LUMA_API_KEY"""
         with patch.dict(os.environ, {}, clear=True):
             # Recreate the node with the mocked environment
-            yield LumaText2Img()
+            return LumaText2Img()
 
     def test_input_types(self, luma_node):
         """Test that INPUT_TYPES returns correct structure"""
