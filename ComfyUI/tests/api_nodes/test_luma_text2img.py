@@ -36,16 +36,7 @@ class TestLumaText2Img:
         input_types = luma_node.INPUT_TYPES()
 
         assert "required" in input_types
-        required = input_types["required"]
-
-        # Check all required parameters exist
-        expected_params = [
-            "prompt", "negative_prompt", "width", "height",
-            "num_images", "guidance_scale", "num_inference_steps", "seed"
-        ]
-
-        for param in expected_params:
-            assert param in required
+        # Structure validation is sufficient here since individual params are tested parametrically
 
     @pytest.mark.parametrize("param", [
         "prompt", "negative_prompt", "width", "height",
@@ -315,4 +306,4 @@ class TestLumaText2Img:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__]) 
+    pytest.main([__file__])
