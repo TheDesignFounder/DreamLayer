@@ -137,6 +137,151 @@ class TestLumaImageGenerationNode:
         
         assert expected_error in str(exc_info.value).lower()
 
+    @pytest.mark.parametrize("invalid_image_ref,expected_error", [
+        (None, "image"),  # None reference
+        ("invalid_string", "image"),  # String instead of image
+        (123, "image"),  # Integer instead of image
+        (torch.randn(1, 100, 100, 1), "channels"),  # Wrong number of channels
+        (torch.randn(1, 100, 100, 4), "channels"),  # Wrong number of channels
+        (torch.randn(2, 100, 100, 3), "batch"),  # Wrong batch size
+    ])
+    def test_api_call_invalid_image_references(self, invalid_image_ref, expected_error):
+        """Test that the node handles invalid image references properly."""
+        with patch('comfy_api_nodes.nodes_luma.SynchronousOperation') as mock_sync, \
+             patch('comfy_api_nodes.nodes_luma.PollingOperation') as mock_polling:
+            
+            # Mock successful operations
+            mock_sync_response = Mock()
+            mock_sync_response.id = "test-generation-id"
+            mock_sync.return_value.execute.return_value = mock_sync_response
+            
+            mock_polling_response = Mock()
+            mock_polling_response.assets = Mock()
+            mock_polling_response.assets.image = "https://example.com/image.jpg"
+            mock_polling.return_value.execute.return_value = mock_polling_response
+            
+            # Mock image processing
+            with patch('comfy_api_nodes.nodes_luma.requests.get') as mock_get, \
+                 patch('comfy_api_nodes.nodes_luma.process_image_response') as mock_process:
+                
+                mock_http_response = Mock()
+                mock_get.return_value = mock_http_response
+                mock_process.return_value = self.mock_image
+                
+                # Test with invalid image reference
+                result = self.node.api_call(
+                    prompt="A beautiful sunset",
+                    model=LumaImageModel.photon_1.value,
+                    aspect_ratio=LumaAspectRatio.ratio_16_9.value,
+                    seed=42,
+                    style_image_weight=1.0,
+                    style_image=invalid_image_ref,
+                    auth_token="test-token",
+                    comfy_api_key="test-key"
+                )
+                
+                # Should still work (invalid refs are ignored or handled gracefully)
+                assert len(result) == 1
+                assert isinstance(result[0], torch.Tensor)
+
+    def test_api_call_missing_image_references(self):
+        """Test that the node works correctly with missing image references."""
+        with patch('comfy_api_nodes.nodes_luma.SynchronousOperation') as mock_sync, \
+             patch('comfy_api_nodes.nodes_luma.PollingOperation') as mock_polling:
+            
+            # Mock successful operations
+            mock_sync_response = Mock()
+            mock_sync_response.id = "test-generation-id"
+            mock_sync.return_value.execute.return_value = mock_sync_response
+            
+            mock_polling_response = Mock()
+            mock_polling_response.assets = Mock()
+            mock_polling_response.assets.image = "https://example.com/image.jpg"
+            mock_polling.return_value.execute.return_value = mock_polling_response
+            
+            # Mock image processing
+            with patch('comfy_api_nodes.nodes_luma.requests.get') as mock_get, \
+                 patch('comfy_api_nodes.nodes_luma.process_image_response') as mock_process:
+                
+                mock_http_response = Mock()
+                mock_get.return_value = mock_http_response
+                mock_process.return_value = self.mock_image
+                
+                # Test with no image references
+                result = self.node.api_call(
+                    prompt="A beautiful sunset",
+                    model=LumaImageModel.photon_1.value,
+                    aspect_ratio=LumaAspectRatio.ratio_16_9.value,
+                    seed=42,
+                    style_image_weight=1.0,
+                    # No image references provided
+                    auth_token="test-token",
+                    comfy_api_key="test-key"
+                )
+                
+                # Should work without image references
+                assert len(result) == 1
+                assert isinstance(result[0], torch.Tensor)
+
+    @pytest.mark.parametrize("invalid_luma_ref,expected_behavior", [
+        (None, "ignore"),  # None reference
+        ("invalid_string", "ignore"),  # String instead of LUMA_REF
+        (123, "ignore"),  # Integer instead of LUMA_REF
+        ([], "ignore"),  # Empty list
+        ([None], "ignore"),  # List with None
+        ([torch.randn(1, 100, 100, 1)], "error"),  # Wrong channels
+    ])
+    def test_api_call_invalid_luma_references(self, invalid_luma_ref, expected_behavior):
+        """Test that the node handles invalid LUMA reference objects properly."""
+        with patch('comfy_api_nodes.nodes_luma.SynchronousOperation') as mock_sync, \
+             patch('comfy_api_nodes.nodes_luma.PollingOperation') as mock_polling:
+            
+            # Mock successful operations
+            mock_sync_response = Mock()
+            mock_sync_response.id = "test-generation-id"
+            mock_sync.return_value.execute.return_value = mock_sync_response
+            
+            mock_polling_response = Mock()
+            mock_polling_response.assets = Mock()
+            mock_polling_response.assets.image = "https://example.com/image.jpg"
+            mock_polling.return_value.execute.return_value = mock_polling_response
+            
+            # Mock image processing
+            with patch('comfy_api_nodes.nodes_luma.requests.get') as mock_get, \
+                 patch('comfy_api_nodes.nodes_luma.process_image_response') as mock_process:
+                
+                mock_http_response = Mock()
+                mock_get.return_value = mock_http_response
+                mock_process.return_value = self.mock_image
+                
+                if expected_behavior == "error":
+                    with pytest.raises(Exception):
+                        self.node.api_call(
+                            prompt="A beautiful sunset",
+                            model=LumaImageModel.photon_1.value,
+                            aspect_ratio=LumaAspectRatio.ratio_16_9.value,
+                            seed=42,
+                            style_image_weight=1.0,
+                            image_luma_ref=invalid_luma_ref,
+                            auth_token="test-token",
+                            comfy_api_key="test-key"
+                        )
+                else:
+                    # Should work (invalid refs are ignored)
+                    result = self.node.api_call(
+                        prompt="A beautiful sunset",
+                        model=LumaImageModel.photon_1.value,
+                        aspect_ratio=LumaAspectRatio.ratio_16_9.value,
+                        seed=42,
+                        style_image_weight=1.0,
+                        image_luma_ref=invalid_luma_ref,
+                        auth_token="test-token",
+                        comfy_api_key="test-key"
+                    )
+                    
+                    assert len(result) == 1
+                    assert isinstance(result[0], torch.Tensor)
+
     @patch('comfy_api_nodes.nodes_luma.SynchronousOperation')
     @patch('comfy_api_nodes.nodes_luma.PollingOperation')
     def test_api_call_with_image_references(self, mock_polling, mock_sync):
