@@ -620,7 +620,7 @@ class RunwayTextToImageNode(ComfyNodeABC):
         return (download_url_to_image_tensor(image_url),)
 
 
-class runway_text2img(ComfyNodeABC):
+class RunwayText2ImgNode(ComfyNodeABC):
     """
     Runway Gen-4 Text-to-Image Node
 
@@ -680,7 +680,7 @@ class runway_text2img(ComfyNodeABC):
                 "ratio": (
                     list(RunwayTextToImageAspectRatioEnum.__members__.values()),
                     {
-                        "default": "1920:1080",
+                        "default": "1280:720",
                         "tooltip": "Aspect ratio for the generated image"
                     }
                 ),
@@ -752,16 +752,14 @@ class runway_text2img(ComfyNodeABC):
             return poll_until_finished(
                 auth_kwargs,
                 api_endpoint,
-                estimated_duration=min(timeout, AVERAGE_DURATION_T2I_SECONDS),
+                estimated_duration=timeout,
                 node_id=node_id,
             )
-        except Exception as e:
-            if "timeout" in str(e).lower():
-                raise TimeoutError(
-                    f"Runway text-to-image generation timed out after {timeout} seconds. "
-                    f"Try increasing the timeout parameter or check Runway API status."
-                ) from e
-            raise
+        except TimeoutError as e:
+            raise TimeoutError(
+                f"Runway text-to-image generation timed out after {timeout} seconds. "
+                f"Try increasing the timeout parameter or check Runway API status."
+            ) from e
 
     def generate_image(
         self,
@@ -792,12 +790,9 @@ class runway_text2img(ComfyNodeABC):
             TimeoutError: If generation takes longer than timeout
             RunwayApiError: If API request fails
         """
-        # Validate environment and inputs
+                # Validate environment and inputs
         self.validate_environment()
         validate_string(prompt, min_length=1)
-
-        if not prompt or not prompt.strip():
-            raise ValueError("Prompt cannot be empty. Please provide a text description.")
 
         # Prepare reference images if provided
         reference_images = None
@@ -868,7 +863,7 @@ NODE_CLASS_MAPPINGS = {
     "RunwayImageToVideoNodeGen3a": RunwayImageToVideoNodeGen3a,
     "RunwayImageToVideoNodeGen4": RunwayImageToVideoNodeGen4,
     "RunwayTextToImageNode": RunwayTextToImageNode,
-    "runway_text2img": runway_text2img,
+    "RunwayText2ImgNode": RunwayText2ImgNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -876,5 +871,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "RunwayImageToVideoNodeGen3a": "Runway Image to Video (Gen3a Turbo)",
     "RunwayImageToVideoNodeGen4": "Runway Image to Video (Gen4 Turbo)",
     "RunwayTextToImageNode": "Runway Text to Image",
-    "runway_text2img": "Runway Text to Image (Gen-4)",
+    "RunwayText2ImgNode": "Runway Text to Image (Gen-4)",
 }

@@ -6,9 +6,8 @@ with mocked HTTP calls as specified in the requirements.
 
 import pytest
 import torch
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 import os
-from typing import Optional
 
 # Mock the ComfyUI modules that might not be available during testing
 @pytest.fixture(autouse=True)
@@ -44,8 +43,8 @@ class TestRunwayText2ImgNode:
     @pytest.fixture
     def node_class(self):
         """Import and return the runway_text2img node class"""
-        from comfy_api_nodes.nodes_runway import runway_text2img
-        return runway_text2img
+        from comfy_api_nodes.nodes_runway import RunwayText2ImgNode
+        return RunwayText2ImgNode
 
     @pytest.fixture
     def mock_env_with_api_key(self):
@@ -103,9 +102,7 @@ class TestRunwayText2ImgNode:
         assert "required" in input_types
         assert "prompt" in input_types["required"]
 
-        # Check optional inputs
-        if "optional" in input_types:
-            pass  # Optional inputs are allowed
+
 
         # Check hidden inputs for API key
         assert "hidden" in input_types
@@ -153,7 +150,7 @@ class TestRunwayText2ImgNode:
             post_call_args = mock_post.call_args
 
             # Check URL
-            assert "api.dev.runwayml.com/v1/text_to_image" in post_call_args[0][0]
+            assert "/proxy/runway/text_to_image" in post_call_args[0][0]
 
             # Check headers contain API key
             headers = post_call_args[1]['headers']
@@ -219,11 +216,11 @@ class TestRunwayText2ImgNode:
         """Test that the node is properly registered in NODE_CLASS_MAPPINGS"""
         from comfy_api_nodes.nodes_runway import NODE_CLASS_MAPPINGS
 
-        # Check that runway_text2img is in the mappings
-        assert "runway_text2img" in NODE_CLASS_MAPPINGS
+        # Check that RunwayText2ImgNode is in the mappings
+        assert "RunwayText2ImgNode" in NODE_CLASS_MAPPINGS
 
         # Verify it points to the correct class
-        node_class = NODE_CLASS_MAPPINGS["runway_text2img"]
+        node_class = NODE_CLASS_MAPPINGS["RunwayText2ImgNode"]
         assert hasattr(node_class, 'generate_image')
 
     def test_prompt_validation(self, node_class, mock_env_with_api_key):
@@ -256,7 +253,7 @@ class TestRunwayText2ImgNode:
                 mock_upload.return_value = ['https://example.com/ref_image.png']
 
                 node = node_class()
-                result = node.generate_image(prompt=sample_prompt, reference_image=mock_image_tensor)
+                node.generate_image(prompt=sample_prompt, reference_image=mock_image_tensor)
 
                 # Verify reference image was uploaded
                 mock_upload.assert_called_once()
@@ -274,19 +271,19 @@ class TestIntegrationWithComfyUI:
         """Test that the node can work after CLIPTextEncode in a workflow graph"""
         # This is more of a design verification test
         # In a real ComfyUI workflow, this would be tested with actual workflow execution
-        from comfy_api_nodes.nodes_runway import runway_text2img
+        from comfy_api_nodes.nodes_runway import RunwayText2ImgNode
 
         # Verify the node accepts string input (which CLIPTextEncode would output)
-        input_types = runway_text2img.INPUT_TYPES()
+        input_types = RunwayText2ImgNode.INPUT_TYPES()
         assert "prompt" in input_types["required"]
 
         # Verify it returns IMAGE type that downstream nodes can use
-        assert runway_text2img.RETURN_TYPES == ("IMAGE",)
+        assert RunwayText2ImgNode.RETURN_TYPES == ("IMAGE",)
 
     def test_comfyui_tensor_format(self, mock_env_with_api_key):
         """Test that returned images are in proper ComfyUI tensor format"""
         # ComfyUI expects images as [batch, height, width, channels] tensors
-        from comfy_api_nodes.nodes_runway import runway_text2img
+        from comfy_api_nodes.nodes_runway import RunwayText2ImgNode
 
         with patch('requests.post') as mock_post:
             with patch('requests.get') as mock_get:
@@ -305,7 +302,7 @@ class TestIntegrationWithComfyUI:
                         'output': ['https://example.com/image.png']
                     }
 
-                    node = runway_text2img()
+                    node = RunwayText2ImgNode()
                     result = node.generate_image(prompt="test prompt")
 
                     # Verify tensor format
@@ -313,3 +310,4 @@ class TestIntegrationWithComfyUI:
                     assert len(result[0].shape) == 4  # [batch, height, width, channels]
                     assert result[0].shape[0] >= 1    # At least 1 image in batch
                     assert result[0].shape[3] == 3    # RGB channels
+

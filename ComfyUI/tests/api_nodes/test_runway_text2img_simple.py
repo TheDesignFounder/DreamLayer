@@ -8,7 +8,7 @@ in the task.
 
 import pytest
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 import torch
 
 
@@ -19,7 +19,7 @@ class TestRunwayText2ImgSimple:
         """Test that missing RUNWAY_API_KEY raises proper error"""
         # Test missing API key
         with patch.dict(os.environ, {}, clear=True):
-            with patch('builtins.__import__') as mock_import:
+
                 # Mock the runway_text2img class with minimal functionality
                 class MockRunwayText2Img:
                     def validate_environment(self):
@@ -234,15 +234,16 @@ class TestNodeRegistration:
         """Test that node is registered in NODE_CLASS_MAPPINGS"""
         # Mock the expected mapping structure
         mock_mappings = {
-            "runway_text2img": "MockRunwayText2ImgClass",
+            "RunwayText2ImgNode": "MockRunwayText2ImgClass",
             "RunwayTextToImageNode": "ExistingRunwayClass"
         }
 
-        # Verify runway_text2img is in mappings
-        assert "runway_text2img" in mock_mappings
+        # Verify RunwayText2ImgNode is in mappings
+        assert "RunwayText2ImgNode" in mock_mappings
 
         # Verify it's different from existing RunwayTextToImageNode
-        assert mock_mappings["runway_text2img"] != mock_mappings["RunwayTextToImageNode"]
+        assert mock_mappings["RunwayText2ImgNode"] != mock_mappings["RunwayTextToImageNode"]
+
 
     def test_display_name_mappings(self):
         """Test that node has proper display name"""
