@@ -7,17 +7,12 @@ capabilities using the Luma API.
 
 import pytest
 import torch
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from comfy_api_nodes.nodes_luma import LumaImageGenerationNode
 from comfy_api_nodes.apis.luma_api import (
     LumaImageModel,
     LumaAspectRatio,
-    LumaState,
-    LumaGeneration,
-    LumaAssets,
-    LumaImageGenerationRequest,
 )
-from comfy_api_nodes.apis.client import EmptyRequest
 from comfy.comfy_types.node_typing import IO
 
 
