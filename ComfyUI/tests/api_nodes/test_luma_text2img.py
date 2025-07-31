@@ -6,8 +6,7 @@ from PIL import Image
 import io
 import requests
 
-from custom_nodes.luma_api.luma_text2img import LumaText2Img
-from custom_nodes.luma_api.luma_client import LumaAPIClient
+from luma_api.luma_text2img import LumaText2Img
 
 
 class TestLumaText2Img:
@@ -23,16 +22,14 @@ class TestLumaText2Img:
         """Mock environment with LUMA_API_KEY"""
         with patch.dict(os.environ, {'LUMA_API_KEY': 'test_api_key_123'}):
             # Recreate the node with the mocked environment
-            node = LumaText2Img()
-            yield node
+            yield LumaText2Img()
 
     @pytest.fixture
     def mock_env_without_key(self):
         """Mock environment without LUMA_API_KEY"""
         with patch.dict(os.environ, {}, clear=True):
             # Recreate the node with the mocked environment
-            node = LumaText2Img()
-            yield node
+            yield LumaText2Img()
 
     def test_input_types(self, luma_node):
         """Test that INPUT_TYPES returns correct structure"""
@@ -49,6 +46,15 @@ class TestLumaText2Img:
 
         for param in expected_params:
             assert param in required
+
+    @pytest.mark.parametrize("param", [
+        "prompt", "negative_prompt", "width", "height",
+        "num_images", "guidance_scale", "num_inference_steps", "seed"
+    ])
+    def test_required_parameter_exists(self, luma_node, param):
+        """Test that each required parameter exists in INPUT_TYPES"""
+        input_types = luma_node.INPUT_TYPES()
+        assert param in input_types["required"]
 
     def test_return_types(self, luma_node):
         """Test that RETURN_TYPES is correct"""
@@ -72,21 +78,17 @@ class TestLumaText2Img:
         with pytest.raises(ValueError, match="LUMA_API_KEY environment variable is not set"):
             mock_env_without_key.validate_api_key()
 
-    def test_validate_dimensions_valid(self, luma_node):
-        """Test dimension validation with valid dimensions"""
-        valid_sizes = [1024, 1152, 1344]
+    @pytest.mark.parametrize("size", [1024, 1152, 1344])
+    def test_validate_dimensions_valid_size(self, luma_node, size):
+        """Test dimension validation with each valid size"""
+        # Should not raise an exception
+        luma_node.validate_dimensions(size, size)
 
-        for size in valid_sizes:
-            # Should not raise an exception
+    @pytest.mark.parametrize("size", [512, 768, 1536, 2048])
+    def test_validate_dimensions_invalid_size(self, luma_node, size):
+        """Test dimension validation with each invalid size"""
+        with pytest.raises(ValueError, match="Invalid dimensions"):
             luma_node.validate_dimensions(size, size)
-
-    def test_validate_dimensions_invalid(self, luma_node):
-        """Test dimension validation with invalid dimensions"""
-        invalid_sizes = [512, 768, 1536, 2048]
-
-        for size in invalid_sizes:
-            with pytest.raises(ValueError, match="Invalid dimensions"):
-                luma_node.validate_dimensions(size, size)
 
     def test_create_generation_request_basic(self, luma_node):
         """Test request payload creation with basic parameters"""
@@ -227,21 +229,19 @@ class TestLumaText2Img:
         with pytest.raises(RuntimeError, match="Failed to download image"):
             luma_node.client.download_image("https://example.com/image.jpg")
 
-    @patch('custom_nodes.luma_api.luma_client.LumaAPIClient.send_generation_request')
-    @patch('custom_nodes.luma_api.luma_client.LumaAPIClient.poll_for_completion')
-    @patch('custom_nodes.luma_api.luma_client.LumaAPIClient.download_image')
-    def test_generate_image_success(self, mock_download, mock_poll, mock_send, mock_env_with_key):
+    @patch.object(LumaText2Img, 'client')
+    def test_generate_image_success(self, mock_client, mock_env_with_key):
         """Test successful image generation end-to-end"""
-        # Mock the API responses
-        mock_send.return_value = {"id": "test_generation_id"}
-        mock_poll.return_value = {
+        # Mock the client methods
+        mock_client.send_generation_request.return_value = {"id": "test_generation_id"}
+        mock_client.poll_for_completion.return_value = {
             "status": "completed",
             "images": [{"url": "https://example.com/image.jpg"}]
         }
 
-        # Create a test image array
-        test_image_array = np.random.rand(512, 512, 3).astype(np.float32)
-        mock_download.return_value = test_image_array
+        # Create a test image array matching the requested dimensions
+        test_image_array = np.random.rand(1024, 1024, 3).astype(np.float32)
+        mock_client.download_image.return_value = test_image_array
 
         # Test the main function
         result = mock_env_with_key.generate_image(
@@ -259,7 +259,7 @@ class TestLumaText2Img:
         assert isinstance(result, tuple)
         assert len(result) == 1
         assert isinstance(result[0], np.ndarray)
-        assert result[0].shape == (1, 512, 512, 3)  # Batch dimension added
+        assert result[0].shape == (1, 1024, 1024, 3)  # Batch dimension added
 
     def test_generate_image_empty_prompt(self, mock_env_with_key):
         """Test generation with empty prompt"""
@@ -305,7 +305,7 @@ class TestLumaText2Img:
 
     def test_node_registration(self):
         """Test that the node is properly registered"""
-        from custom_nodes.luma_api import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+        from luma_api import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
         assert "LumaText2Img" in NODE_CLASS_MAPPINGS
         assert NODE_CLASS_MAPPINGS["LumaText2Img"] == LumaText2Img
