@@ -42,20 +42,53 @@ import requests
 import torch
 from io import BytesIO
 import os
+import time
+from typing import Optional, Dict, List, Union
 
-LUMA_T2V_AVERAGE_DURATION = 105
-LUMA_I2V_AVERAGE_DURATION = 100
+# Constants for API interaction
+LUMA_T2V_AVERAGE_DURATION = 105  # Average duration in seconds for text-to-video generation
+LUMA_I2V_AVERAGE_DURATION = 100  # Average duration in seconds for image-to-video generation
+MAX_RETRIES = 3  # Maximum number of retries for API requests
+INITIAL_RETRY_DELAY = 2  # Initial retry delay in seconds
 
-def image_result_url_extractor(response: LumaGeneration):
+def image_result_url_extractor(response: LumaGeneration) -> str:
+    """Extract image URL from Luma API response.
+    
+    Args:
+        response: The Luma API response object
+        
+    Returns:
+        str: The URL of the generated image
+        
+    Raises:
+        RuntimeError: If the image URL is missing from the response
+    """
     url = getattr(getattr(response, "assets", None), "image", None)
     if not url:
-        raise RuntimeError("No image URL found in response.assets.image")
+        raise RuntimeError(
+            "No image URL found in response.assets.image. "
+            "This may indicate an API error or incomplete generation."
+        )
     return url
 
-def video_result_url_extractor(response: LumaGeneration):
+def video_result_url_extractor(response: LumaGeneration) -> str:
+    """Extract video URL from Luma API response.
+    
+    Args:
+        response: The Luma API response object
+        
+    Returns:
+        str: The URL of the generated video
+        
+    Raises:
+        RuntimeError: If the video URL is missing from the response
+    """
     url = getattr(getattr(response, "assets", None), "video", None)
     if not url:
-        raise RuntimeError("No video URL found in response.assets.video")
+        raise RuntimeError(
+            "No video URL found in response.assets.video. "
+            "This may indicate an API error or incomplete generation."
+        )
     return url
 
 class LumaReferenceNode(ComfyNodeABC):
@@ -101,8 +134,11 @@ class LumaReferenceNode(ComfyNodeABC):
         }
 
     def create_luma_reference(
-        self, image: torch.Tensor, weight: float, luma_ref: Optional[LumaReferenceChain] = None
-    ):
+        self,
+        image: torch.Tensor,
+        weight: float,
+        luma_ref: Optional[LumaReferenceChain] = None
+    ) -> tuple[LumaReferenceChain]:
         if luma_ref is not None:
             luma_ref = luma_ref.clone()
         else:
@@ -173,7 +209,7 @@ class LumaConceptsNode(ComfyNodeABC):
         concept3: str,
         concept4: str,
         luma_concepts: Optional[LumaConceptChain] = None,
-    ):
+    ) -> tuple[LumaConceptChain]:
         chain = LumaConceptChain(str_list=[concept1, concept2, concept3, concept4])
         if luma_concepts is not None:
             chain = luma_concepts.clone_and_merge(chain)
@@ -265,14 +301,14 @@ class LumaImageGenerationNode(ComfyNodeABC):
         prompt: str,
         model: str,
         aspect_ratio: str,
-        seed,
+        seed: int,
         style_image_weight: float,
         image_luma_ref: Optional[LumaReferenceChain] = None,
         style_image: Optional[torch.Tensor] = None,
         character_image: Optional[torch.Tensor] = None,
         unique_id: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> tuple[torch.Tensor]:
         validate_string(prompt, strip_whitespace=True, min_length=3)
         # handle image_luma_ref
         api_image_ref = None
@@ -437,10 +473,10 @@ class LumaImageModifyNode(ComfyNodeABC):
         model: str,
         image: torch.Tensor,
         image_weight: float,
-        seed,
+        seed: int,
         unique_id: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> tuple[torch.Tensor]:
         # first, upload image
         download_urls = upload_images_to_comfyapi(
             image, max_images=1, auth_kwargs=kwargs,
@@ -496,8 +532,20 @@ class LumaImageModifyNode(ComfyNodeABC):
 
 
 class LumaTextToVideoGenerationNode(ComfyNodeABC):
-    """
-    Generates videos synchronously based on prompt and output_size.
+    """Generates videos synchronously based on prompt and output_size.
+    
+    This node uses the Luma API to generate videos from text prompts.
+    It supports various models, resolutions, and durations.
+    
+    Attributes:
+        RETURN_TYPES: Tuple of (IO.VIDEO,) indicating video output
+        API_NODE: True to mark this as an API-dependent node
+        CATEGORY: UI category for the node
+        
+    Notes:
+        - The ray_1_6 model has specific resolution and duration constraints
+        - Generation time varies based on video length and complexity
+        - Progress is reported via the PromptServer if unique_id is provided
     """
 
     RETURN_TYPES = (IO.VIDEO,)
@@ -586,15 +634,70 @@ class LumaTextToVideoGenerationNode(ComfyNodeABC):
         resolution: str,
         duration: str,
         loop: bool,
-        seed,
+        seed: int,
         luma_concepts: Optional[LumaConceptChain] = None,
         unique_id: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> tuple[VideoFromFile]:
+        """Generate a video using the Luma API.
+        
+        Args:
+            prompt: Text description of the video to generate
+            model: Luma video model to use
+            aspect_ratio: Desired aspect ratio (e.g., "16:9")
+            resolution: Output resolution (e.g., "540p")
+            duration: Video length (e.g., "2_seconds")
+            loop: Whether to create a seamlessly looping video
+            seed: Random seed (affects node execution only)
+            luma_concepts: Optional chain of camera movement concepts
+            unique_id: Optional ID for progress tracking
+            **kwargs: Additional arguments passed to API calls
+            
+        Returns:
+            tuple[VideoFromFile]: Generated video as a single-element tuple
+            
+        Raises:
+            ValueError: If prompt is invalid or enum options are missing
+            RuntimeError: If API calls fail or response is invalid
+        """
         validate_string(prompt, strip_whitespace=False, min_length=3)
-        # Use valid enum values for fallback
-        duration_val = duration if model != LumaVideoModel.ray_1_6 else list(LumaVideoModelOutputDuration)[0]
-        resolution_val = resolution if model != LumaVideoModel.ray_1_6 else list(LumaVideoOutputResolution)[0]
+
+        # Cache and validate enum options
+        duration_options = list(LumaVideoModelOutputDuration)
+        resolution_options = list(LumaVideoOutputResolution)
+
+        # Comprehensive validation of enum values
+        if not duration_options:
+            raise ValueError(
+                "No valid duration options available for video generation. "
+                "LumaVideoModelOutputDuration enum must have at least one value defined."
+            )
+        if not resolution_options:
+            raise ValueError(
+                "No valid resolution options available for video generation. "
+                "LumaVideoOutputResolution enum must have at least one value defined."
+            )
+
+        # Handle ray_1_6 model constraints with safe list access
+        try:
+            default_duration = duration_options[0].value
+            default_resolution = resolution_options[0].value
+        except (IndexError, AttributeError) as e:
+            raise ValueError(
+                "Failed to access default enum values. This should not happen as we already "
+                "checked for empty lists. Please report this as a bug."
+            ) from e
+
+        duration_val = duration if model != LumaVideoModel.ray_1_6.value else default_duration
+        resolution_val = resolution if model != LumaVideoModel.ray_1_6.value else default_resolution
+
+        # Validate selected options
+        if duration_val not in [opt.value for opt in duration_options]:
+            raise ValueError(f"Invalid duration '{duration_val}'. Must be one of: {[opt.value for opt in duration_options]}")
+        if resolution_val not in [opt.value for opt in resolution_options]:
+            raise ValueError(f"Invalid resolution '{resolution_val}'. Must be one of: {[opt.value for opt in resolution_options]}")
+        if aspect_ratio not in [ratio.value for ratio in LumaAspectRatio]:
+            raise ValueError(f"Invalid aspect ratio '{aspect_ratio}'. Must be one of: {[ratio.value for ratio in LumaAspectRatio]}")
 
         operation = SynchronousOperation(
             endpoint=ApiEndpoint(
@@ -736,20 +839,48 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
         resolution: str,
         duration: str,
         loop: bool,
-        seed,
+        seed: int,
         first_image: Optional[torch.Tensor] = None,
         last_image: Optional[torch.Tensor] = None,
         luma_concepts: Optional[LumaConceptChain] = None,
         unique_id: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> tuple[VideoFromFile]:
         if first_image is None and last_image is None:
-            raise Exception(
-                "At least one of first_image and last_image requires an input."
-            )
+            raise ValueError("At least one of first_image and last_image requires an input.")
         keyframes = self._convert_to_keyframes(first_image, last_image, auth_kwargs=kwargs)
-        duration_val = duration if model != LumaVideoModel.ray_1_6 else list(LumaVideoModelOutputDuration)[0]
-        resolution_val = resolution if model != LumaVideoModel.ray_1_6 else list(LumaVideoOutputResolution)[0]
+
+        # Cache and validate enum options
+        duration_options = list(LumaVideoModelOutputDuration)
+        resolution_options = list(LumaVideoOutputResolution)
+
+        # Comprehensive validation of enum values
+        if not duration_options:
+            raise ValueError(
+                "No valid duration options available for image-to-video generation. "
+                "LumaVideoModelOutputDuration enum must have at least one value defined."
+            )
+        if not resolution_options:
+            raise ValueError(
+                "No valid resolution options available for image-to-video generation. "
+                "LumaVideoOutputResolution enum must have at least one value defined."
+            )
+
+        # Get default values safely
+        try:
+            default_duration = next((opt.value for opt in duration_options), None)
+            default_resolution = next((opt.value for opt in resolution_options), None)
+            if default_duration is None or default_resolution is None:
+                raise ValueError("Failed to get default values from enums")
+        except Exception as e:
+            raise ValueError(
+                "Failed to access default enum values. This should not happen as we already "
+                f"checked for empty lists. Original error: {str(e)}"
+            ) from e
+
+        # Handle ray_1_6 model constraints
+        duration_val = duration if model != LumaVideoModel.ray_1_6 else default_duration
+        resolution_val = resolution if model != LumaVideoModel.ray_1_6 else default_resolution
 
         operation = SynchronousOperation(
             endpoint=ApiEndpoint(
@@ -894,25 +1025,15 @@ class LumaText2ImgNode(ComfyNodeABC):
         prompt: str,
         model: str,
         aspect_ratio: str,
-        seed,
+        seed: int,
         unique_id: Optional[str] = None,
         **kwargs,
-    ):
-        # Validate prompt
+    ) -> tuple[torch.Tensor]:
         validate_string(prompt, strip_whitespace=True, min_length=3)
-
-        # Check for API key
-        api_key = os.environ.get('LUMA_API_KEY')
-        if not api_key:
-            raise ValueError(
-                "LUMA_API_KEY environment variable is not set. "
-                "Please set your Luma API key: export LUMA_API_KEY='your_api_key_here'"
-            )
-
-        # Create the initial generation request
+        
         operation = SynchronousOperation(
             endpoint=ApiEndpoint(
-                path="/v1/images/generations",
+                path="/proxy/luma/generations/image",
                 method=HttpMethod.POST,
                 request_model=LumaImageGenerationRequest,
                 response_model=LumaGeneration,
@@ -926,16 +1047,13 @@ class LumaText2ImgNode(ComfyNodeABC):
                 character_ref=None,
                 modify_image_ref=None,
             ),
-            auth_kwargs={"luma_api_key": api_key},
+            auth_kwargs=kwargs,
         )
-
-        # Execute initial request
         response_api: LumaGeneration = operation.execute()
 
-        # Poll for completion
         operation = PollingOperation(
             poll_endpoint=ApiEndpoint(
-                path=f"/v1/generations/{response_api.id}",
+                path=f"/proxy/luma/generations/{response_api.id}",
                 method=HttpMethod.GET,
                 request_model=EmptyRequest,
                 response_model=LumaGeneration,

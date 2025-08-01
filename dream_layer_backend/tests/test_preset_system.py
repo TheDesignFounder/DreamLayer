@@ -2,7 +2,6 @@ import pytest
 import json
 import os
 import tempfile
-import shutil
 from unittest.mock import patch, MagicMock
 from preset_manager import PresetManager
 from dream_layer import app

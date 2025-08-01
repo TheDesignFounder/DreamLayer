@@ -1,6 +1,9 @@
 import json
 import os
 import hashlib
+import uuid
+import logging
+import tempfile
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
@@ -42,12 +45,13 @@ class PresetManager:
                         preset_id: Preset(**preset_data)
                         for preset_id, preset_data in data.items()
                     }
+                logging.info(f"Successfully loaded {len(self.presets)} presets from {self.presets_file}")
         except Exception as e:
-            print(f"Error loading presets: {e}")
+            logging.error(f"Error loading presets from {self.presets_file}: {str(e)}")
             self.presets = {}
 
     def save_presets(self):
-        """Save presets to file"""
+        """Save presets to file using atomic write operations"""
         try:
             # Convert presets to serializable format
             data = {
@@ -55,10 +59,38 @@ class PresetManager:
                 for preset_id, preset in self.presets.items()
             }
             
-            with open(self.presets_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+            # Create a temporary file in the same directory as the target file
+            preset_dir = os.path.dirname(os.path.abspath(self.presets_file))
+            with tempfile.NamedTemporaryFile(mode='w', 
+                                           dir=preset_dir,
+                                           prefix='.presets_tmp_',
+                                           suffix='.json',
+                                           delete=False,
+                                           encoding='utf-8') as temp_file:
+                # Write data to temporary file
+                json.dump(data, temp_file, indent=2, ensure_ascii=False)
+                temp_file.flush()
+                os.fsync(temp_file.fileno())
+                
+            # Rename temporary file to target file (atomic on POSIX systems)
+            # On Windows, this will fail if the target exists, so we need to handle that
+            try:
+                os.replace(temp_file.name, self.presets_file)
+            except OSError:
+                # On Windows, explicitly remove the target file first
+                os.remove(self.presets_file)
+                os.rename(temp_file.name, self.presets_file)
+                
+            logging.info(f"Successfully saved {len(self.presets)} presets to {self.presets_file}")
         except Exception as e:
-            print(f"Error saving presets: {e}")
+            logging.error(f"Error saving presets to {self.presets_file}: {str(e)}")
+            # Clean up temporary file if it exists
+            if 'temp_file' in locals():
+                try:
+                    os.unlink(temp_file.name)
+                except OSError:
+                    pass
+            raise
 
     def initialize_default_presets(self):
         """Initialize default presets if none exist"""
@@ -160,8 +192,11 @@ class PresetManager:
             self.save_presets()
 
     def create_preset(self, name: str, description: Optional[str], settings: Dict[str, Any], controlnet: Optional[Dict[str, Any]] = None) -> Preset:
-        """Create a new preset"""
-        preset_id = f"preset-{int(datetime.now().timestamp())}-{hash(name) % 10000}"
+        """Create a new preset with a unique ID using UUID and timestamp"""
+        # Generate a unique ID combining timestamp and UUID
+        timestamp = int(datetime.now().timestamp())
+        unique_uuid = str(uuid.uuid4())[:8]  # Use first 8 chars of UUID for brevity
+        preset_id = f"preset-{timestamp}-{unique_uuid}"
         now = datetime.now().isoformat()
         
         hash_data = {

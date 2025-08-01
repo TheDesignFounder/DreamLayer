@@ -11,7 +11,7 @@ export interface Preset {
   controlnet?: ControlNetRequest;
   created_at: string;
   updated_at: string;
-  is_default?: boolean;
+  is_default: boolean;
 }
 
 export interface PresetCreateRequest {

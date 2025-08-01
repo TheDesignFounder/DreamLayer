@@ -134,7 +134,6 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   };
 
   const handlePresetApplied = (settings: any, controlnet?: any) => {
-    console.log('Preset applied:', { settings, controlnet });
     setCoreSettings(settings);
     if (controlnet) {
       setControlNetConfig(controlnet);

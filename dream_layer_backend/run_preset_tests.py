@@ -6,7 +6,6 @@ Run this to verify that the preset functionality works correctly
 
 import sys
 import os
-import json
 from preset_manager import PresetManager
 
 def test_preset_basic_functionality():

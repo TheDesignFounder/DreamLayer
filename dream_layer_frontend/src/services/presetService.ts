@@ -1,6 +1,8 @@
 import { Preset, PresetCreateRequest, PresetUpdateRequest, PresetResponse } from '../types/preset';
+import { CoreGenerationSettings } from '../types/generationSettings';
+import { ControlNetRequest } from '../types/controlnet';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
 export class PresetService {
   static async getAllPresets(): Promise<Preset[]> {
@@ -100,7 +102,11 @@ export class PresetService {
     }
   }
 
-  static async validatePresetHash(presetId: string, settings: any, controlnet?: any): Promise<boolean> {
+  static async validatePresetHash(
+    presetId: string,
+    settings: CoreGenerationSettings,
+    controlnet?: ControlNetRequest
+  ): Promise<boolean> {
     try {
       const response = await fetch(`${API_BASE_URL}/presets/validate-hash`, {
         method: 'POST',
