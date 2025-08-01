@@ -9,8 +9,10 @@ from flask_cors import CORS
 import requests
 import json
 import subprocess
+from dataclasses import asdict
 from dream_layer_backend_utils.random_prompt_generator import fetch_positive_prompt, fetch_negative_prompt
 from dream_layer_backend_utils.fetch_advanced_models import get_lora_models, get_settings, is_valid_directory, get_upscaler_models, get_controlnet_models
+from preset_manager import PresetManager
 # Add ComfyUI directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -85,6 +87,9 @@ if os.environ.get('DREAMLAYER_COMFYUI_CPU_MODE', 'false').lower() == 'true':
 # Allow WebSocket connections from frontend
 cors_origin = os.environ.get('COMFYUI_CORS_ORIGIN', 'http://localhost:8080')
 sys.argv.extend(['--enable-cors-header', cors_origin])
+
+# Initialize preset manager
+preset_manager = PresetManager()
 
 # Only add ComfyUI to path if it exists and we need to start the server
 def import_comfyui_main():
@@ -565,6 +570,154 @@ def get_controlnet_models_endpoint():
         return jsonify({
             "status": "error",
             "message": f"Failed to fetch ControlNet models: {str(e)}"
+        }), 500
+
+# Preset management endpoints
+@app.route('/api/presets', methods=['GET'])
+def get_presets():
+    """Get all presets"""
+    try:
+        presets = preset_manager.get_all_presets()
+        return jsonify({
+            "status": "success",
+            "presets": [asdict(preset) for preset in presets]
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to fetch presets: {str(e)}"
+        }), 500
+
+@app.route('/api/presets', methods=['POST'])
+def create_preset():
+    """Create a new preset"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        description = data.get('description')
+        settings = data.get('settings', {})
+        controlnet = data.get('controlnet')
+        
+        if not name:
+            return jsonify({
+                "status": "error",
+                "message": "Preset name is required"
+            }), 400
+        
+        preset = preset_manager.create_preset(name, description, settings, controlnet)
+        return jsonify({
+            "status": "success",
+            "preset": asdict(preset)
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to create preset: {str(e)}"
+        }), 500
+
+@app.route('/api/presets/<preset_id>', methods=['PUT'])
+def update_preset(preset_id):
+    """Update an existing preset"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        description = data.get('description')
+        settings = data.get('settings')
+        controlnet = data.get('controlnet')
+        
+        preset = preset_manager.update_preset(
+            preset_id, 
+            name=name, 
+            description=description, 
+            settings=settings, 
+            controlnet=controlnet
+        )
+        
+        if not preset:
+            return jsonify({
+                "status": "error",
+                "message": "Preset not found"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "preset": asdict(preset)
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to update preset: {str(e)}"
+        }), 500
+
+@app.route('/api/presets/<preset_id>', methods=['DELETE'])
+def delete_preset(preset_id):
+    """Delete a preset"""
+    try:
+        success = preset_manager.delete_preset(preset_id)
+        
+        if not success:
+            return jsonify({
+                "status": "error",
+                "message": "Preset not found or cannot be deleted"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "message": "Preset deleted successfully"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to delete preset: {str(e)}"
+        }), 500
+
+@app.route('/api/presets/<preset_id>', methods=['GET'])
+def get_preset(preset_id):
+    """Get a specific preset"""
+    try:
+        preset = preset_manager.get_preset(preset_id)
+        
+        if not preset:
+            return jsonify({
+                "status": "error",
+                "message": "Preset not found"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "preset": asdict(preset)
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to fetch preset: {str(e)}"
+        }), 500
+
+@app.route('/api/presets/validate-hash', methods=['POST'])
+def validate_preset_hash():
+    """Validate preset hash against current settings"""
+    try:
+        data = request.get_json()
+        preset_id = data.get('preset_id')
+        settings = data.get('settings', {})
+        controlnet = data.get('controlnet')
+        
+        if not preset_id:
+            return jsonify({
+                "status": "error",
+                "message": "Preset ID is required"
+            }), 400
+        
+        is_valid = preset_manager.validate_preset_hash(preset_id, settings, controlnet)
+        
+        return jsonify({
+            "status": "success",
+            "is_valid": is_valid
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to validate preset hash: {str(e)}"
         }), 500
 
 if __name__ == "__main__":

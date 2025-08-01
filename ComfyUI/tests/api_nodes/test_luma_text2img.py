@@ -1,8 +1,5 @@
 import pytest
 import os
-import torch
-from unittest.mock import patch, MagicMock, Mock
-import requests
 
 # Helper functions to extract complex logic from tests
 def get_node_file_content():
@@ -27,7 +24,6 @@ def extract_docstring(content, class_start):
 
 def extract_method_signature(content, method_start):
     """Helper function to extract method signature"""
-    signature_start = content.find("(", method_start)
     signature_end = content.find("):", method_start)
     return content[method_start:signature_end + 2]
 
@@ -36,10 +32,10 @@ def extract_input_types_method(content, class_start):
     input_types_start = find_method_in_content(content, "INPUT_TYPES", class_start)
     next_method = content.find("def ", input_types_start + 1)
     next_class = content.find("class ", input_types_start + 1)
-    
+
     end_points = [ep for ep in [next_method, next_class] if ep != -1]
     method_end = min(end_points) if end_points else len(content)
-    
+
     return content[input_types_start:method_end]
 
 def check_required_components(content, required_components):
@@ -55,9 +51,9 @@ class TestLumaText2ImgNode:
         """Test that the LumaText2ImgNode file exists and can be read"""
         node_file_path = "comfy_api_nodes/nodes_luma.py"
         assert os.path.exists(node_file_path), f"Node file {node_file_path} does not exist"
-        
+
         content = get_node_file_content()
-        
+
         # Check that the LumaText2ImgNode class is defined
         assert "class LumaText2ImgNode" in content
         assert "def api_call" in content
@@ -68,11 +64,11 @@ class TestLumaText2ImgNode:
     def test_node_docstring_content(self):
         """Test that the node docstring contains required information"""
         content = get_node_file_content()
-        
+
         # Find the LumaText2ImgNode class and extract its docstring
         class_start = find_class_in_content(content, "LumaText2ImgNode")
         docstring = extract_docstring(content, class_start)
-        
+
         # Check for required sections
         assert "Generates images using Luma's text-to-image API" in docstring
         assert "chains after a CLIPTextEncode block" in docstring
@@ -84,10 +80,10 @@ class TestLumaText2ImgNode:
     def test_node_mappings_exist(self):
         """Test that the node is properly registered in the mappings"""
         content = get_node_file_content()
-        
+
         # Check that the node is in NODE_CLASS_MAPPINGS
         assert '"LumaText2ImgNode": LumaText2ImgNode,' in content
-        
+
         # Check that the node is in NODE_DISPLAY_NAME_MAPPINGS
         assert '"LumaText2ImgNode": "Luma Text to Image (Direct)",' in content
 
@@ -199,4 +195,4 @@ class TestLumaText2ImgNode:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__]) 
+    pytest.main([__file__])

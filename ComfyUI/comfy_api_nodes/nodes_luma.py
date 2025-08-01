@@ -1,7 +1,7 @@
 from __future__ import annotations
 from inspect import cleandoc
 from typing import Optional
-from comfy.comfy_types.node_typing import IO, ComfyNodeABC
+from comfy.comfy_types.node_typing import IO, ComfyNodeABC, InputTypeDict
 from comfy_api.input_impl.video_types import VideoFromFile
 from comfy_api_nodes.apis.luma_api import (
     LumaImageModel,
@@ -47,24 +47,30 @@ LUMA_T2V_AVERAGE_DURATION = 105
 LUMA_I2V_AVERAGE_DURATION = 100
 
 def image_result_url_extractor(response: LumaGeneration):
-    return response.assets.image if hasattr(response, "assets") and hasattr(response.assets, "image") else None
+    url = getattr(getattr(response, "assets", None), "image", None)
+    if not url:
+        raise RuntimeError("No image URL found in response.assets.image")
+    return url
 
 def video_result_url_extractor(response: LumaGeneration):
-    return response.assets.video if hasattr(response, "assets") and hasattr(response.assets, "video") else None
+    url = getattr(getattr(response, "assets", None), "video", None)
+    if not url:
+        raise RuntimeError("No video URL found in response.assets.video")
+    return url
 
 class LumaReferenceNode(ComfyNodeABC):
     """
     Holds an image and weight for use with Luma Generate Image node.
     """
 
-    RETURN_TYPES = (LumaIO.LUMA_REF,)
+    RETURN_TYPES = (IO.STRING,)
     RETURN_NAMES = ("luma_ref",)
     DESCRIPTION = cleandoc(__doc__ or "")  # Handle potential None value
     FUNCTION = "create_luma_reference"
     CATEGORY = "api node/image/Luma"
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls) -> InputTypeDict:
         return {
             "required": {
                 "image": (
@@ -84,11 +90,18 @@ class LumaReferenceNode(ComfyNodeABC):
                     },
                 ),
             },
-            "optional": {"luma_ref": (LumaIO.LUMA_REF,)},
+            "optional": {
+                "luma_ref": (
+                    IO.STRING,
+                    {
+                        "tooltip": "Serialized Luma Reference Chain (string).",
+                    },
+                ),
+            },
         }
 
     def create_luma_reference(
-        self, image: torch.Tensor, weight: float, luma_ref: LumaReferenceChain = None
+        self, image: torch.Tensor, weight: float, luma_ref: Optional[LumaReferenceChain] = None
     ):
         if luma_ref is not None:
             luma_ref = luma_ref.clone()
@@ -103,26 +116,51 @@ class LumaConceptsNode(ComfyNodeABC):
     Holds one or more Camera Concepts for use with Luma Text to Video and Luma Image to Video nodes.
     """
 
-    RETURN_TYPES = (LumaIO.LUMA_CONCEPTS,)
+    RETURN_TYPES = (IO.STRING,)
     RETURN_NAMES = ("luma_concepts",)
     DESCRIPTION = cleandoc(__doc__ or "")  # Handle potential None value
     FUNCTION = "create_concepts"
     CATEGORY = "api node/video/Luma"
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls) -> InputTypeDict:
+        concept_options = get_luma_concepts(include_none=True)
         return {
             "required": {
-                "concept1": (get_luma_concepts(include_none=True),),
-                "concept2": (get_luma_concepts(include_none=True),),
-                "concept3": (get_luma_concepts(include_none=True),),
-                "concept4": (get_luma_concepts(include_none=True),),
+                "concept1": (
+                    IO.STRING,
+                    {
+                        "options": concept_options,
+                        "tooltip": "Camera concept 1.",
+                    },
+                ),
+                "concept2": (
+                    IO.STRING,
+                    {
+                        "options": concept_options,
+                        "tooltip": "Camera concept 2.",
+                    },
+                ),
+                "concept3": (
+                    IO.STRING,
+                    {
+                        "options": concept_options,
+                        "tooltip": "Camera concept 3.",
+                    },
+                ),
+                "concept4": (
+                    IO.STRING,
+                    {
+                        "options": concept_options,
+                        "tooltip": "Camera concept 4.",
+                    },
+                ),
             },
             "optional": {
                 "luma_concepts": (
-                    LumaIO.LUMA_CONCEPTS,
+                    IO.STRING,
                     {
-                        "tooltip": "Optional Camera Concepts to add to the ones chosen here."
+                        "tooltip": "Serialized Luma Concept Chain (string).",
                     },
                 ),
             },
@@ -134,7 +172,7 @@ class LumaConceptsNode(ComfyNodeABC):
         concept2: str,
         concept3: str,
         concept4: str,
-        luma_concepts: LumaConceptChain = None,
+        luma_concepts: Optional[LumaConceptChain] = None,
     ):
         chain = LumaConceptChain(str_list=[concept1, concept2, concept3, concept4])
         if luma_concepts is not None:
@@ -154,7 +192,7 @@ class LumaImageGenerationNode(ComfyNodeABC):
     CATEGORY = "api node/image/Luma"
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls) -> InputTypeDict:
         return {
             "required": {
                 "prompt": (
@@ -165,11 +203,20 @@ class LumaImageGenerationNode(ComfyNodeABC):
                         "tooltip": "Prompt for the image generation",
                     },
                 ),
-                "model": ([model.value for model in LumaImageModel],),
-                "aspect_ratio": (
-                    [ratio.value for ratio in LumaAspectRatio],
+                "model": (
+                    IO.STRING,
                     {
-                        "default": LumaAspectRatio.ratio_16_9,
+                        "options": [model.value for model in LumaImageModel],
+                        "default": LumaImageModel.photon_1.value,
+                        "tooltip": "Luma model to use.",
+                    },
+                ),
+                "aspect_ratio": (
+                    IO.STRING,
+                    {
+                        "options": [ratio.value for ratio in LumaAspectRatio],
+                        "default": LumaAspectRatio.ratio_16_9.value,
+                        "tooltip": "Aspect ratio of the generated image.",
                     },
                 ),
                 "seed": (
@@ -195,9 +242,9 @@ class LumaImageGenerationNode(ComfyNodeABC):
             },
             "optional": {
                 "image_luma_ref": (
-                    LumaIO.LUMA_REF,
+                    IO.STRING,
                     {
-                        "tooltip": "Luma Reference node connection to influence generation with input images; up to 4 images can be considered."
+                        "tooltip": "Serialized Luma Reference Chain (string).",
                     },
                 ),
                 "style_image": (
@@ -211,11 +258,6 @@ class LumaImageGenerationNode(ComfyNodeABC):
                     },
                 ),
             },
-            "hidden": {
-                "auth_token": "AUTH_TOKEN_COMFY_ORG",
-                "comfy_api_key": "API_KEY_COMFY_ORG",
-                "unique_id": "UNIQUE_ID",
-            },
         }
 
     def api_call(
@@ -225,10 +267,10 @@ class LumaImageGenerationNode(ComfyNodeABC):
         aspect_ratio: str,
         seed,
         style_image_weight: float,
-        image_luma_ref: LumaReferenceChain = None,
-        style_image: torch.Tensor = None,
-        character_image: torch.Tensor = None,
-        unique_id: str = None,
+        image_luma_ref: Optional[LumaReferenceChain] = None,
+        style_image: Optional[torch.Tensor] = None,
+        character_image: Optional[torch.Tensor] = None,
+        unique_id: Optional[str] = None,
         **kwargs,
     ):
         validate_string(prompt, strip_whitespace=True, min_length=3)
@@ -263,11 +305,12 @@ class LumaImageGenerationNode(ComfyNodeABC):
             ),
             request=LumaImageGenerationRequest(
                 prompt=prompt,
-                model=model,
-                aspect_ratio=aspect_ratio,
+                model=LumaImageModel(model),
+                aspect_ratio=LumaAspectRatio(aspect_ratio),
                 image_ref=api_image_ref,
                 style_ref=api_style_ref,
                 character_ref=character_ref,
+                modify_image_ref=None,
             ),
             auth_kwargs=kwargs,
         )
@@ -285,13 +328,23 @@ class LumaImageGenerationNode(ComfyNodeABC):
             status_extractor=lambda x: x.state,
             result_url_extractor=image_result_url_extractor,
             node_id=unique_id,
+            progress_extractor=lambda x: 1.0 if getattr(x, "state", None) == LumaState.completed else 0.0,
             auth_kwargs=kwargs,
         )
         response_poll = operation.execute()
 
-        img_response = requests.get(response_poll.assets.image)
-        img = process_image_response(img_response)
-        return (img,)
+        image_url = getattr(getattr(response_poll, "assets", None), "image", None)
+        if not image_url:
+            raise RuntimeError("No image URL found in response_poll.assets.image")
+        try:
+            img_response = requests.get(image_url)
+            img_response.raise_for_status()
+            img = process_image_response(img_response)
+            return (img,)
+        except requests.RequestException as e:
+            raise RuntimeError(f"Failed to download generated image: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Failed to process generated image: {e}")
 
     def _convert_luma_refs(
         self, luma_ref: LumaReferenceChain, max_refs: int, auth_kwargs: Optional[dict[str,str]] = None
@@ -329,10 +382,15 @@ class LumaImageModifyNode(ComfyNodeABC):
     CATEGORY = "api node/image/Luma"
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls) -> InputTypeDict:
         return {
             "required": {
-                "image": (IO.IMAGE,),
+                "image": (
+                    IO.IMAGE,
+                    {
+                        "tooltip": "Image to modify.",
+                    },
+                ),
                 "prompt": (
                     IO.STRING,
                     {
@@ -351,7 +409,14 @@ class LumaImageModifyNode(ComfyNodeABC):
                         "tooltip": "Weight of the image; the closer to 1.0, the less the image will be modified.",
                     },
                 ),
-                "model": ([model.value for model in LumaImageModel],),
+                "model": (
+                    IO.STRING,
+                    {
+                        "options": [model.value for model in LumaImageModel],
+                        "default": LumaImageModel.photon_1.value,
+                        "tooltip": "Luma model to use.",
+                    },
+                ),
                 "seed": (
                     IO.INT,
                     {
@@ -364,11 +429,6 @@ class LumaImageModifyNode(ComfyNodeABC):
                 ),
             },
             "optional": {},
-            "hidden": {
-                "auth_token": "AUTH_TOKEN_COMFY_ORG",
-                "comfy_api_key": "API_KEY_COMFY_ORG",
-                "unique_id": "UNIQUE_ID",
-            },
         }
 
     def api_call(
@@ -378,7 +438,7 @@ class LumaImageModifyNode(ComfyNodeABC):
         image: torch.Tensor,
         image_weight: float,
         seed,
-        unique_id: str = None,
+        unique_id: Optional[str] = None,
         **kwargs,
     ):
         # first, upload image
@@ -396,7 +456,11 @@ class LumaImageModifyNode(ComfyNodeABC):
             ),
             request=LumaImageGenerationRequest(
                 prompt=prompt,
-                model=model,
+                model=LumaImageModel(model),
+                aspect_ratio=None,
+                image_ref=None,
+                style_ref=None,
+                character_ref=None,
                 modify_image_ref=LumaModifyImageRef(
                     url=image_url, weight=round(max(min(1.0-image_weight, 0.98), 0.0), 2)
                 ),
@@ -417,11 +481,16 @@ class LumaImageModifyNode(ComfyNodeABC):
             status_extractor=lambda x: x.state,
             result_url_extractor=image_result_url_extractor,
             node_id=unique_id,
+            progress_extractor=lambda x: 1.0 if getattr(x, "state", None) == LumaState.completed else 0.0,
             auth_kwargs=kwargs,
         )
         response_poll = operation.execute()
 
-        img_response = requests.get(response_poll.assets.image)
+        image_url = getattr(getattr(response_poll, "assets", None), "image", None)
+        if not image_url:
+            raise RuntimeError("No image URL found in response_poll.assets.image")
+        img_response = requests.get(image_url)
+        img_response.raise_for_status()
         img = process_image_response(img_response)
         return (img,)
 
@@ -438,7 +507,7 @@ class LumaTextToVideoGenerationNode(ComfyNodeABC):
     CATEGORY = "api node/video/Luma"
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls) -> InputTypeDict:
         return {
             "required": {
                 "prompt": (
@@ -449,24 +518,43 @@ class LumaTextToVideoGenerationNode(ComfyNodeABC):
                         "tooltip": "Prompt for the video generation",
                     },
                 ),
-                "model": ([model.value for model in LumaVideoModel],),
-                "aspect_ratio": (
-                    [ratio.value for ratio in LumaAspectRatio],
+                "model": (
+                    IO.STRING,
                     {
-                        "default": LumaAspectRatio.ratio_16_9,
+                        "options": [model.value for model in LumaVideoModel],
+                        "default": LumaVideoModel.ray_1_6.value,
+                        "tooltip": "Luma video model to use.",
+                    },
+                ),
+                "aspect_ratio": (
+                    IO.STRING,
+                    {
+                        "options": [ratio.value for ratio in LumaAspectRatio],
+                        "default": LumaAspectRatio.ratio_16_9.value,
+                        "tooltip": "Aspect ratio of the generated video.",
                     },
                 ),
                 "resolution": (
-                    [resolution.value for resolution in LumaVideoOutputResolution],
+                    IO.STRING,
                     {
-                        "default": LumaVideoOutputResolution.res_540p,
+                        "options": [resolution.value for resolution in LumaVideoOutputResolution],
+                        "default": LumaVideoOutputResolution.res_540p.value,
+                        "tooltip": "Output resolution.",
                     },
                 ),
-                "duration": ([dur.value for dur in LumaVideoModelOutputDuration],),
+                "duration": (
+                    IO.STRING,
+                    {
+                        "options": [dur.value for dur in LumaVideoModelOutputDuration],
+                        "default": list(LumaVideoModelOutputDuration)[0].value,
+                        "tooltip": "Video duration.",
+                    },
+                ),
                 "loop": (
                     IO.BOOLEAN,
                     {
                         "default": False,
+                        "tooltip": "Loop video output.",
                     },
                 ),
                 "seed": (
@@ -482,16 +570,11 @@ class LumaTextToVideoGenerationNode(ComfyNodeABC):
             },
             "optional": {
                 "luma_concepts": (
-                    LumaIO.LUMA_CONCEPTS,
+                    IO.STRING,
                     {
-                        "tooltip": "Optional Camera Concepts to dictate camera motion via the Luma Concepts node."
+                        "tooltip": "Serialized Luma Concept Chain (string).",
                     },
                 ),
-            },
-            "hidden": {
-                "auth_token": "AUTH_TOKEN_COMFY_ORG",
-                "comfy_api_key": "API_KEY_COMFY_ORG",
-                "unique_id": "UNIQUE_ID",
             },
         }
 
@@ -504,13 +587,14 @@ class LumaTextToVideoGenerationNode(ComfyNodeABC):
         duration: str,
         loop: bool,
         seed,
-        luma_concepts: LumaConceptChain = None,
-        unique_id: str = None,
+        luma_concepts: Optional[LumaConceptChain] = None,
+        unique_id: Optional[str] = None,
         **kwargs,
     ):
         validate_string(prompt, strip_whitespace=False, min_length=3)
-        duration = duration if model != LumaVideoModel.ray_1_6 else None
-        resolution = resolution if model != LumaVideoModel.ray_1_6 else None
+        # Use valid enum values for fallback
+        duration_val = duration if model != LumaVideoModel.ray_1_6 else list(LumaVideoModelOutputDuration)[0]
+        resolution_val = resolution if model != LumaVideoModel.ray_1_6 else list(LumaVideoOutputResolution)[0]
 
         operation = SynchronousOperation(
             endpoint=ApiEndpoint(
@@ -521,12 +605,13 @@ class LumaTextToVideoGenerationNode(ComfyNodeABC):
             ),
             request=LumaGenerationRequest(
                 prompt=prompt,
-                model=model,
-                resolution=resolution,
-                aspect_ratio=aspect_ratio,
-                duration=duration,
+                model=LumaVideoModel(model),
+                resolution=LumaVideoOutputResolution(resolution_val),
+                aspect_ratio=LumaAspectRatio(aspect_ratio),
+                duration=LumaVideoModelOutputDuration(duration_val),
                 loop=loop,
                 concepts=luma_concepts.create_api_model() if luma_concepts else None,
+                keyframes=None,
             ),
             auth_kwargs=kwargs,
         )
@@ -548,11 +633,16 @@ class LumaTextToVideoGenerationNode(ComfyNodeABC):
             result_url_extractor=video_result_url_extractor,
             node_id=unique_id,
             estimated_duration=LUMA_T2V_AVERAGE_DURATION,
+            progress_extractor=lambda x: 1.0 if getattr(x, "state", None) == LumaState.completed else 0.0,
             auth_kwargs=kwargs,
         )
         response_poll = operation.execute()
 
-        vid_response = requests.get(response_poll.assets.video)
+        video_url = getattr(getattr(response_poll, "assets", None), "video", None)
+        if not video_url:
+            raise RuntimeError("No video URL found in response_poll.assets.video")
+        vid_response = requests.get(video_url)
+        vid_response.raise_for_status()
         return (VideoFromFile(BytesIO(vid_response.content)),)
 
 
@@ -568,7 +658,7 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
     CATEGORY = "api node/video/Luma"
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls) -> InputTypeDict:
         return {
             "required": {
                 "prompt": (
@@ -579,21 +669,35 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
                         "tooltip": "Prompt for the video generation",
                     },
                 ),
-                "model": ([model.value for model in LumaVideoModel],),
-                # "aspect_ratio": ([ratio.value for ratio in LumaAspectRatio], {
-                #     "default": LumaAspectRatio.ratio_16_9,
-                # }),
-                "resolution": (
-                    [resolution.value for resolution in LumaVideoOutputResolution],
+                "model": (
+                    IO.STRING,
                     {
-                        "default": LumaVideoOutputResolution.res_540p,
+                        "options": [model.value for model in LumaVideoModel],
+                        "default": LumaVideoModel.ray_1_6.value,
+                        "tooltip": "Luma video model to use.",
                     },
                 ),
-                "duration": ([dur.value for dur in LumaVideoModelOutputDuration],),
+                "resolution": (
+                    IO.STRING,
+                    {
+                        "options": [resolution.value for resolution in LumaVideoOutputResolution],
+                        "default": LumaVideoOutputResolution.res_540p.value,
+                        "tooltip": "Output resolution.",
+                    },
+                ),
+                "duration": (
+                    IO.STRING,
+                    {
+                        "options": [dur.value for dur in LumaVideoModelOutputDuration],
+                        "default": list(LumaVideoModelOutputDuration)[0].value,
+                        "tooltip": "Video duration.",
+                    },
+                ),
                 "loop": (
                     IO.BOOLEAN,
                     {
                         "default": False,
+                        "tooltip": "Loop video output.",
                     },
                 ),
                 "seed": (
@@ -612,18 +716,16 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
                     IO.IMAGE,
                     {"tooltip": "First frame of generated video."},
                 ),
-                "last_image": (IO.IMAGE, {"tooltip": "Last frame of generated video."}),
+                "last_image": (
+                    IO.IMAGE,
+                    {"tooltip": "Last frame of generated video."},
+                ),
                 "luma_concepts": (
-                    LumaIO.LUMA_CONCEPTS,
+                    IO.STRING,
                     {
-                        "tooltip": "Optional Camera Concepts to dictate camera motion via the Luma Concepts node."
+                        "tooltip": "Serialized Luma Concept Chain (string).",
                     },
                 ),
-            },
-            "hidden": {
-                "auth_token": "AUTH_TOKEN_COMFY_ORG",
-                "comfy_api_key": "API_KEY_COMFY_ORG",
-                "unique_id": "UNIQUE_ID",
             },
         }
 
@@ -635,10 +737,10 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
         duration: str,
         loop: bool,
         seed,
-        first_image: torch.Tensor = None,
-        last_image: torch.Tensor = None,
-        luma_concepts: LumaConceptChain = None,
-        unique_id: str = None,
+        first_image: Optional[torch.Tensor] = None,
+        last_image: Optional[torch.Tensor] = None,
+        luma_concepts: Optional[LumaConceptChain] = None,
+        unique_id: Optional[str] = None,
         **kwargs,
     ):
         if first_image is None and last_image is None:
@@ -646,8 +748,8 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
                 "At least one of first_image and last_image requires an input."
             )
         keyframes = self._convert_to_keyframes(first_image, last_image, auth_kwargs=kwargs)
-        duration = duration if model != LumaVideoModel.ray_1_6 else None
-        resolution = resolution if model != LumaVideoModel.ray_1_6 else None
+        duration_val = duration if model != LumaVideoModel.ray_1_6 else list(LumaVideoModelOutputDuration)[0]
+        resolution_val = resolution if model != LumaVideoModel.ray_1_6 else list(LumaVideoOutputResolution)[0]
 
         operation = SynchronousOperation(
             endpoint=ApiEndpoint(
@@ -658,10 +760,10 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
             ),
             request=LumaGenerationRequest(
                 prompt=prompt,
-                model=model,
+                model=LumaVideoModel(model),
                 aspect_ratio=LumaAspectRatio.ratio_16_9,  # ignored, but still needed by the API for some reason
-                resolution=resolution,
-                duration=duration,
+                resolution=LumaVideoOutputResolution(resolution_val),
+                duration=LumaVideoModelOutputDuration(duration_val),
                 loop=loop,
                 keyframes=keyframes,
                 concepts=luma_concepts.create_api_model() if luma_concepts else None,
@@ -686,17 +788,22 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
             result_url_extractor=video_result_url_extractor,
             node_id=unique_id,
             estimated_duration=LUMA_I2V_AVERAGE_DURATION,
+            progress_extractor=lambda x: 1.0 if getattr(x, "state", None) == LumaState.completed else 0.0,
             auth_kwargs=kwargs,
         )
         response_poll = operation.execute()
 
-        vid_response = requests.get(response_poll.assets.video)
+        video_url = getattr(getattr(response_poll, "assets", None), "video", None)
+        if not video_url:
+            raise RuntimeError("No video URL found in response_poll.assets.video")
+        vid_response = requests.get(video_url)
+        vid_response.raise_for_status()
         return (VideoFromFile(BytesIO(vid_response.content)),)
 
     def _convert_to_keyframes(
         self,
-        first_image: torch.Tensor = None,
-        last_image: torch.Tensor = None,
+        first_image: Optional[torch.Tensor] = None,
+        last_image: Optional[torch.Tensor] = None,
         auth_kwargs: Optional[dict[str,str]] = None,
     ):
         if first_image is None and last_image is None:
@@ -719,16 +826,16 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
 class LumaText2ImgNode(ComfyNodeABC):
     """
     Generates images using Luma's text-to-image API.
-    
+
     This node chains after a CLIPTextEncode block and outputs a valid image.
     Requires LUMA_API_KEY environment variable to be set.
-    
+
     Parameters:
     - prompt: Text prompt for image generation
     - model: Luma model to use (photon-1, photon-flash-1)
     - aspect_ratio: Aspect ratio of the generated image
     - seed: Random seed for generation (affects node re-execution, not actual results)
-    
+
     API Key Setup:
     Set the LUMA_API_KEY environment variable with your Luma API key.
     Example: export LUMA_API_KEY="your_api_key_here"
@@ -741,7 +848,7 @@ class LumaText2ImgNode(ComfyNodeABC):
     CATEGORY = "api node/image/Luma"
 
     @classmethod
-    def INPUT_TYPES(cls):
+    def INPUT_TYPES(cls) -> InputTypeDict:
         return {
             "required": {
                 "prompt": (
@@ -752,11 +859,20 @@ class LumaText2ImgNode(ComfyNodeABC):
                         "tooltip": "Prompt for the image generation",
                     },
                 ),
-                "model": ([model.value for model in LumaImageModel],),
-                "aspect_ratio": (
-                    [ratio.value for ratio in LumaAspectRatio],
+                "model": (
+                    IO.STRING,
                     {
-                        "default": LumaAspectRatio.ratio_16_9,
+                        "options": [model.value for model in LumaImageModel],
+                        "default": LumaImageModel.photon_1.value,
+                        "tooltip": "Luma model to use.",
+                    },
+                ),
+                "aspect_ratio": (
+                    IO.STRING,
+                    {
+                        "options": [ratio.value for ratio in LumaAspectRatio],
+                        "default": LumaAspectRatio.ratio_16_9.value,
+                        "tooltip": "Aspect ratio of the generated image.",
                     },
                 ),
                 "seed": (
@@ -771,9 +887,6 @@ class LumaText2ImgNode(ComfyNodeABC):
                 ),
             },
             "optional": {},
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-            },
         }
 
     def api_call(
@@ -782,12 +895,12 @@ class LumaText2ImgNode(ComfyNodeABC):
         model: str,
         aspect_ratio: str,
         seed,
-        unique_id: str = None,
+        unique_id: Optional[str] = None,
         **kwargs,
     ):
         # Validate prompt
         validate_string(prompt, strip_whitespace=True, min_length=3)
-        
+
         # Check for API key
         api_key = os.environ.get('LUMA_API_KEY')
         if not api_key:
@@ -806,12 +919,16 @@ class LumaText2ImgNode(ComfyNodeABC):
             ),
             request=LumaImageGenerationRequest(
                 prompt=prompt,
-                model=model,
-                aspect_ratio=aspect_ratio,
+                model=LumaImageModel(model),
+                aspect_ratio=LumaAspectRatio(aspect_ratio),
+                image_ref=None,
+                style_ref=None,
+                character_ref=None,
+                modify_image_ref=None,
             ),
             auth_kwargs={"luma_api_key": api_key},
         )
-        
+
         # Execute initial request
         response_api: LumaGeneration = operation.execute()
 
@@ -828,13 +945,18 @@ class LumaText2ImgNode(ComfyNodeABC):
             status_extractor=lambda x: x.state,
             result_url_extractor=image_result_url_extractor,
             node_id=unique_id,
+            progress_extractor=lambda x: 1.0 if getattr(x, "state", None) == LumaState.completed else 0.0,
             auth_kwargs={"luma_api_key": api_key},
         )
-        
+
         response_poll = operation.execute()
 
         # Download and return image
-        img_response = requests.get(response_poll.assets.image)
+        image_url = getattr(getattr(response_poll, "assets", None), "image", None)
+        if not image_url:
+            raise RuntimeError("No image URL found in response_poll.assets.image")
+        img_response = requests.get(image_url)
+        img_response.raise_for_status()
         img = process_image_response(img_response)
         return (img,)
 

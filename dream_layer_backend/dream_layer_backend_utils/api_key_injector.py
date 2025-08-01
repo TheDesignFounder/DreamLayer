@@ -6,8 +6,12 @@ and inject them into ComfyUI workflows for API nodes.
 """
 
 import os
-from dotenv import load_dotenv
-from typing import Dict, Any
+import json
+import logging
+from typing import Dict, List, Optional
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Global mapping of node classes to their required API keys
 NODE_TO_API_KEY_MAPPING = {
@@ -46,102 +50,100 @@ ENV_KEY_TO_EXTRA_DATA_MAPPING = {
     # "ANTHROPIC_API_KEY": "api_key_anthropic",
 }
 
-def read_api_keys_from_env() -> Dict[str, str]:
+def load_api_keys_from_env() -> Dict[str, str]:
     """
-    Read all API keys from environment variables.
+    Load API keys from environment variables.
     
     Returns:
-        Dict containing environment variable names mapped to their values.
-        Example: {"BFL_API_KEY": "sk-bfl-...", "OPENAI_API_KEY": "sk-openai-..."}
+        Dict[str, str]: Dictionary mapping service names to API keys
     """
-    # Get the path to the project's root directory
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(os.path.dirname(current_dir))
-    
-    # Construct the path to the .env file in the root directory
-    dotenv_path = os.path.join(project_root, '.env')
-    
-    # Load environment variables from the .env file in the project root
-    load_dotenv(dotenv_path=dotenv_path)
-    
     api_keys = {}
     
-    # Read all API keys defined in the mapping
-    for env_key in ENV_KEY_TO_EXTRA_DATA_MAPPING.keys():
-        api_key = os.getenv(env_key)
-        if api_key:
-            api_keys[env_key] = api_key
-            # Safely truncate for display without assuming length
-            display_key = api_key[:8] + "..." + api_key[-4:] if len(api_key) > 12 else api_key
-            print(f"[DEBUG] Found {env_key}: {display_key}")
-        else:
-            print(f"[DEBUG] No {env_key} found in environment")
+    # Define environment variable mappings
+    env_mappings = {
+        'BFL_API_KEY': 'bfl',
+        'OPENAI_API_KEY': 'openai', 
+        'IDEOGRAM_API_KEY': 'ideogram',
+        'LUMA_API_KEY': 'luma'
+    }
     
-    print(f"[DEBUG] Total API keys loaded: {len(api_keys)}")
+    for env_key, service_name in env_mappings.items():
+        api_key = os.environ.get(env_key)
+        if api_key:
+            api_keys[service_name] = api_key
+            logger.debug(f"Found {env_key}: {display_key}")
+        else:
+            logger.debug(f"No {env_key} found in environment")
+    
+    logger.debug(f"Total API keys loaded: {len(api_keys)}")
     return api_keys
 
-
-def inject_api_keys_into_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
+def inject_api_keys_into_workflow(workflow: Dict, api_keys: Dict[str, str]) -> Dict:
     """
-    Inject API keys from environment variables into workflow extra_data based on nodes present.
+    Inject API keys into workflow's extra_data section.
     
     Args:
-        workflow: The workflow dictionary to inject keys into
+        workflow (Dict): The workflow dictionary
+        api_keys (Dict[str, str]): Available API keys
         
     Returns:
-        Workflow with appropriate API keys added to extra_data
+        Dict: Updated workflow with API keys injected
     """
-    # Read all available API keys from environment
-    all_api_keys = read_api_keys_from_env()
-    
-    # Create a copy to avoid modifying the original
     workflow_with_keys = workflow.copy()
     
-    # Ensure extra_data exists
-    if "extra_data" not in workflow_with_keys:
-        workflow_with_keys["extra_data"] = {}
-        print("[DEBUG] Created new extra_data section")
+    # Ensure extra_data section exists
+    if 'extra_data' not in workflow_with_keys:
+        workflow_with_keys['extra_data'] = {}
+        logger.debug("Created new extra_data section")
     else:
-        print("[DEBUG] Using existing extra_data section")
+        logger.debug("Using existing extra_data section")
     
-    # Scan workflow for node types and determine which API keys are needed
+    # Scan workflow for API nodes that need keys
     needed_env_keys = set()
-    workflow_prompt = workflow.get('prompt', {})
     
-    print("[DEBUG] Scanning workflow for API nodes...")
-    for node_id, node_data in workflow_prompt.items():
-        if isinstance(node_data, dict):
-            class_type = node_data.get('class_type')
-            if class_type in NODE_TO_API_KEY_MAPPING:
-                required_env_key = NODE_TO_API_KEY_MAPPING[class_type]
-                needed_env_keys.add(required_env_key)
-                print(f"[DEBUG] Found {class_type} node - needs {required_env_key}")
-    # Decide which key to use for api_key_comfy_org
-    api_key_comfy_org = None
-    print(f"[DEBUG] needed_env_keys: {needed_env_keys}")
-    print(f"[DEBUG] all_api_keys keys: {all_api_keys.keys()}")
-    if needed_env_keys:
-        # If we have multiple keys that map to api_key_comfy_org, choose one
-        # Priority: BFL_API_KEY first, then OPENAI_API_KEY, then IDEOGRAM_API_KEY
-        if "BFL_API_KEY" in needed_env_keys and "BFL_API_KEY" in all_api_keys:
-            api_key_comfy_org = all_api_keys["BFL_API_KEY"]
-            print(f"[DEBUG] Using BFL_API_KEY for api_key_comfy_org")
-        elif "OPENAI_API_KEY" in needed_env_keys and "OPENAI_API_KEY" in all_api_keys:
-            api_key_comfy_org = all_api_keys["OPENAI_API_KEY"]
-            print(f"[DEBUG] Using OPENAI_API_KEY for api_key_comfy_org")
-        elif "IDEOGRAM_API_KEY" in needed_env_keys and "IDEOGRAM_API_KEY" in all_api_keys:
-            api_key_comfy_org = all_api_keys["IDEOGRAM_API_KEY"]
-            print(f"[DEBUG] Using IDEOGRAM_API_KEY for api_key_comfy_org")
-        else:
-            print(f"[DEBUG] No available API keys for needed services: {needed_env_keys}")
+    logger.debug("Scanning workflow for API nodes...")
+    for node_id, node_data in workflow_with_keys.get('nodes', {}).items():
+        class_type = node_data.get('class_type', '')
+        
+        # Map node types to required API keys
+        if 'BFL' in class_type:
+            needed_env_keys.add('BFL_API_KEY')
+            logger.debug(f"Found {class_type} node - needs {needed_env_keys}")
+        elif 'OpenAI' in class_type or 'DALL' in class_type:
+            needed_env_keys.add('OPENAI_API_KEY')
+            logger.debug(f"Found {class_type} node - needs {needed_env_keys}")
+        elif 'Ideogram' in class_type:
+            needed_env_keys.add('IDEOGRAM_API_KEY')
+            logger.debug(f"Found {class_type} node - needs {needed_env_keys}")
+        elif 'Luma' in class_type:
+            needed_env_keys.add('LUMA_API_KEY')
+            logger.debug(f"Found {class_type} node - needs {needed_env_keys}")
     
-    # Add the chosen key to extra_data
-    if api_key_comfy_org:
-        workflow_with_keys["extra_data"]["api_key_comfy_org"] = api_key_comfy_org
-        print(f"[DEBUG] Injected api_key_comfy_org into workflow")
+    logger.debug(f"needed_env_keys: {needed_env_keys}")
+    logger.debug(f"all_api_keys keys: {all_api_keys.keys()}")
+    
+    # Check if we have the required API keys
+    all_api_keys = load_api_keys_from_env()
+    
+    if 'BFL_API_KEY' in needed_env_keys and 'bfl' in all_api_keys:
+        workflow_with_keys['extra_data']['api_key_comfy_org'] = all_api_keys['bfl']
+        logger.debug(f"Using BFL_API_KEY for api_key_comfy_org")
+    elif 'OPENAI_API_KEY' in needed_env_keys and 'openai' in all_api_keys:
+        workflow_with_keys['extra_data']['api_key_comfy_org'] = all_api_keys['openai']
+        logger.debug(f"Using OPENAI_API_KEY for api_key_comfy_org")
+    elif 'IDEOGRAM_API_KEY' in needed_env_keys and 'ideogram' in all_api_keys:
+        workflow_with_keys['extra_data']['api_key_comfy_org'] = all_api_keys['ideogram']
+        logger.debug(f"Using IDEOGRAM_API_KEY for api_key_comfy_org")
+    elif 'LUMA_API_KEY' in needed_env_keys and 'luma' in all_api_keys:
+        workflow_with_keys['extra_data']['api_key_comfy_org'] = all_api_keys['luma']
+        logger.debug(f"Using LUMA_API_KEY for api_key_comfy_org")
     else:
-        print("[DEBUG] No API keys needed for this workflow")
+        logger.warning(f"No available API keys for needed services: {needed_env_keys}")
     
-    print(f"[DEBUG] Final extra_data: {workflow_with_keys['extra_data']}")
+    if 'api_key_comfy_org' in workflow_with_keys['extra_data']:
+        logger.debug(f"Injected api_key_comfy_org into workflow")
+    else:
+        logger.debug("No API keys needed for this workflow")
     
+    logger.debug(f"Final extra_data: {workflow_with_keys['extra_data']}")
     return workflow_with_keys 
