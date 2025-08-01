@@ -41,6 +41,7 @@ from server import PromptServer
 import requests
 import torch
 from io import BytesIO
+import os
 
 LUMA_T2V_AVERAGE_DURATION = 105
 LUMA_I2V_AVERAGE_DURATION = 100
@@ -715,6 +716,129 @@ class LumaImageToVideoGenerationNode(ComfyNodeABC):
         return LumaKeyframes(frame0=frame0, frame1=frame1)
 
 
+class LumaText2ImgNode(ComfyNodeABC):
+    """
+    Generates images using Luma's text-to-image API.
+    
+    This node chains after a CLIPTextEncode block and outputs a valid image.
+    Requires LUMA_API_KEY environment variable to be set.
+    
+    Parameters:
+    - prompt: Text prompt for image generation
+    - model: Luma model to use (photon-1, photon-flash-1)
+    - aspect_ratio: Aspect ratio of the generated image
+    - seed: Random seed for generation (affects node re-execution, not actual results)
+    
+    API Key Setup:
+    Set the LUMA_API_KEY environment variable with your Luma API key.
+    Example: export LUMA_API_KEY="your_api_key_here"
+    """
+
+    RETURN_TYPES = (IO.IMAGE,)
+    DESCRIPTION = cleandoc(__doc__ or "")
+    FUNCTION = "api_call"
+    API_NODE = True
+    CATEGORY = "api node/image/Luma"
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "prompt": (
+                    IO.STRING,
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Prompt for the image generation",
+                    },
+                ),
+                "model": ([model.value for model in LumaImageModel],),
+                "aspect_ratio": (
+                    [ratio.value for ratio in LumaAspectRatio],
+                    {
+                        "default": LumaAspectRatio.ratio_16_9,
+                    },
+                ),
+                "seed": (
+                    IO.INT,
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 0xFFFFFFFFFFFFFFFF,
+                        "control_after_generate": True,
+                        "tooltip": "Seed to determine if node should re-run; actual results are nondeterministic regardless of seed.",
+                    },
+                ),
+            },
+            "optional": {},
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    def api_call(
+        self,
+        prompt: str,
+        model: str,
+        aspect_ratio: str,
+        seed,
+        unique_id: str = None,
+        **kwargs,
+    ):
+        # Validate prompt
+        validate_string(prompt, strip_whitespace=True, min_length=3)
+        
+        # Check for API key
+        api_key = os.environ.get('LUMA_API_KEY')
+        if not api_key:
+            raise ValueError(
+                "LUMA_API_KEY environment variable is not set. "
+                "Please set your Luma API key: export LUMA_API_KEY='your_api_key_here'"
+            )
+
+        # Create the initial generation request
+        operation = SynchronousOperation(
+            endpoint=ApiEndpoint(
+                path="/v1/images/generations",
+                method=HttpMethod.POST,
+                request_model=LumaImageGenerationRequest,
+                response_model=LumaGeneration,
+            ),
+            request=LumaImageGenerationRequest(
+                prompt=prompt,
+                model=model,
+                aspect_ratio=aspect_ratio,
+            ),
+            auth_kwargs={"luma_api_key": api_key},
+        )
+        
+        # Execute initial request
+        response_api: LumaGeneration = operation.execute()
+
+        # Poll for completion
+        operation = PollingOperation(
+            poll_endpoint=ApiEndpoint(
+                path=f"/v1/generations/{response_api.id}",
+                method=HttpMethod.GET,
+                request_model=EmptyRequest,
+                response_model=LumaGeneration,
+            ),
+            completed_statuses=[LumaState.completed],
+            failed_statuses=[LumaState.failed],
+            status_extractor=lambda x: x.state,
+            result_url_extractor=image_result_url_extractor,
+            node_id=unique_id,
+            auth_kwargs={"luma_api_key": api_key},
+        )
+        
+        response_poll = operation.execute()
+
+        # Download and return image
+        img_response = requests.get(response_poll.assets.image)
+        img = process_image_response(img_response)
+        return (img,)
+
+
 # A dictionary that contains all nodes you want to export with their names
 # NOTE: names should be globally unique
 NODE_CLASS_MAPPINGS = {
@@ -724,6 +848,7 @@ NODE_CLASS_MAPPINGS = {
     "LumaImageToVideoNode": LumaImageToVideoGenerationNode,
     "LumaReferenceNode": LumaReferenceNode,
     "LumaConceptsNode": LumaConceptsNode,
+    "LumaText2ImgNode": LumaText2ImgNode,
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
@@ -734,4 +859,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LumaImageToVideoNode": "Luma Image to Video",
     "LumaReferenceNode": "Luma Reference",
     "LumaConceptsNode": "Luma Concepts",
+    "LumaText2ImgNode": "Luma Text to Image (Direct)",
 }
