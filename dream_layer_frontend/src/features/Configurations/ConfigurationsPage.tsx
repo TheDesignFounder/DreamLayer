@@ -1,7 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import Accordion from '@/components/Accordion';
 import Slider from '@/components/Slider';
 import { useSettingsStore } from './useSettingsStore';
+import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
+import ShortcutTooltip from '@/components/ui/ShortcutTooltip';
 
 const ConfigurationsPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -31,6 +33,7 @@ const ConfigurationsPage = () => {
     saveMetadata, setSaveMetadata,
     autoUpdate, setAutoUpdate
   } = useSettingsStore();
+  const { registerShortcut, unregisterShortcut } = useKeyboardShortcuts();
 
   const handleSaveSettings = async () => {
     try {
@@ -67,6 +70,14 @@ const ConfigurationsPage = () => {
     }
   };
 
+  useEffect(() => {
+    registerShortcut('Shift+S', handleSaveSettings);
+    
+    return () => {
+      unregisterShortcut('Shift+S');
+    };
+  }, [registerShortcut, unregisterShortcut]);
+
   const handleDirectoryBrowse = async (
     setter: (path: string) => void,
     fileInputRef: React.RefObject<HTMLInputElement>
@@ -100,12 +111,14 @@ const ConfigurationsPage = () => {
       <div className="flex flex-col">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-base font-medium">System Configurations</h3>
-          <button 
-            onClick={handleSaveSettings}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Save Settings
-          </button>
+          <ShortcutTooltip content="Save Settings (Shift+S)">
+            <button 
+              onClick={handleSaveSettings}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Save Settings
+            </button>
+          </ShortcutTooltip>
         </div>
         
         <Accordion title="UI Settings" number="1" defaultOpen={true}>

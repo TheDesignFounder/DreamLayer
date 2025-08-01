@@ -21,6 +21,8 @@ import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import useLoraStore from '@/stores/useLoraStore';
 import { LoraRequest } from '@/types/lora';
+import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
+import ShortcutTooltip from '@/components/ui/ShortcutTooltip';
 
 interface Txt2ImgPageProps {
   selectedModel: string;
@@ -41,11 +43,22 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const controlNetConfig = useControlNetStore(state => state.controlNetConfig);
   const { setControlNetConfig } = useControlNetStore();
   const loraConfig = useLoraStore(state => state.loraConfig);
+  const { registerShortcut, unregisterShortcut } = useKeyboardShortcuts();
 
   // Add effect to update model when selectedModel prop changes
   useEffect(() => {
     updateCoreSettings({ model_name: selectedModel });
   }, [selectedModel]);
+
+  useEffect(() => {
+    registerShortcut('Ctrl+Enter', handleGenerateImage);
+    registerShortcut('Ctrl+C', handleCopyPrompts);
+    
+    return () => {
+      unregisterShortcut('Ctrl+Enter');
+      unregisterShortcut('Ctrl+C');
+    };
+  }, [registerShortcut, unregisterShortcut]);
 
   const updateCoreSettings = (updates: Partial<Txt2ImgCoreSettings>) => {
     setCoreSettings(prev => ({ ...prev, ...updates }));
@@ -263,13 +276,15 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const ActionButtons = () => (
     <div className="flex space-x-2">
-      <Button 
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        onClick={handleGenerateImage}
-        disabled={false}
-      >
-        {isGenerating ? 'Interrupt' : 'Generate Image'}
-      </Button>
+      <ShortcutTooltip content={`${isGenerating ? 'Interrupt' : 'Generate Image'} (Ctrl+Enter)`}>
+        <Button 
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          onClick={handleGenerateImage}
+          disabled={false}
+        >
+          {isGenerating ? 'Interrupt' : 'Generate Image'}
+        </Button>
+      </ShortcutTooltip>
       {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
         Save Settings
       </button>}
@@ -324,15 +339,17 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
           <>
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-bold text-[#2563EB]">1. Prompt Input</h4>
-              <Button 
-                onClick={handleCopyPrompts}
-                variant="outline"
-                size="sm"
-                className="text-xs px-2 py-1 h-auto flex items-center gap-1"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copy Prompts
-              </Button>
+              <ShortcutTooltip content="Copy Prompts (Ctrl+C)">
+                <Button 
+                  onClick={handleCopyPrompts}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs px-2 py-1 h-auto flex items-center gap-1"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy Prompts
+                </Button>
+              </ShortcutTooltip>
             </div>
             <PromptInput 
               label="a) Prompt"
