@@ -741,7 +741,7 @@ class LumaText2ImgNode(ComfyNodeABC):
     CATEGORY = "api node/image/Luma"
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "prompt": (
