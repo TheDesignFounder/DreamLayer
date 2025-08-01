@@ -1,10 +1,9 @@
 """
-Luma Text to Image API Node - Minimal Working Version
-No problematic imports, just core functionality
+Luma Text to Image API Node - Fixed Version
+Addresses all Sourcery AI review comments
 """
 
 import os
-import sys
 import time
 import requests
 import torch
@@ -12,10 +11,6 @@ from typing import Optional
 from io import BytesIO
 from PIL import Image
 import numpy as np
-
-# Add the current directory to the path for imports
-repo_dir = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, repo_dir)
 
 # Import ComfyUI utilities
 from comfy.comfy_types.node_typing import IO, ComfyNodeABC
@@ -40,7 +35,7 @@ class LumaTextToImageNode(ComfyNodeABC):
     ASPECT_RATIOS = ["1:1", "4:3", "3:4", "16:9", "9:16"]
     
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
                 "prompt": (
@@ -54,7 +49,7 @@ class LumaTextToImageNode(ComfyNodeABC):
                 "model": (
                     IO.COMBO,
                     {
-                        "options": s.MODELS,
+                        "options": cls.MODELS,
                         "default": "photon-1",
                         "tooltip": "Luma AI model to use for generation",
                     },
@@ -62,7 +57,7 @@ class LumaTextToImageNode(ComfyNodeABC):
                 "aspect_ratio": (
                     IO.COMBO,
                     {
-                        "options": s.ASPECT_RATIOS,
+                        "options": cls.ASPECT_RATIOS,
                         "default": "16:9",
                         "tooltip": "Aspect ratio of the generated image",
                     },
@@ -134,8 +129,8 @@ class LumaTextToImageNode(ComfyNodeABC):
             
             return response.json()
             
-        except Exception as e:
-            raise Exception(f"Error calling Luma API: {e}")
+        except requests.RequestException as e:
+            raise RuntimeError(f"Error calling Luma API: {e}") from e
     
     def _poll_for_completion(self, task_id: str) -> dict:
         """Poll the task status until completion"""
@@ -158,23 +153,22 @@ class LumaTextToImageNode(ComfyNodeABC):
                 task_data = response.json()
                 status = task_data.get("status")
                 
-                print(f"Task status: {status} (attempt {attempt + 1}/{max_attempts})")
-                
                 if status == "completed":
                     return task_data
                 elif status in ["failed", "cancelled"]:
-                    raise Exception(f"Task failed with status: {status}")
+                    raise RuntimeError(f"Task failed with status: {status}")
                 
-                # Wait before next poll
+                # Wait before next poll (using proper delay for polling)
                 time.sleep(5)
                 attempt += 1
                 
-            except Exception as e:
-                print(f"Error polling task status: {e}")
+            except requests.RequestException as e:
                 attempt += 1
+                if attempt >= max_attempts:
+                    raise RuntimeError(f"Error polling task status: {e}") from e
                 time.sleep(5)
         
-        raise Exception("Task timed out")
+        raise TimeoutError("Task timed out")
     
     def _download_image(self, image_url: str) -> torch.Tensor:
         """Download image from URL and convert to tensor"""
@@ -189,8 +183,8 @@ class LumaTextToImageNode(ComfyNodeABC):
             if image.mode != "RGB":
                 image = image.convert("RGB")
             
-            # Convert to numpy array
-            image_array = np.array(image)
+            # Convert to numpy array and ensure dtype is uint8
+            image_array = np.array(image).astype(np.uint8)
             
             # Convert to tensor (H, W, C) -> (C, H, W)
             image_tensor = torch.from_numpy(image_array).permute(2, 0, 1).float()
@@ -203,8 +197,8 @@ class LumaTextToImageNode(ComfyNodeABC):
             
             return image_tensor
             
-        except Exception as e:
-            raise Exception(f"Error downloading image: {e}")
+        except requests.RequestException as e:
+            raise RuntimeError(f"Error downloading image: {e}") from e
     
     def generate_image(
         self,
@@ -236,7 +230,6 @@ class LumaTextToImageNode(ComfyNodeABC):
                 raise ValueError("Prompt cannot be empty")
             
             # Generate image
-            print(f"Generating image with prompt: {prompt}")
             generation_response = self._generate_image(
                 prompt=prompt,
                 model=model,
@@ -248,24 +241,19 @@ class LumaTextToImageNode(ComfyNodeABC):
             # Get the task ID
             task_id = generation_response.get("id")
             if not task_id:
-                raise Exception("No task ID received from API")
-            
-            print(f"Task created with ID: {task_id}")
+                raise RuntimeError("No task ID received from API")
             
             # Poll for completion
-            print("Waiting for generation to complete...")
             final_result = self._poll_for_completion(task_id)
             
             # Extract image URL
             images = final_result.get("images", [])
             if not images:
-                raise Exception("No images in response")
+                raise RuntimeError("No images in response")
             
             image_url = images[0].get("url")
             if not image_url:
-                raise Exception("No image URL in response")
-            
-            print(f"Image generated successfully: {image_url}")
+                raise RuntimeError("No image URL in response")
             
             # Download and convert to tensor
             image_tensor = self._download_image(image_url)
@@ -273,8 +261,7 @@ class LumaTextToImageNode(ComfyNodeABC):
             return (image_tensor,)
             
         except Exception as e:
-            print(f"Error in generate_image: {e}")
-            raise e
+            raise RuntimeError(f"Error in generate_image: {e}") from e
 
 
 # Node class mappings for ComfyUI
