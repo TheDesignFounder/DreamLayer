@@ -1,0 +1,51 @@
+{
+    "1": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "prompt": "A beautiful sunset over mountains with dramatic clouds, high quality, detailed",
+        "clip": ["2", 0]
+      }
+    },
+    "2": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "v1-5-pruned.ckpt"
+      }
+    },
+    "3": {
+      "class_type": "RunwayText2ImgNode",
+      "inputs": {
+        "prompt": "A beautiful sunset over mountains with dramatic clouds"
+      }
+    },
+    "4": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": ["3", 0]
+      }
+    },
+    "5": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["3", 0],
+        "filename_prefix": "runway_generated",
+        "filename_suffix": ".png"
+      }
+    },
+    "6": {
+      "class_type": "ImageScale",
+      "inputs": {
+        "image": ["3", 0],
+        "upscale_method": "lanczos",
+        "width": 1024,
+        "height": 1024,
+        "crop": "disabled"
+      }
+    },
+    "7": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": ["6", 0]
+      }
+    }
+  }

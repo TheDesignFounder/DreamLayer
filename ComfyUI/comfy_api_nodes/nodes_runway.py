@@ -13,6 +13,22 @@ User Guides:
 
 from typing import Union, Optional, Any
 from enum import Enum
+import os
+import requests
+import base64
+import io
+import time
+import numpy as np
+import torch
+from PIL import Image
+
+from typing import Optional
+
+import nodes
+import torch
+import time
+
+from comfy.comfy_types.node_typing import ComfyNodeABC, IO
 
 import torch
 
@@ -617,14 +633,167 @@ class RunwayTextToImageNode(ComfyNodeABC):
 
         # Download and return image
         image_url = get_image_url_from_task_status(final_response)
+        if not image_url:
+            raise RunwayApiError("No image URL found in successful response.")
         return (download_url_to_image_tensor(image_url),)
 
+"""
+Runway Text-to-Image Node
 
+A simple node that accepts a prompt string and generates an image using Runway's API.
+"""
+
+class RunwayText2ImgNode(ComfyNodeABC):
+    """Runway Text-to-Image Node - Simple direct API implementation."""
+    
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate_image"
+    CATEGORY = "api node/image/Runway"
+    API_NODE = True
+    DESCRIPTION = "Generate an image from a text prompt using Runway's API directly."
+    
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "prompt": model_field_to_node_input(
+                    IO.STRING, RunwayTextToImageRequest, "promptText", multiline=True),
+                "ratio": model_field_to_node_input(
+                    IO.COMBO,
+                    RunwayTextToImageRequest,
+                    "ratio",
+                    enum_type=RunwayTextToImageAspectRatioEnum,
+                )
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID"
+            },
+        }
+    
+    def generate_image(self, prompt: str, ratio: str, unique_id: Optional[str] = None, **kwargs):
+        """
+        Generate an image from a text prompt using Runway's API.
+        
+        Args:
+            prompt: The text prompt for image generation
+            unique_id: Optional unique identifier for the node
+            
+        Returns:
+            tuple[torch.Tensor]: Generated image as a tensor
+            
+        Raises:
+            ValueError: If RUNWAY_API_KEY is missing
+            Exception: If API call fails
+        """
+
+        # Check for API key
+        api_key = os.getenv('RUNWAY_API_KEY')
+        if not api_key:
+            raise ValueError(
+                "RUNWAY_API_KEY environment variable is required but not set. "
+                "Please set your Runway API key in the .env file or environment variables."
+            )
+        
+        # Validate prompt
+        if not prompt or not prompt.strip():
+            raise ValueError("Prompt cannot be empty")
+        
+        # Prepare the request
+        url = "https://api.dev.runwayml.com/v1/text_to_image"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "X-Runway-Version": "2024-11-06"
+        }
+        
+        payload = {
+            "promptText": prompt.strip(),
+            "model": "gen4_image",
+            "ratio": ratio 
+        }
+        
+        try:
+            # Make the API request
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            # print("Response status:", response.status_code)
+            # print("Response text:", response.text)
+            response.raise_for_status()
+            
+            # Parse the response
+            result_id = response.json().get("id")
+            if not result_id:
+                raise Exception("No result ID received from Runway API")
+
+            # Poll for result
+            status_url = f"https://api.dev.runwayml.com/v1/tasks/{result_id}"
+            max_attempts = 30
+            image_url = None
+
+            for attempt in range(max_attempts):
+                time.sleep(2)
+                status_response = requests.get(status_url, headers=headers)
+                status_response.raise_for_status()
+                status_data = status_response.json()
+
+                if status_data.get("status") == "SUCCEEDED":
+                    output_list = status_data.get("output", [])
+                    if output_list:
+                       image_url = output_list[0]
+                       break
+                elif status_data.get("status") in ["FAILED", "CANCELLED"]:
+                   raise Exception(f"Task failed: {status_data.get('status')}")
+
+            if not image_url:
+               raise Exception("Timeout waiting for image generation.")
+
+            # Download and convert image
+            image_response = requests.get(image_url)
+            image_response.raise_for_status()
+            image_bytes = image_response.content
+            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            image_array = np.array(image).astype(np.float32) / 255.0
+
+            if image_array.ndim == 2:
+                image_array = np.stack([image_array] * 3, axis=-1)
+            elif image_array.shape[2] == 4:
+                image_array = image_array[:, :, :3]
+            elif image_array.shape[2] == 1:
+                image_array = np.repeat(image_array, 3, axis=-1)
+
+            image_tensor = torch.from_numpy(image_array).permute(2, 0, 1).unsqueeze(0).contiguous()
+           
+            # print(f"✅ Runway output tensor shape: {image_tensor.shape}, dtype: {image_tensor.dtype}")
+
+            if image_tensor.ndim != 4 or image_tensor.shape[1] != 3:
+                raise ValueError(f"Unexpected image tensor shape: {image_tensor.shape}. Must be [1, 3, H, W]")
+
+            if image_tensor.dtype != torch.float32:
+                image_tensor = image_tensor.float()
+
+            return (image_tensor,)
+            
+
+        except requests.exceptions.HTTPError as e:
+            print("Runway API error response:", response.text)
+            if response.status_code == 401:
+                raise Exception("Invalid Runway API key. Please check your RUNWAY_API_KEY.")
+            elif response.status_code == 400:
+                raise Exception(f"Bad request to Runway API: {response.text}")
+            else:
+                raise Exception(f"Runway API error (HTTP {response.status_code}): {response.text}")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Failed to connect to Runway API: {str(e)}")
+        except Exception as e:
+            raise Exception(f"Error generating image with Runway API: {str(e)}")
+
+
+# Node mappings
 NODE_CLASS_MAPPINGS = {
     "RunwayFirstLastFrameNode": RunwayFirstLastFrameNode,
     "RunwayImageToVideoNodeGen3a": RunwayImageToVideoNodeGen3a,
     "RunwayImageToVideoNodeGen4": RunwayImageToVideoNodeGen4,
     "RunwayTextToImageNode": RunwayTextToImageNode,
+    "RunwayText2ImgNode": RunwayText2ImgNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -632,4 +801,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "RunwayImageToVideoNodeGen3a": "Runway Image to Video (Gen3a Turbo)",
     "RunwayImageToVideoNodeGen4": "Runway Image to Video (Gen4 Turbo)",
     "RunwayTextToImageNode": "Runway Text to Image",
-}
+    "RunwayText2ImgNode": "Runway Text to Image (Simple)",
+} 
