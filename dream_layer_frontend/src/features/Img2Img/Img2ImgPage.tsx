@@ -1,27 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import ImageUploader from '@/components/ImageUploader';
-import AdvancedSettings from '@/components/AdvancedSettings';
-import ExternalExtensions from '@/components/ExternalExtensions';
-import CheckpointBrowser from '@/components/checkpoint/CheckpointBrowser';
-import LoraBrowser from '@/components/lora/LoraBrowser';
-import CustomWorkflowBrowser from '@/components/custom-workflow/CustomWorkflowBrowser';
-import PromptInput from '@/components/PromptInput';
-import RenderSettings from '@/components/RenderSettings';
-import SizingSettings from '@/components/SizingSettings';
-import OutputQuantity from '@/components/OutputQuantity';
-import GenerationID from '@/components/GenerationID';
-import ImagePreview from '@/components/tabs/img2img/ImagePreview';
-import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
-import useLoraStore from '@/stores/useLoraStore';
-import useControlNetStore from '@/stores/useControlNetStore';
-import { ControlNetRequest } from '@/types/controlnet';
-import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+import React, { useState, useEffect } from "react";
+import ImageUploader from "@/components/ImageUploader";
+import AdvancedSettings from "@/components/AdvancedSettings";
+import ExternalExtensions from "@/components/ExternalExtensions";
+import CheckpointBrowser from "@/components/checkpoint/CheckpointBrowser";
+import LoraBrowser from "@/components/lora/LoraBrowser";
+import CustomWorkflowBrowser from "@/components/custom-workflow/CustomWorkflowBrowser";
+import PromptInput from "@/components/PromptInput";
+import RenderSettings from "@/components/RenderSettings";
+import SizingSettings from "@/components/SizingSettings";
+import OutputQuantity from "@/components/OutputQuantity";
+import GenerationID from "@/components/GenerationID";
+import ImagePreview from "@/components/tabs/img2img/ImagePreview";
+import { useImg2ImgGalleryStore } from "@/stores/useImg2ImgGalleryStore";
+import useLoraStore from "@/stores/useLoraStore";
+import useControlNetStore from "@/stores/useControlNetStore";
+import { ControlNetRequest } from "@/types/controlnet";
+import {
+  prepareControlNetForAPI,
+  validateControlNetConfig,
+} from "@/utils/controlnetUtils";
 
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
-  AccordionTrigger
+  AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
 import { Copy } from "lucide-react";
@@ -33,34 +36,38 @@ interface Img2ImgPageProps {
   onTabChange: (tabId: string) => void;
 }
 
-const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange }) => {
+const Img2ImgPage: React.FC<Img2ImgPageProps> = ({
+  selectedModel,
+  onTabChange,
+}) => {
   const [activeSubTab, setActiveSubTab] = useState("generation");
   const [activeImg2ImgTool, setActiveImg2ImgTool] = useState("img2img");
   const [batchCount, setBatchCount] = useState(1);
   const [batchSize, setBatchSize] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  
+
   // ControlNet configuration will be managed by useControlNetStore
-  
-  const { 
-    inputImage, 
-    setLoading, 
-    addImages, 
-    clearImages, 
-    coreSettings, 
+
+  const {
+    inputImage,
+    maskFile,
+    setLoading,
+    addImages,
+    clearImages,
+    coreSettings,
     customWorkflow,
     setCustomWorkflow,
-    handlePromptChange, 
-    handleSamplingSettingsChange, 
-    handleSizeSettingsChange, 
-    handleBatchSettingsChange, 
+    handlePromptChange,
+    handleSamplingSettingsChange,
+    handleSizeSettingsChange,
+    handleBatchSettingsChange,
     handleSeedChange,
-    updateCoreSettings
+    updateCoreSettings,
   } = useImg2ImgGalleryStore();
-  const selectedLora = useLoraStore(state => state.loraConfig);
+  const selectedLora = useLoraStore((state) => state.loraConfig);
   const { controlNetConfig, setControlNetConfig } = useControlNetStore();
-  
+
   useEffect(() => {
     setIsLoaded(true);
     console.log("Img2ImgPage component mounted");
@@ -74,7 +81,10 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     setActiveImg2ImgTool(toolId);
   };
 
-  const handleLocalBatchSettingsChange = (newBatchSize: number, newBatchCount: number) => {
+  const handleLocalBatchSettingsChange = (
+    newBatchSize: number,
+    newBatchCount: number
+  ) => {
     setBatchSize(newBatchSize);
     setBatchCount(newBatchCount);
     // Also update the store
@@ -82,9 +92,13 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   };
 
   const handleCopyPrompts = () => {
-    const promptTextarea = document.querySelector('textarea[placeholder="Enter your prompt here"]') as HTMLTextAreaElement;
-    const negativePromptTextarea = document.querySelector('textarea[placeholder="Enter negative prompt here"]') as HTMLTextAreaElement;
-    
+    const promptTextarea = document.querySelector(
+      'textarea[placeholder="Enter your prompt here"]'
+    ) as HTMLTextAreaElement;
+    const negativePromptTextarea = document.querySelector(
+      'textarea[placeholder="Enter negative prompt here"]'
+    ) as HTMLTextAreaElement;
+
     if (promptTextarea && negativePromptTextarea) {
       const combinedText = `Prompt: ${promptTextarea.value}\nNegative Prompt: ${negativePromptTextarea.value}`;
       navigator.clipboard.writeText(combinedText);
@@ -92,7 +106,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   };
 
   const handleControlNetChange = (config: ControlNetRequest | null) => {
-    console.log('ControlNet config changed in img2img:', config);
+    console.log("ControlNet config changed in img2img:", config);
     // If config is null, it means ControlNet was disabled
     // If config is provided and enabled, use it, otherwise set to null
     setControlNetConfig(config?.enabled ? config : null);
@@ -100,10 +114,10 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const handleGenerateImage = async () => {
     if (isGenerating) {
-      await fetch('http://localhost:5004/api/img2img/interrupt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+      await fetch("http://localhost:5004/api/img2img/interrupt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
       setIsGenerating(false);
       setLoading(false);
@@ -111,7 +125,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     }
 
     if (!inputImage) {
-      console.error('No input image selected');
+      console.error("No input image selected");
       return;
     }
 
@@ -120,90 +134,105 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
 
     try {
       const formData = new FormData();
-      formData.append('image', inputImage.file);
-
+      formData.append("image", inputImage.file);
+      if (maskFile) {
+        formData.append("mask", maskFile);
+      }
 
       // Prepare ControlNet data for API
       let preparedControlNet = null;
       if (controlNetConfig && validateControlNetConfig(controlNetConfig)) {
         try {
           preparedControlNet = await prepareControlNetForAPI(controlNetConfig);
-          console.log('Prepared ControlNet for API:', preparedControlNet);
+          console.log("Prepared ControlNet for API:", preparedControlNet);
         } catch (error) {
-          console.error('Error preparing ControlNet for API:', error);
+          console.error("Error preparing ControlNet for API:", error);
         }
       }
 
       // Prepare the request data
+      const { input_image, ...coreSettingsWithoutImage } = coreSettings;
       const requestData = {
-        ...coreSettings,
+        ...coreSettingsWithoutImage,
         model_name: selectedModel,
         custom_workflow: customWorkflow,
         lora: selectedLora,
-        // Only include controlnet if it's properly configured
-        ...(preparedControlNet && { controlnet: preparedControlNet })
+        ...(preparedControlNet && { controlnet: preparedControlNet }),
       };
 
-      console.log('Sending img2img request with data:', requestData);
-      console.log('ControlNet config being sent:', controlNetConfig);
-      console.log('ControlNet config is null?', controlNetConfig === null);
-      console.log('ControlNet config is enabled?', controlNetConfig?.enabled);
+      formData.append("params", JSON.stringify(requestData));
 
-      // Send the request data as JSON in the body
-      const response = await fetch('http://localhost:5004/api/img2img', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData)
-      });
+      console.log("Sending img2img request with data:", requestData);
+      console.log("ControlNet config being sent:", controlNetConfig);
+      console.log("ControlNet config is null?", controlNetConfig === null);
+      console.log("ControlNet config is enabled?", controlNetConfig?.enabled);
+
+      // Send the request data as multipart/form-data
+      // Use a 2-hour timeout for very slow CPU jobs (inpainting with SDXL etc.)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120 * 60 * 1000); // 2 hours
+      let response;
+      try {
+        response = await fetch("http://localhost:5004/api/img2img", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Img2img response:', data);
+      console.log("Img2img response:", data);
 
       if (data.comfy_response?.generated_images) {
-        console.log('Generated images from response:', data.comfy_response.generated_images);
-        
+        console.log(
+          "Generated images from response:",
+          data.comfy_response.generated_images
+        );
+
         const testImage = new Image();
         const firstImageUrl = data.comfy_response.generated_images[0].url;
-        
+
         testImage.onload = () => {
-          console.log('Test image loaded successfully:', firstImageUrl);
-          const images = data.comfy_response.generated_images.map((img: any) => ({
-            id: `${Date.now()}-${Math.random()}`,
-            url: img.url,
-            prompt: requestData.prompt,
-            negativePrompt: requestData.negative_prompt,
-            timestamp: Date.now(),
-            settings: requestData
-          }));
-          
-          console.log('Adding images to store:', images);
+          console.log("Test image loaded successfully:", firstImageUrl);
+          const images = data.comfy_response.generated_images.map(
+            (img: any) => ({
+              id: `${Date.now()}-${Math.random()}`,
+              url: img.url,
+              prompt: requestData.prompt,
+              negativePrompt: requestData.negative_prompt,
+              timestamp: Date.now(),
+              settings: requestData,
+            })
+          );
+
+          console.log("Adding images to store:", images);
           addImages(images);
           setLoading(false);
           setIsGenerating(false);
         };
-        
+
         testImage.onerror = (error) => {
-          console.error('Failed to load test image:', error);
+          console.error("Failed to load test image:", error);
           setLoading(false);
           setIsGenerating(false);
-          throw new Error('Failed to load generated image');
+          throw new Error("Failed to load generated image");
         };
-        
+
         testImage.src = firstImageUrl;
       } else {
-        console.error('No generated_images in response:', data);
+        console.error("No generated_images in response:", data);
         setLoading(false);
         setIsGenerating(false);
-        throw new Error('No images were generated');
+        throw new Error("No images were generated");
       }
     } catch (error) {
-      console.error('Error in handleGenerateImage:', error);
+      console.error("Error in handleGenerateImage:", error);
       setLoading(false);
       setIsGenerating(false);
     }
@@ -255,24 +284,27 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     updateCoreSettings({ refiner_switch_at: value });
   };
 
-
   const renderSubTabContent = () => {
     switch (activeSubTab) {
       case "checkpoints":
-        return <CustomWorkflowBrowser 
-          onWorkflowChange={setCustomWorkflow}
-          currentWorkflow={customWorkflow}
-        />;
+        return (
+          <CustomWorkflowBrowser
+            onWorkflowChange={setCustomWorkflow}
+            currentWorkflow={customWorkflow}
+          />
+        );
       case "lora":
         return <LoraBrowser />;
       default:
         return (
           <>
             <ImageUploader activeImg2ImgTool={activeImg2ImgTool} />
-            
+
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-primary">1. Prompt Input</h4>
-              <Button 
+              <h4 className="text-sm font-bold text-primary">
+                1. Prompt Input
+              </h4>
+              <Button
                 onClick={handleCopyPrompts}
                 variant="outline"
                 size="sm"
@@ -282,14 +314,14 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
                 Copy Prompts
               </Button>
             </div>
-            <PromptInput 
+            <PromptInput
               label="a) Prompt"
               maxLength={500}
               placeholder="Enter your prompt here"
               value={coreSettings.prompt}
               onChange={(value) => handlePromptChange(value)}
             />
-            <PromptInput 
+            <PromptInput
               label="b) Negative Prompt"
               negative={true}
               maxLength={500}
@@ -297,34 +329,38 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
               value={coreSettings.negative_prompt}
               onChange={(value) => handlePromptChange(value, true)}
             />
-            
+
             {/* <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">2. Sampling Settings</h4> */}
-            <RenderSettings 
+            <RenderSettings
               sampler={coreSettings.sampler_name}
               scheduler={coreSettings.scheduler}
               steps={coreSettings.steps}
               cfg={coreSettings.cfg_scale}
               onChange={handleSamplingSettingsChange}
             />
-            
-            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">3. Sizing</h4>
-            <SizingSettings 
+
+            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
+              3. Sizing
+            </h4>
+            <SizingSettings
               width={coreSettings.width}
               height={coreSettings.height}
               onChange={handleSizeSettingsChange}
             />
-            
+
             <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
               4. Output Quantity: {batchCount * batchSize}
             </h4>
-            <OutputQuantity 
+            <OutputQuantity
               batchCount={batchCount}
               batchSize={batchSize}
               onChange={handleLocalBatchSettingsChange}
             />
-            
-            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">5. Seed Settings</h4>
-            <GenerationID 
+
+            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
+              5. Seed Settings
+            </h4>
+            <GenerationID
               seed={coreSettings.seed}
               random={coreSettings.random_seed}
               onChange={handleSeedChange}
@@ -336,18 +372,36 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const Img2ImgToolsNavigation = () => {
     const tools = [
-      { id: "img2img", label: "Img2Img", active: activeImg2ImgTool === "img2img" },
-      { id: "inpaint", label: "Inpaint", active: activeImg2ImgTool === "inpaint" },
-      { id: "outpaint", label: "Inpaint Upload", active: activeImg2ImgTool === "outpaint" }
-    ].filter(tool => tool.id !== 'inpaint' && tool.id !== 'outpaint');
+      {
+        id: "img2img",
+        label: "Img2Img",
+        active: activeImg2ImgTool === "img2img",
+      },
+      {
+        id: "inpaint",
+        label: "Inpaint",
+        active: activeImg2ImgTool === "inpaint",
+      },
+      {
+        id: "outpaint",
+        label: "Inpaint Upload",
+        active: activeImg2ImgTool === "outpaint",
+      },
+    ];
 
     return (
       <div className="mb-4">
-        <div data-orientation="horizontal" role="none" className="shrink-0 bg-border h-[1px] w-full mt-2 mb-4"></div>
+        <div
+          data-orientation="horizontal"
+          role="none"
+          className="shrink-0 bg-border h-[1px] w-full mt-2 mb-4"
+        ></div>
         <div className="flex items-center gap-4 mb-4">
-          <span className="text-sm font-medium text-foreground">Img2Img Tools:</span>
+          <span className="text-sm font-medium text-foreground">
+            Img2Img Tools:
+          </span>
           <div className="flex flex-wrap gap-2">
-            {tools.map(tool => (
+            {tools.map((tool) => (
               <div
                 key={tool.id}
                 onClick={() => handleImg2ImgToolChange(tool.id)}
@@ -365,7 +419,11 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
             ))}
           </div>
         </div>
-        <div data-orientation="horizontal" role="none" className="shrink-0 bg-border h-[1px] w-full mb-2"></div>
+        <div
+          data-orientation="horizontal"
+          role="none"
+          className="shrink-0 bg-border h-[1px] w-full mb-2"
+        ></div>
       </div>
     );
   };
@@ -373,7 +431,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const SubTabNavigation = ({ tabs, onTabChange }) => {
     return (
       <div className="flex flex-wrap gap-3">
-        {tabs.map(tab => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
@@ -404,38 +462,53 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       <div className="flex-1 space-y-4">
         <div className="flex flex-col">
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <h3 className="text-base font-medium text-foreground">Image to Image Generation</h3>
+            <h3 className="text-base font-medium text-foreground">
+              Image to Image Generation
+            </h3>
             <div className="flex space-x-2">
-              <Button 
+              <Button
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 onClick={handleGenerateImage}
                 disabled={!inputImage}
               >
-                {isGenerating ? 'Interrupt' : 'Generate Image'}
+                {isGenerating ? "Interrupt" : "Generate Image"}
               </Button>
-              {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                Save Settings
-              </button>}
+              {false && (
+                <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+                  Save Settings
+                </button>
+              )}
             </div>
           </div>
-          
+
           <div className="mb-[18px]">
-            <SubTabNavigation 
+            <SubTabNavigation
               tabs={[
-                { id: "generation", label: "Generation", active: activeSubTab === "generation" },
-                { id: "checkpoints", label: "Custom Workflow", active: activeSubTab === "checkpoints" },
-                { id: "lora", label: "LoRA", active: activeSubTab === "lora" }
+                {
+                  id: "generation",
+                  label: "Generation",
+                  active: activeSubTab === "generation",
+                },
+                {
+                  id: "checkpoints",
+                  label: "Custom Workflow",
+                  active: activeSubTab === "checkpoints",
+                },
+                { id: "lora", label: "LoRA", active: activeSubTab === "lora" },
               ]}
               onTabChange={handleSubTabChange}
             />
           </div>
-          
+
           {activeSubTab !== "checkpoints" && activeSubTab !== "lora" && (
             <Img2ImgToolsNavigation />
           )}
-          
+
           <Accordion type="multiple" className="space-y-4">
-            <AccordionItem value="section-1" className="border border-border rounded-md overflow-hidden bg-card">
+            <AccordionItem
+              value="section-1"
+              className="border border-border rounded-md overflow-hidden bg-card"
+            >
               <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">
                 <span className="flex items-center text-foreground">
                   <span className="mr-2 text-foreground">1.</span>
@@ -446,9 +519,12 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
                 {renderSubTabContent()}
               </AccordionContent>
             </AccordionItem>
-            
+
             {activeSubTab !== "checkpoints" && activeSubTab !== "lora" && (
-              <AccordionItem value="section-2" className="border border-border rounded-md overflow-hidden bg-card">
+              <AccordionItem
+                value="section-2"
+                className="border border-border rounded-md overflow-hidden bg-card"
+              >
                 <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">
                   <span className="flex items-center text-foreground">
                     <span className="mr-2 text-foreground">2.</span>
@@ -460,7 +536,9 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
                     restoreFaces={coreSettings.restore_faces}
                     onRestoreFacesChange={handleRestoreFacesChange}
                     faceRestorationModel={coreSettings.face_restoration_model}
-                    onFaceRestorationModelChange={handleFaceRestorationModelChange}
+                    onFaceRestorationModelChange={
+                      handleFaceRestorationModelChange
+                    }
                     codeformerWeight={coreSettings.codeformer_weight}
                     onCodeformerWeightChange={handleCodeformerWeightChange}
                     gfpganWeight={coreSettings.gfpgan_weight}
@@ -483,9 +561,12 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
                 </AccordionContent>
               </AccordionItem>
             )}
-            
+
             {activeSubTab !== "checkpoints" && activeSubTab !== "lora" && (
-              <AccordionItem value="section-3" className="border border-border rounded-md overflow-hidden bg-card">
+              <AccordionItem
+                value="section-3"
+                className="border border-border rounded-md overflow-hidden bg-card"
+              >
                 <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">
                   <span className="flex items-center text-foreground">
                     <span className="mr-2 text-foreground">3.</span>
@@ -493,7 +574,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 py-3 bg-card">
-                  <ExternalExtensions 
+                  <ExternalExtensions
                     isImg2ImgTab={true}
                     onControlNetChange={handleControlNetChange}
                   />

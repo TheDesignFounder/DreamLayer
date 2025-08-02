@@ -18,12 +18,14 @@ We welcome various types of contributions:
 ### Getting Started
 
 1. **Fork the repository**
+
    ```bash
    git clone https://github.com/your-username/DreamLayer.git
    cd DreamLayer
    ```
 
 2. **Create a feature branch**
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -31,23 +33,26 @@ We welcome various types of contributions:
 3. **Make your changes** following the style guidelines below
 
 4. **Test your changes**
+
    ```bash
    # Test the backend
    cd dream_layer_backend
    python -m pytest tests/
-   
+
    # Test the frontend
    cd dream_layer_frontend
    npm test
    ```
 
 5. **Commit your changes**
+
    ```bash
    git add .
    git commit -m "feat: add new feature description"
    ```
 
 6. **Push to your fork**
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -66,12 +71,14 @@ We welcome various types of contributions:
 ### Local Development Environment
 
 1. **Clone and setup**
+
    ```bash
    git clone https://github.com/DreamLayer-AI/DreamLayer.git
    cd DreamLayer
    ```
 
 2. **Install Python dependencies**
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -80,6 +87,7 @@ We welcome various types of contributions:
    ```
 
 3. **Install Node.js dependencies**
+
    ```bash
    cd dream_layer_frontend
    npm install
@@ -117,6 +125,7 @@ npm run type-check     # Run TypeScript checks
 We follow **PEP 8** with some modifications:
 
 #### Code Formatting
+
 ```python
 # Use Black for code formatting
 # Line length: 88 characters
@@ -124,24 +133,25 @@ We follow **PEP 8** with some modifications:
 
 def example_function(param1: str, param2: int) -> bool:
     """Example function with proper docstring.
-    
+
     Args:
         param1: Description of param1
         param2: Description of param2
-        
+
     Returns:
         Description of return value
-        
+
     Raises:
         ValueError: When parameters are invalid
     """
     if not param1:
         raise ValueError("param1 cannot be empty")
-    
+
     return param2 > 0
 ```
 
 #### Import Organization
+
 ```python
 # Standard library imports
 import os
@@ -158,6 +168,7 @@ from .models import User
 ```
 
 #### Type Hints
+
 ```python
 from typing import Dict, List, Optional, Union
 
@@ -174,6 +185,7 @@ def process_data(
 We follow **Airbnb JavaScript Style Guide** with TypeScript additions:
 
 #### Code Formatting
+
 ```typescript
 // Use Prettier for formatting
 // Use ESLint for linting
@@ -187,17 +199,18 @@ interface UserData {
 
 const processUser = (user: UserData): string => {
   if (!user.name) {
-    throw new Error('User name is required');
+    throw new Error("User name is required");
   }
-  
+
   return `${user.name} (${user.email})`;
 };
 ```
 
 #### Component Structure
+
 ```typescript
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 interface ComponentProps {
   title: string;
@@ -208,16 +221,16 @@ export const ExampleComponent: React.FC<ComponentProps> = ({
   title,
   onAction,
 }) => {
-  const [state, setState] = useState<string>('');
-  
+  const [state, setState] = useState<string>("");
+
   useEffect(() => {
     // Effect logic
   }, []);
-  
+
   const handleClick = (): void => {
     onAction(state);
   };
-  
+
   return (
     <div className="example-component">
       <h2>{title}</h2>
@@ -240,6 +253,7 @@ We use **Conventional Commits**:
 ```
 
 #### Types
+
 - **feat**: New feature
 - **fix**: Bug fix
 - **docs**: Documentation changes
@@ -249,6 +263,7 @@ We use **Conventional Commits**:
 - **chore**: Maintenance tasks
 
 #### Examples
+
 ```bash
 feat: add ControlNet support for image generation
 fix(api): resolve model loading issue on Windows
@@ -275,12 +290,12 @@ class TestAPIKeyValidation:
         """Test valid OpenAI API key validation."""
         key = "sk-1234567890abcdef1234567890abcdef1234567890abcdef"
         assert validate_api_key(key, "openai") is True
-    
+
     def test_invalid_openai_key(self):
         """Test invalid OpenAI API key validation."""
         key = "invalid-key"
         assert validate_api_key(key, "openai") is False
-    
+
     @patch('os.getenv')
     def test_missing_api_key(self, mock_getenv):
         """Test behavior when API key is missing."""
@@ -293,22 +308,22 @@ class TestAPIKeyValidation:
 We use **Jest** and **React Testing Library**:
 
 ```typescript
-import { render, screen, fireEvent } from '@testing-library/react';
-import { ExampleComponent } from './ExampleComponent';
+import { render, screen, fireEvent } from "@testing-library/react";
+import { ExampleComponent } from "./ExampleComponent";
 
-describe('ExampleComponent', () => {
-  it('renders with correct title', () => {
+describe("ExampleComponent", () => {
+  it("renders with correct title", () => {
     const mockOnAction = jest.fn();
     render(<ExampleComponent title="Test Title" onAction={mockOnAction} />);
-    
-    expect(screen.getByText('Test Title')).toBeInTheDocument();
+
+    expect(screen.getByText("Test Title")).toBeInTheDocument();
   });
-  
-  it('calls onAction when button is clicked', () => {
+
+  it("calls onAction when button is clicked", () => {
     const mockOnAction = jest.fn();
     render(<ExampleComponent title="Test" onAction={mockOnAction} />);
-    
-    fireEvent.click(screen.getByRole('button'));
+
+    fireEvent.click(screen.getByRole("button"));
     expect(mockOnAction).toHaveBeenCalled();
   });
 });
@@ -319,20 +334,20 @@ describe('ExampleComponent', () => {
 We use **Playwright** for E2E tests:
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test('image generation workflow', async ({ page }) => {
-  await page.goto('http://localhost:8080');
-  
+test("image generation workflow", async ({ page }) => {
+  await page.goto("http://localhost:8080");
+
   // Enter prompt
-  await page.fill('[data-testid="prompt-input"]', 'A beautiful sunset');
-  
+  await page.fill('[data-testid="prompt-input"]', "A beautiful sunset");
+
   // Select model
-  await page.selectOption('[data-testid="model-select"]', 'sd15.safetensors');
-  
+  await page.selectOption('[data-testid="model-select"]', "sd15.safetensors");
+
   // Click generate
   await page.click('[data-testid="generate-button"]');
-  
+
   // Wait for result
   await expect(page.locator('[data-testid="generated-image"]')).toBeVisible();
 });
@@ -343,28 +358,29 @@ test('image generation workflow', async ({ page }) => {
 ### Code Documentation
 
 #### Python Docstrings
+
 ```python
 def complex_function(param1: str, param2: int, *, optional_param: bool = True) -> Dict[str, Any]:
     """Perform complex operation with detailed description.
-    
+
     This function performs a complex operation that requires multiple steps.
     It handles various edge cases and provides comprehensive error handling.
-    
+
     Args:
         param1: The primary input parameter. Must be a non-empty string.
         param2: The secondary input parameter. Must be a positive integer.
         optional_param: Optional boolean parameter. Defaults to True.
-        
+
     Returns:
         A dictionary containing the operation results with the following keys:
         - 'status': Operation status ('success' or 'error')
         - 'data': The processed data
         - 'metadata': Additional information about the operation
-        
+
     Raises:
         ValueError: When param1 is empty or param2 is negative
         RuntimeError: When the operation fails due to external factors
-        
+
     Example:
         >>> result = complex_function("test", 42)
         >>> print(result['status'])
@@ -373,14 +389,15 @@ def complex_function(param1: str, param2: int, *, optional_param: bool = True) -
 ```
 
 #### TypeScript Documentation
-```typescript
+
+````typescript
 /**
  * Processes user data and returns formatted results
- * 
+ *
  * @param userData - The user data to process
  * @param options - Optional processing configuration
  * @returns Promise resolving to processed user data
- * 
+ *
  * @example
  * ```typescript
  * const result = await processUserData(user, { format: 'json' });
@@ -393,18 +410,19 @@ async function processUserData(
 ): Promise<ProcessedUserData> {
   // Implementation
 }
-```
+````
 
 ### API Documentation
 
 Document all API endpoints with examples:
 
-```markdown
+````markdown
 ## POST /api/generate
 
 Generate an image from text prompt.
 
 ### Request Body
+
 ```json
 {
   "prompt": "A beautiful sunset over mountains",
@@ -418,8 +436,10 @@ Generate an image from text prompt.
   }
 }
 ```
+````
 
 ### Response
+
 ```json
 {
   "status": "success",
@@ -434,7 +454,8 @@ Generate an image from text prompt.
   }
 }
 ```
-```
+
+````
 
 ## 🔧 Pre-commit Hooks
 
@@ -450,22 +471,22 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
-  
+
   - repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
       - id: black
-  
+
   - repo: https://github.com/pycqa/isort
     rev: 5.12.0
     hooks:
       - id: isort
-  
+
   - repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
       - id: flake8
-```
+````
 
 ## 🚀 Release Process
 
@@ -560,4 +581,23 @@ When asking for help, please include:
 
 ---
 
-Thank you for contributing to DreamLayer AI! Your contributions help make this project better for everyone. 
+Thank you for contributing to DreamLayer AI! Your contributions help make this project better for everyone.
+
+## 🎉 Recent Contributions
+
+### Mask Upload Feature (December 2024)
+
+- **Contributor**: [Your Name]
+- **Feature**: Added mask upload option in Inpaint toolbar
+- **Details**:
+  - File validation (PNG ≤ 10 MB)
+  - 128px thumbnail preview
+  - Multipart payload support
+  - Comprehensive unit tests
+  - Full documentation
+- **Files Modified**:
+  - `dream_layer_frontend/src/components/ImageUploader.tsx`
+  - `dream_layer_frontend/src/stores/useImg2ImgGalleryStore.ts`
+  - `dream_layer_frontend/src/components/DualImageUploader.tsx`
+  - `dream_layer_backend/dream_layer.py`
+  - `dream_layer_frontend/src/__tests__/ImageUploader.test.tsx`

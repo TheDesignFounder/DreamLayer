@@ -1,9 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
-import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
-import { Download, FolderOpen, Copy, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import JSZip from 'jszip';
+import { useImg2ImgGalleryStore } from "@/stores/useImg2ImgGalleryStore";
+import {
+  Download,
+  FolderOpen,
+  Copy,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import JSZip from "jszip";
 
 interface ImagePreviewProps {
   onTabChange: (tabId: string) => void;
@@ -12,7 +19,9 @@ interface ImagePreviewProps {
 const LoadingAnimation = () => (
   <div className="flex flex-col items-center justify-center space-y-4 w-full h-full">
     <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-    <p className="text-sm text-muted-foreground animate-pulse">Generating Image...</p>
+    <p className="text-sm text-muted-foreground animate-pulse">
+      Generating Image...
+    </p>
   </div>
 );
 
@@ -29,56 +38,58 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
   const currentPage = Math.floor(thumbnailStartIndex / maxThumbnails) + 1;
 
   useEffect(() => {
-    console.log('ImagePreview state updated:', { 
-      hasImages: images.length > 0, 
+    console.log("ImagePreview state updated:", {
+      hasImages: images.length > 0,
       isLoading,
-      images: images.map(img => ({
+      images: images.map((img) => ({
         id: img.id,
         url: img.url,
-        timestamp: img.timestamp
-      }))
+        timestamp: img.timestamp,
+      })),
     });
 
     // Reset error state when images change
     setImageError(null);
   }, [images, isLoading]);
 
-  const handleImageError = (error: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    console.error('Error loading generated image:', error);
+  const handleImageError = (
+    error: React.SyntheticEvent<HTMLImageElement, Event>
+  ) => {
+    console.error("Error loading generated image:", error);
     const img = error.target as HTMLImageElement;
-    console.log('Failed image URL:', img.src);
+    console.log("Failed image URL:", img.src);
     setImageError(`Failed to load image from ${img.src}`);
-    
+
     // Try to fetch the image directly to get more error details
     fetch(img.src)
-      .then(response => {
+      .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.blob();
       })
       .then(() => {
-        console.log('Image fetch successful, but img tag failed to load');
+        console.log("Image fetch successful, but img tag failed to load");
       })
-      .catch(error => {
-        console.error('Image fetch failed:', error);
+      .catch((error) => {
+        console.error("Image fetch failed:", error);
         setImageError(`Failed to fetch image: ${error.message}`);
       });
   };
 
-  const handleDownload = async (format: 'png' | 'zip') => {
+  const handleDownload = async (format: "png" | "zip") => {
     if (!currentImage) return;
-    
-    if (format === 'png') {
+
+    if (format === "png") {
       // Download single PNG
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = currentImage.url;
-      link.target = '_blank';
+      link.target = "_blank";
       link.download = `generated-image-${currentImage.id}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } else if (format === 'zip') {
+    } else if (format === "zip") {
       // Download all images as ZIP
       const zip = new JSZip();
       const promises = images.map(async (image, index) => {
@@ -86,14 +97,14 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
         const blob = await response.blob();
         zip.file(`generated-image-${index + 1}.png`, blob);
       });
-      
+
       await Promise.all(promises);
-      const zipBlob = await zip.generateAsync({type: 'blob'});
-      
-      const link = document.createElement('a');
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      const link = document.createElement("a");
       link.href = URL.createObjectURL(zipBlob);
-      link.target = '_blank';
-      link.download = 'generated-images.zip';
+      link.target = "_blank";
+      link.download = "generated-images.zip";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -102,81 +113,89 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
 
   const handleShowInFolder = async () => {
     if (!currentImage) return;
-    
+
     try {
       // Extract filename from URL path (it's the last part of the path)
       const url = new URL(currentImage.url);
-      const filename = url.pathname.split('/').pop();
-      
+      const filename = url.pathname.split("/").pop();
+
       if (!filename) {
-        console.error('No filename found in URL:', currentImage.url);
+        console.error("No filename found in URL:", currentImage.url);
         return;
       }
-      console.log('=== Show in Folder Debug ===');
-      console.log('Full URL:', currentImage.url);
-      console.log('Extracted filename:', filename);
-      console.log('Request body:', JSON.stringify({ filename }));
-      console.log('Current Image:', currentImage);
-      
-      const response = await fetch('http://localhost:5002/api/show-in-folder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename })
+      console.log("=== Show in Folder Debug ===");
+      console.log("Full URL:", currentImage.url);
+      console.log("Extracted filename:", filename);
+      console.log("Request body:", JSON.stringify({ filename }));
+      console.log("Current Image:", currentImage);
+
+      const response = await fetch("http://localhost:5002/api/show-in-folder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename }),
       });
-      
+
       const result = await response.json();
       console.log(result.message);
     } catch (error) {
-      console.error('Error opening folder:', error);
+      console.error("Error opening folder:", error);
     }
   };
 
-  const handleSendTo = async (destination: 'txt2img' | 'inpaint' | 'extras') => {
+  const handleSendTo = async (
+    destination: "txt2img" | "inpaint" | "extras"
+  ) => {
     if (!currentImage) return;
-    
-    if (destination === 'txt2img') {
+
+    if (destination === "txt2img") {
       // TODO: Implement txt2img functionality
       console.log(`Sending to ${destination}:`, currentImage);
-    } else if (destination === 'extras') {
+    } else if (destination === "extras") {
       try {
         // Extract filename from URL path (it's the last part of the path)
         const url = new URL(currentImage.url);
-        const filename = url.pathname.split('/').pop();
-        
+        const filename = url.pathname.split("/").pop();
+
         if (!filename) {
-          console.error('No filename found in URL:', currentImage.url);
+          console.error("No filename found in URL:", currentImage.url);
           return;
         }
 
         // Call our API endpoint
-        const response = await fetch('http://localhost:5002/api/send-to-extras', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename })
-        });
-        
+        const response = await fetch(
+          "http://localhost:5002/api/send-to-extras",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename }),
+          }
+        );
+
         const result = await response.json();
-        if (result.status === 'success') {
+        if (result.status === "success") {
           // Create a File object from the image URL
-          const imageUrl = `http://localhost:5004/images/${filename}`;
-          const imageBlob = await fetch(imageUrl).then(r => r.blob());
+          const imageUrl = `http://localhost:5002/images/${filename}`;
+          const imageBlob = await fetch(imageUrl).then((r) => r.blob());
           const file = new File([imageBlob], filename);
-          
+
           // Set the image in Extras component's state
-          window.sessionStorage.setItem('extrasImage', JSON.stringify({
-            file: {
-              name: filename,
-              size: imageBlob.size,
-              type: imageBlob.type
-            },
-            preview: imageUrl
-          }));
-          
+          window.sessionStorage.setItem(
+            "extrasImage",
+            JSON.stringify({
+              file: {
+                name: filename,
+                size: imageBlob.size,
+                type: imageBlob.type,
+              },
+              preview: imageUrl,
+            })
+          );
+
           // Switch to extras tab
-          onTabChange('extras');
+          onTabChange("extras");
         }
       } catch (error) {
-        console.error('Error sending to extras:', error);
+        console.error("Error sending to extras:", error);
       }
     } else {
       // TODO: Implement other destinations
@@ -186,7 +205,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
 
   const handleCopyOutputSettings = () => {
     if (!currentImage?.settings) return;
-    
+
     const settingsText = JSON.stringify(currentImage.settings, null, 2);
     navigator.clipboard.writeText(settingsText);
   };
@@ -208,22 +227,22 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
   };
 
   const formatSettingsDisplay = () => {
-    if (!currentImage?.settings) return 'No settings available';
-    
+    if (!currentImage?.settings) return "No settings available";
+
     const settings = currentImage.settings;
     const settingsAny = settings as any; // Type assertion for additional properties
-    return `Prompt: ${currentImage.prompt || 'N/A'}
+    return `Prompt: ${currentImage.prompt || "N/A"}
 
-Negative prompt: ${currentImage.negativePrompt || 'N/A'}
+Negative prompt: ${currentImage.negativePrompt || "N/A"}
 
-Steps: ${settings.steps || 'N/A'}
-Sampler: ${settings.sampler_name || 'N/A'}
-CFG scale: ${settings.cfg_scale || 'N/A'}
-Seed: ${settings.seed || 'N/A'}
-Size: ${settings.width || 'N/A'}x${settings.height || 'N/A'}
-Model hash: ${settingsAny.model_hash || 'N/A'}
-Model: ${settings.model_name || 'N/A'}
-Denoising strength: ${settings.denoising_strength || 'N/A'}
+Steps: ${settings.steps || "N/A"}
+Sampler: ${settings.sampler_name || "N/A"}
+CFG scale: ${settings.cfg_scale || "N/A"}
+Seed: ${settings.seed || "N/A"}
+Size: ${settings.width || "N/A"}x${settings.height || "N/A"}
+Model hash: ${settingsAny.model_hash || "N/A"}
+Model: ${settings.model_name || "N/A"}
+Denoising strength: ${settings.denoising_strength || "N/A"}
 Version: v1.6.0
 Networks not found: add-detail-xl, Double_Exposure
 Time taken: 31.1 sec.`;
@@ -232,23 +251,23 @@ Time taken: 31.1 sec.`;
   const renderContent = () => {
     // Show loading animation when isLoading is true
     if (isLoading) {
-      console.log('Rendering loading state');
+      console.log("Rendering loading state");
       return <LoadingAnimation />;
     }
 
     // Show generated images if available
     if (images.length > 0 && currentImage) {
-      console.log('Attempting to render generated image:', currentImage);
+      console.log("Attempting to render generated image:", currentImage);
       return (
         <div className="w-full h-full relative">
-          <img 
+          <img
             key={currentImage.id}
-            src={currentImage.url} 
-            alt="Generated image" 
+            src={currentImage.url}
+            alt="Generated image"
             className="w-full h-full object-cover rounded-md"
             onError={handleImageError}
             onLoad={() => {
-              console.log('Image loaded successfully:', currentImage.url);
+              console.log("Image loaded successfully:", currentImage.url);
               setImageError(null);
             }}
           />
@@ -262,7 +281,7 @@ Time taken: 31.1 sec.`;
     }
 
     // Show empty state if no generated images and not loading
-    console.log('Rendering empty state');
+    console.log("Rendering empty state");
     return (
       <>
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-secondary">
@@ -313,39 +332,49 @@ Time taken: 31.1 sec.`;
 
             {/* Thumbnails */}
             <div className="flex gap-2">
-              {images.slice(thumbnailStartIndex, thumbnailStartIndex + maxThumbnails).map((image, index) => {
-                const actualIndex = thumbnailStartIndex + index;
-                return (
-                  <button
-                    key={image.id}
-                    onClick={() => handleThumbnailClick(index)}
-                    className={`w-16 h-16 rounded border-2 transition-colors overflow-hidden ${
-                      actualIndex === selectedImageIndex 
-                        ? 'border-primary' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <img 
-                      src={image.url} 
-                      alt={`Generated image ${actualIndex + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                );
-              })}
-              
+              {images
+                .slice(thumbnailStartIndex, thumbnailStartIndex + maxThumbnails)
+                .map((image, index) => {
+                  const actualIndex = thumbnailStartIndex + index;
+                  return (
+                    <button
+                      key={image.id}
+                      onClick={() => handleThumbnailClick(index)}
+                      className={`w-16 h-16 rounded border-2 transition-colors overflow-hidden ${
+                        actualIndex === selectedImageIndex
+                          ? "border-primary"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <img
+                        src={image.url}
+                        alt={`Generated image ${actualIndex + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  );
+                })}
+
               {/* Show empty squares if less than maxThumbnails images in current page */}
-              {images.slice(thumbnailStartIndex, thumbnailStartIndex + maxThumbnails).length < maxThumbnails && 
-               thumbnailStartIndex + maxThumbnails >= images.length &&
-               Array.from({ 
-                 length: maxThumbnails - images.slice(thumbnailStartIndex, thumbnailStartIndex + maxThumbnails).length 
-               }).map((_, index) => (
-                <div 
-                  key={`empty-${index}`}
-                  className="w-16 h-16 rounded"
-                  style={{ backgroundColor: '#f1f1f1' }}
-                />
-              ))}
+              {images.slice(
+                thumbnailStartIndex,
+                thumbnailStartIndex + maxThumbnails
+              ).length < maxThumbnails &&
+                thumbnailStartIndex + maxThumbnails >= images.length &&
+                Array.from({
+                  length:
+                    maxThumbnails -
+                    images.slice(
+                      thumbnailStartIndex,
+                      thumbnailStartIndex + maxThumbnails
+                    ).length,
+                }).map((_, index) => (
+                  <div
+                    key={`empty-${index}`}
+                    className="w-16 h-16 rounded"
+                    style={{ backgroundColor: "#f1f1f1" }}
+                  />
+                ))}
             </div>
 
             {/* Right Arrow */}
@@ -380,27 +409,29 @@ Time taken: 31.1 sec.`;
           <div>
             <div className="flex items-center flex-wrap gap-2">
               <span className="text-sm font-medium">Download:</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs h-8"
-                onClick={() => handleDownload('png')}
+                onClick={() => handleDownload("png")}
               >
                 <Download className="w-3 h-3 mr-1" />
                 PNG
               </Button>
-              {false && <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-xs h-8"
-                onClick={() => handleDownload('zip')}
-              >
-                <Download className="w-3 h-3 mr-1" />
-                ZIP
-              </Button>}
-              <Button 
-                variant="outline" 
-                size="sm" 
+              {false && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8"
+                  onClick={() => handleDownload("zip")}
+                >
+                  <Download className="w-3 h-3 mr-1" />
+                  ZIP
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs h-8"
                 onClick={handleShowInFolder}
               >
@@ -414,27 +445,27 @@ Time taken: 31.1 sec.`;
           <div>
             <div className="flex items-center flex-wrap gap-2">
               <span className="text-sm font-medium">Send To:</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs h-8"
-                onClick={() => handleSendTo('txt2img')}
+                onClick={() => handleSendTo("txt2img")}
               >
                 Txt2Img
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs h-8"
-                onClick={() => handleSendTo('inpaint')}
+                onClick={() => handleSendTo("inpaint")}
               >
                 Inpaint
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs h-8"
-                onClick={() => handleSendTo('extras')}
+                onClick={() => handleSendTo("extras")}
               >
                 Extras
               </Button>
@@ -449,9 +480,9 @@ Time taken: 31.1 sec.`;
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium">Output Settings</span>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="text-xs h-8"
                   onClick={handleCopyOutputSettings}
                 >
@@ -462,35 +493,67 @@ Time taken: 31.1 sec.`;
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0"
-                  onClick={() => setOutputSettingsExpanded(!outputSettingsExpanded)}
+                  onClick={() =>
+                    setOutputSettingsExpanded(!outputSettingsExpanded)
+                  }
                 >
-                  <ChevronDown className={`w-4 h-4 transition-transform ${outputSettingsExpanded ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${
+                      outputSettingsExpanded ? "rotate-180" : ""
+                    }`}
+                  />
                 </Button>
               </div>
             </div>
-            
+
             {outputSettingsExpanded && (
               <div className="bg-muted p-3 rounded-md text-xs leading-relaxed">
                 <div className="space-y-3">
                   <div>
                     <div className="font-semibold mb-1">Prompt:</div>
-                    <div className="text-muted-foreground break-words">{currentImage.prompt || 'N/A'}</div>
+                    <div className="text-muted-foreground break-words">
+                      {currentImage.prompt || "N/A"}
+                    </div>
                   </div>
-                  
+
                   <div>
                     <div className="font-semibold mb-1">Negative prompt:</div>
-                    <div className="text-muted-foreground break-words">{currentImage.negativePrompt || 'N/A'}</div>
+                    <div className="text-muted-foreground break-words">
+                      {currentImage.negativePrompt || "N/A"}
+                    </div>
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <div><strong>Steps:</strong> {currentImage.settings?.steps || 'N/A'}</div>
-                    <div><strong>Sampler:</strong> {currentImage.settings?.sampler_name || 'N/A'}</div>
-                    <div><strong>CFG scale:</strong> {currentImage.settings?.cfg_scale || 'N/A'}</div>
-                    <div><strong>Seed:</strong> {currentImage.settings?.seed || 'N/A'}</div>
-                    <div><strong>Size:</strong> {currentImage.settings?.width || 'N/A'}x{currentImage.settings?.height || 'N/A'}</div>
-                    <div><strong>Model:</strong> {currentImage.settings?.model_name || 'N/A'}</div>
+                    <div>
+                      <strong>Steps:</strong>{" "}
+                      {currentImage.settings?.steps || "N/A"}
+                    </div>
+                    <div>
+                      <strong>Sampler:</strong>{" "}
+                      {currentImage.settings?.sampler_name || "N/A"}
+                    </div>
+                    <div>
+                      <strong>CFG scale:</strong>{" "}
+                      {currentImage.settings?.cfg_scale || "N/A"}
+                    </div>
+                    <div>
+                      <strong>Seed:</strong>{" "}
+                      {currentImage.settings?.seed || "N/A"}
+                    </div>
+                    <div>
+                      <strong>Size:</strong>{" "}
+                      {currentImage.settings?.width || "N/A"}x
+                      {currentImage.settings?.height || "N/A"}
+                    </div>
+                    <div>
+                      <strong>Model:</strong>{" "}
+                      {currentImage.settings?.model_name || "N/A"}
+                    </div>
                     {currentImage.settings?.denoising_strength && (
-                      <div><strong>Denoising strength:</strong> {currentImage.settings.denoising_strength}</div>
+                      <div>
+                        <strong>Denoising strength:</strong>{" "}
+                        {currentImage.settings.denoising_strength}
+                      </div>
                     )}
                   </div>
                 </div>

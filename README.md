@@ -21,9 +21,9 @@
 DreamLayer AI is an open-source Stable Diffusion WebUI that keeps the familiar Automatic1111 ⁄ Forge layout you know, replaces the clutter with a modern design system, and runs every generation step on ComfyUI in the background.  
 No node graph on screen, no server rental, just a lightning-fast local interface for:
 
-* **AI artists** producing portfolio-ready images  
-* **Developers and prompt engineers** iterating on prompts and LoRAs  
-* **Researchers** benchmarking new models and samplers  
+- **AI artists** producing portfolio-ready images
+- **Developers and prompt engineers** iterating on prompts and LoRAs
+- **Researchers** benchmarking new models and samplers
 
 > **Status:** ✨ **Now live:** Open Alpha • **Beta V1 ships:** **Mid-July 2025**
 
@@ -60,11 +60,13 @@ Cursor will:
 ```
 
 **macOS:**
+
 ```bash
 ./install_mac_dependencies.sh
 ```
 
 **Windows:**
+
 ```bash
 install_windows_dependencies.ps1
 ```
@@ -77,11 +79,13 @@ install_windows_dependencies.ps1
 ```
 
 **macOS:**
+
 ```bash
 ./start_dream_layer.sh
 ```
 
 **Windows:**
+
 ```bash
 start_dream_layer.bat
 ```
@@ -97,14 +101,32 @@ DREAMLAYER_COMFYUI_CPU_MODE // if no nvidia drivers available run using CPU only
 - **Frontend:** http://localhost:8080
 - **ComfyUI:** http://localhost:8188
 
+## Why DreamLayer AI?
 
-### Installing Models ⭐️
+| 🔍 Feature                      | 🚀 How it’s better                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Familiar Layout**             | If you’ve used A1111 or Forge, you’ll feel at home in sec. Zero learning curve                              |
+| **Modern UX**                   | Responsive design with light & dark themes and a clutter-free interface that lets you work faster           |
+| **ComfyUI Engine Inside**       | All generation runs on a proven, modular, stable ComfyUI backend. Ready for custom nodes and advanced hacks |
+| **Closed-Source Model Support** | One-click swap to GPT-4o Image, Ideogram V3, Runway Gen-4, Recraft V3, and more                             |
+| **Local first**                 | Runs entirely on your GPU with no hosting fees, full privacy, and instant acceleration out of the box       |
+| **Inpainting Tools**            | Advanced inpainting with mask upload (PNG ≤ 10 MB) and manual drawing tools                                 |
+
+---
+
+## Requirements
+
+- Python 3.8+
+- Node.js 16+
+- 8GB+ RAM recommended
+
+## Installing Models ⭐️
 
 DreamLayer ships without weights to keep the download small. You have two ways to add models:
 
 ### a) Closed-source API models
 
-DreamLayer can also call external APIs (OpenAI DALL·E, Flux, Ideogram). 
+DreamLayer can also call external APIs (OpenAI DALL·E, Flux, Ideogram).
 
 To enable them:
 
@@ -122,11 +144,13 @@ No key = feature stays hidden.
 ### b) Open-source checkpoints (offline)
 
 **Step 1:** Download .safetensors or .ckpt files from:
+
 - Hugging Face
 - Civitai
 - Your own training runs
 
 **Step 2:** Place the models in the appropriate folders (auto-created on first run):
+
 - Checkpoints/ → # full checkpoints (.safetensors)
 - Lora/ → # LoRA & LoCon files
 - ControlNet/ → # ControlNet models
@@ -136,22 +160,19 @@ No key = feature stays hidden.
 
 > Tip: Use symbolic links if your checkpoints live on another drive.
 
-*The installation scripts will automatically install all dependencies and set up the environment.* 
-
+_The installation scripts will automatically install all dependencies and set up the environment._
 
 ---
 
 ## Why DreamLayer AI?
 
-| 🔍 Feature | 🚀 How it’s better |
-|------------|-----------|
-| **Familiar Layout** | If you’ve used A1111 or Forge, you’ll feel at home in sec. Zero learning curve |
-| **Modern UX** | Responsive design with light & dark themes and a clutter-free interface that lets you work faster |
-| **ComfyUI Engine Inside** | All generation runs on a proven, modular, stable ComfyUI backend. Ready for custom nodes and advanced hacks |
-| **Closed-Source Model Support** | One-click swap to GPT-4o Image, Ideogram V3, Runway Gen-4, Recraft V3, and more |
-| **Local first** | Runs entirely on your GPU with no hosting fees, full privacy, and instant acceleration out of the box |
-
-
+| 🔍 Feature                      | 🚀 How it’s better                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Familiar Layout**             | If you’ve used A1111 or Forge, you’ll feel at home in sec. Zero learning curve                              |
+| **Modern UX**                   | Responsive design with light & dark themes and a clutter-free interface that lets you work faster           |
+| **ComfyUI Engine Inside**       | All generation runs on a proven, modular, stable ComfyUI backend. Ready for custom nodes and advanced hacks |
+| **Closed-Source Model Support** | One-click swap to GPT-4o Image, Ideogram V3, Runway Gen-4, Recraft V3, and more                             |
+| **Local first**                 | Runs entirely on your GPU with no hosting fees, full privacy, and instant acceleration out of the box       |
 
 ---
 
@@ -168,11 +189,11 @@ No key = feature stays hidden.
 Starring helps us trend on GitHub which brings more contributors and faster features.  
 Early stargazers get perks:
 
-* **GitHub Hall of Fame**: Your handle listed forever in the README under Founding Supporter  
-* **Early Builds**: Download private binaries before everyone else
-* **Community first hiring**: We prioritize contributors and stargazers for all freelance, full-time, and AI artist or engineering roles.    
-* **Closed Beta Invites**: Give feedback that shapes 1.0  
-* **Discord badge**: Exclusive Founding Supporter role
+- **GitHub Hall of Fame**: Your handle listed forever in the README under Founding Supporter
+- **Early Builds**: Download private binaries before everyone else
+- **Community first hiring**: We prioritize contributors and stargazers for all freelance, full-time, and AI artist or engineering roles.
+- **Closed Beta Invites**: Give feedback that shapes 1.0
+- **Discord badge**: Exclusive Founding Supporter role
 
 > ⭐ **Hit the star button right now** and join us at the ground floor ☺️
 
@@ -180,8 +201,8 @@ Early stargazers get perks:
 
 ## Get Involved Today
 
-1. **Star** this repository.  
-2. **Watch** releases for the July code drop.  
+1. **Star** this repository.
+2. **Watch** releases for the July code drop.
 3. **Join** the Discord (link coming soon) and say hi.
 4. **Open issues** for ideas or feedback & Submit PRs once the code is live
 5. **Share** the screenshot on X ⁄ Twitter with `#DreamLayerAI` to spread the word.
@@ -200,7 +221,6 @@ All contributions code, docs, art, tutorials—are welcome!
 Full docs will ship with the first code release.
 
 [DreamLayer AI - Documentation](https://dreamlayer-ai.github.io/DreamLayer/)
-
 
 ---
 

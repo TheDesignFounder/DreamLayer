@@ -101,7 +101,7 @@ import json
 import requests
 from urllib.parse import urljoin, urlparse
 from pydantic import BaseModel, Field
-import uuid # For generating unique operation IDs
+import uuid  # For generating unique operation IDs
 
 from server import PromptServer
 from comfy.cli_args import args
@@ -185,7 +185,8 @@ class ApiClient:
         self.retry_backoff_factor = retry_backoff_factor
         # Default retry status codes: 408 (Request Timeout), 429 (Too Many Requests),
         # 500, 502, 503, 504 (Server Errors)
-        self.retry_status_codes = retry_status_codes or (408, 429, 500, 502, 503, 504)
+        self.retry_status_codes = retry_status_codes or (
+            408, 429, 500, 502, 503, 504)
 
     def _generate_operation_id(self, path: str) -> str:
         """Generates a unique operation ID for logging."""
@@ -206,7 +207,7 @@ class ApiClient:
         data: Dict[str, Any],
         files: Dict[str, Any],
         headers: Optional[Dict[str, str]] = None,
-        multipart_parser = None,
+        multipart_parser=None,
     ) -> Dict[str, Any]:
         headers = headers or {}
         # Let requests handle the Content-Type header for multipart/form-data
@@ -221,7 +222,8 @@ class ApiClient:
             files = files or {}
             for key, value in data.items():
                 if value is not None:  # Only add non-None values
-                    files[key] = (None, str(value))  # Convert all values to strings
+                    # Convert all values to strings
+                    files[key] = (None, str(value))
             data = None  # Clear data since we're using files
 
         return {
@@ -248,17 +250,24 @@ class ApiClient:
             "Accept": "application/json",
             "User-Agent": "comfy-api-nodes/1.0",
         }
-        if self.auth_token:
-            # Special case for Ideogram API
-            if "api.ideogram.ai" in self.base_url:
-                print(f"[DEBUG] Setting Ideogram Api-Key header with token: {self.auth_token}")
-                headers["Api-Key"] = self.auth_token
-            else:
-                # Default behavior for DALL-E and others
+
+        # Always set both headers for Stability AI requests
+        if "api.comfy.org" in self.base_url or "stability" in self.base_url:
+            if self.auth_token:
                 headers["Authorization"] = f"Bearer {self.auth_token}"
-        if self.comfy_api_key:
-            headers["x-key"] = self.comfy_api_key
-        print(f"[DEBUG] Final headers: {headers}")
+            if self.comfy_api_key:
+                headers["x-key"] = self.comfy_api_key
+        # Special case for Ideogram API
+        elif "api.ideogram.ai" in self.base_url and self.auth_token:
+            headers["Api-Key"] = self.auth_token
+        # Default behavior for other APIs
+        else:
+            if self.auth_token:
+                headers["Authorization"] = f"Bearer {self.auth_token}"
+            if self.comfy_api_key:
+                headers["x-key"] = self.comfy_api_key
+
+        print(f"[DEBUG] Final headers for {self.base_url}: {headers}")
         return headers
 
     def _check_connectivity(self, target_url: str) -> Dict[str, bool]:
@@ -282,8 +291,8 @@ class ApiClient:
         try:
             # Use a reliable external domain for checking basic connectivity
             check_response = requests.get("https://www.google.com",
-                                         timeout=5.0,
-                                         verify=self.verify_ssl)
+                                          timeout=5.0,
+                                          verify=self.verify_ssl)
             if check_response.status_code < 500:
                 results["internet_accessible"] = True
         except (requests.RequestException, socket.error):
@@ -298,7 +307,8 @@ class ApiClient:
             api_base = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
             # Try to reach the API domain
-            api_response = requests.get(f"{api_base}/health", timeout=5.0, verify=self.verify_ssl)
+            api_response = requests.get(
+                f"{api_base}/health", timeout=5.0, verify=self.verify_ssl)
             if api_response.status_code < 500:
                 results["api_accessible"] = True
             else:
@@ -346,31 +356,53 @@ class ApiClient:
         """
         url = urljoin(self.base_url, path)
         headers = headers or {}
-        print(f"[DEBUG] Initial headers before update: {headers}")
-        headers.update(self.get_headers())
-        print(f"[DEBUG] Headers after update: {headers}")
+
+        # Ensure we have the required authentication
+        if not self.auth_token and not self.comfy_api_key:
+            raise Exception(
+                "Authentication required: Missing both auth_token and comfy_api_key")
+
+        # Get default headers including auth
+        default_headers = self.get_headers()
+
+        # Merge headers, with explicit headers taking precedence over defaults
+        final_headers = {**default_headers, **headers}
+
+        print(f"[DEBUG] Request URL: {url}")
+        print(f"[DEBUG] Method: {method}")
+        print(f"[DEBUG] Headers before request: {final_headers}")
+        print(f"[DEBUG] Content-Type: {content_type}")
 
         # Special handling for Ideogram API which requires multipart/form-data
         if "api.ideogram.ai" in self.base_url:
             content_type = "multipart/form-data"
-            print(f"[DEBUG] Ideogram request data: {data}")
+            print(f"[DEBUG] Processing Ideogram request")
             if isinstance(data, dict):
                 files = files or {}
                 for key, value in data.items():
                     if value is not None:  # Only add non-None values
-                        files[key] = (None, str(value))  # Convert all values to strings
+                        # Convert all values to strings
+                        files[key] = (None, str(value))
                 data = None  # Clear data since we're using files
-            print(f"[DEBUG] Ideogram files after conversion: {files}")
-            request_args = self._create_form_data_args(data={}, files=files, headers=headers)
-            print(f"[DEBUG] Final request args for Ideogram: {request_args}")
+
+        # Prepare request arguments based on content type
+        if content_type == "multipart/form-data":
+            request_args = self._create_form_data_args(
+                data={} if data is None else data,
+                files=files or {},
+                headers=final_headers,
+                multipart_parser=multipart_parser
+            )
+        elif content_type == "application/x-www-form-urlencoded":
+            request_args = self._create_urlencoded_form_data_args(
+                data=data or {},
+                headers=final_headers
+            )
         else:
-            # Normal JSON handling for other APIs
-            if content_type == "multipart/form-data":
-                request_args = self._create_form_data_args(data=data, files=files, headers=headers, multipart_parser=multipart_parser)
-            elif content_type == "application/x-www-form-urlencoded":
-                request_args = self._create_urlencoded_form_data_args(data=data, headers=headers)
-            else:
-                request_args = self._create_json_payload_args(data=data, headers=headers)
+            request_args = self._create_json_payload_args(
+                data=data,
+                headers=final_headers
+            )
 
         if params:
             request_args["params"] = params
@@ -382,10 +414,12 @@ class ApiClient:
             request_url=url,
             request_headers=request_args.get("headers", {}),
             request_params=request_args.get("params", {}),
-            request_data=request_args.get("data") if request_args.get("data") is not None else "[form-data or other]"
+            request_data=request_args.get("data") if request_args.get(
+                "data") is not None else "[form-data or other]"
         )
 
         try:
+            # Make the actual request
             response = requests.request(
                 method,
                 url,
@@ -393,26 +427,35 @@ class ApiClient:
                 verify=self.verify_ssl,
                 **request_args
             )
+
+            # Log response details
+            print(f"[DEBUG] Response status code: {response.status_code}")
+            print(f"[DEBUG] Response headers: {dict(response.headers)}")
+
             response.raise_for_status()
 
             # Log successful response
             response_content_to_log = response.content
             try:
                 # Attempt to parse JSON for prettier logging, fallback to raw content
-                response_content_to_log = response.json()
+                response_json = response.json()
+                response_content_to_log = response_json
+                print(
+                    f"[DEBUG] Response JSON: {json.dumps(response_json, indent=2)}")
             except json.JSONDecodeError:
-                pass # Keep as bytes/str if not JSON
+                print("[DEBUG] Response is not JSON")
+                pass  # Keep as bytes/str if not JSON
 
             request_logger.log_request_response(
                 operation_id=operation_id,
-                request_method=method, # Pass request details again for context in log
+                request_method=method,
                 request_url=url,
                 response_status_code=response.status_code,
                 response_headers=dict(response.headers),
                 response_content=response_content_to_log
             )
 
-            return response.json()
+            return response_json if 'response_json' in locals() else response.content
         except requests.ConnectionError as e:
             error_message = f"ConnectionError: {str(e)}"
             request_logger.log_request_response(
@@ -439,7 +482,8 @@ class ApiClient:
 
             # If we haven't exhausted retries yet, retry the request
             if retry_count < self.max_retries:
-                delay = self.retry_delay * (self.retry_backoff_factor ** retry_count)
+                delay = self.retry_delay * \
+                    (self.retry_backoff_factor ** retry_count)
                 logging.warning(
                     f"Connection error: {str(e)}. "
                     f"Retrying in {delay:.2f}s ({retry_count + 1}/{self.max_retries})"
@@ -463,7 +507,7 @@ class ApiClient:
                 f"Unable to connect to the API server after {self.max_retries} attempts. "
                 f"Please check your internet connection or try again later."
             )
-            request_logger.log_request_response( # Log final failure
+            request_logger.log_request_response(  # Log final failure
                 operation_id=operation_id,
                 request_method=method, request_url=url,
                 error_message=final_error_message
@@ -479,7 +523,8 @@ class ApiClient:
             )
             # Retry timeouts if we haven't exhausted retries
             if retry_count < self.max_retries:
-                delay = self.retry_delay * (self.retry_backoff_factor ** retry_count)
+                delay = self.retry_delay * \
+                    (self.retry_backoff_factor ** retry_count)
                 logging.warning(
                     f"Request timed out. "
                     f"Retrying in {delay:.2f}s ({retry_count + 1}/{self.max_retries})"
@@ -500,7 +545,7 @@ class ApiClient:
                 f"Request timed out after {self.timeout} seconds and {self.max_retries} retry attempts. "
                 f"The server might be experiencing high load or the operation is taking longer than expected."
             )
-            request_logger.log_request_response( # Log final failure
+            request_logger.log_request_response(  # Log final failure
                 operation_id=operation_id,
                 request_method=method, request_url=url,
                 error_message=final_error_message
@@ -508,7 +553,8 @@ class ApiClient:
             raise Exception(final_error_message) from e
 
         except requests.HTTPError as e:
-            status_code = e.response.status_code if hasattr(e, "response") else None
+            status_code = e.response.status_code if hasattr(
+                e, "response") else None
             original_error_message = f"HTTP Error: {str(e)}"
             error_content_for_log = None
             if hasattr(e, "response") and e.response is not None:
@@ -517,7 +563,6 @@ class ApiClient:
                     error_content_for_log = e.response.json()
                 except json.JSONDecodeError:
                     pass
-
 
             # Try to extract detailed error message from JSON response for user display
             # but log the full error content.
@@ -530,15 +575,16 @@ class ApiClient:
                         user_display_error_message = f"API Error: {error_json['error']['message']}"
                         if "type" in error_json["error"]:
                             user_display_error_message += f" (Type: {error_json['error']['type']})"
-                    elif isinstance(error_json, dict): # Handle cases where error is just a JSON dict
+                    # Handle cases where error is just a JSON dict
+                    elif isinstance(error_json, dict):
                         user_display_error_message = f"API Error: {json.dumps(error_json)}"
-                    else: # Non-dict JSON error
+                    else:  # Non-dict JSON error
                         user_display_error_message = f"API Error: {str(error_json)}"
             except json.JSONDecodeError:
                 # If not JSON, use the raw content if it's not too long, or a summary
                 if hasattr(e, "response") and e.response is not None and e.response.content:
                     raw_content = e.response.content.decode(errors='ignore')
-                    if len(raw_content) < 200: # Arbitrary limit for display
+                    if len(raw_content) < 200:  # Arbitrary limit for display
                         user_display_error_message = f"API Error (raw): {raw_content}"
                     else:
                         user_display_error_message = f"API Error (raw, status {status_code})"
@@ -547,20 +593,25 @@ class ApiClient:
                 operation_id=operation_id,
                 request_method=method, request_url=url,
                 response_status_code=status_code,
-                response_headers=dict(e.response.headers) if hasattr(e, "response") and e.response is not None else None,
+                response_headers=dict(e.response.headers) if hasattr(
+                    e, "response") and e.response is not None else None,
                 response_content=error_content_for_log,
-                error_message=original_error_message # Log the original exception string as error
+                # Log the original exception string as error
+                error_message=original_error_message
             )
 
-            logging.debug(f"[DEBUG] API Error: {user_display_error_message} (Status: {status_code})")
+            logging.debug(
+                f"[DEBUG] API Error: {user_display_error_message} (Status: {status_code})")
             if hasattr(e, "response") and e.response is not None and e.response.content:
-                logging.debug(f"[DEBUG] Response content: {e.response.content}")
+                logging.debug(
+                    f"[DEBUG] Response content: {e.response.content}")
 
             # Retry if the status code is in our retry list and we haven't exhausted retries
             if (status_code in self.retry_status_codes and
-                retry_count < self.max_retries):
+                    retry_count < self.max_retries):
 
-                delay = self.retry_delay * (self.retry_backoff_factor ** retry_count)
+                delay = self.retry_delay * \
+                    (self.retry_backoff_factor ** retry_count)
                 logging.warning(
                     f"HTTP error {status_code}. "
                     f"Retrying in {delay:.2f}s ({retry_count + 1}/{self.max_retries})"
@@ -589,12 +640,14 @@ class ApiClient:
                 user_display_error_message = "Rate Limit Exceeded: Please try again later."
             # else, user_display_error_message remains as parsed from response or original HTTPError string
 
-            raise Exception(user_display_error_message) # Raise with the user-friendly message
+            # Raise with the user-friendly message
+            raise Exception(user_display_error_message)
 
     def check_auth(self, auth_token, comfy_api_key):
         """Verify that an auth token is present or comfy_api_key is present"""
         if auth_token is None and comfy_api_key is None:
-            raise Exception("Unauthorized: Please login first to use this node.")
+            raise Exception(
+                "Unauthorized: Please login first to use this node.")
         return auth_token or comfy_api_key
 
     @staticmethod
@@ -628,11 +681,13 @@ class ApiClient:
             with open(file, "rb") as f:
                 data = f.read()
         else:
-            raise ValueError("File must be either a BytesIO object or a file path string")
+            raise ValueError(
+                "File must be either a BytesIO object or a file path string")
 
         # Try the upload with retries
         last_exception = None
-        operation_id = f"upload_{upload_url.split('/')[-1]}_{uuid.uuid4().hex[:8]}" # Simplified ID for uploads
+        # Simplified ID for uploads
+        operation_id = f"upload_{upload_url.split('/')[-1]}_{uuid.uuid4().hex[:8]}"
 
         # Log initial attempt (without full file data for brevity)
         request_logger.log_request_response(
@@ -649,10 +704,10 @@ class ApiClient:
                 response.raise_for_status()
                 request_logger.log_request_response(
                     operation_id=operation_id,
-                    request_method="PUT", request_url=upload_url, # For context
+                    request_method="PUT", request_url=upload_url,  # For context
                     response_status_code=response.status_code,
                     response_headers=dict(response.headers),
-                    response_content="File uploaded successfully." # Or response.text if available
+                    response_content="File uploaded successfully."  # Or response.text if available
                 )
                 return response
 
@@ -671,7 +726,6 @@ class ApiClient:
                     except json.JSONDecodeError:
                         response_content_for_log = e.response.content
 
-
                 request_logger.log_request_response(
                     operation_id=operation_id,
                     request_method="PUT", request_url=upload_url,
@@ -682,24 +736,28 @@ class ApiClient:
                 )
 
                 if retry_attempt < max_retries:
-                    delay = retry_delay * (retry_backoff_factor ** retry_attempt)
+                    delay = retry_delay * \
+                        (retry_backoff_factor ** retry_attempt)
                     logging.warning(
                         f"File upload failed: {str(e)}. "
                         f"Retrying in {delay:.2f}s ({retry_attempt + 1}/{max_retries})"
                     )
                     time.sleep(delay)
                 else:
-                    break # Max retries reached
+                    break  # Max retries reached
 
         # If we've exhausted all retries, determine the final error type and raise
         final_error_message = f"Failed to upload file after {max_retries + 1} attempts. Error: {str(last_exception)}"
         try:
             # Check basic internet connectivity
-            check_response = requests.get("https://www.google.com", timeout=5.0, verify=True) # Assuming verify=True is desired
-            if check_response.status_code >= 500: # Google itself has an issue (rare)
-                 final_error_message = (f"Failed to upload file. Internet connectivity check to Google failed "
+            # Assuming verify=True is desired
+            check_response = requests.get(
+                "https://www.google.com", timeout=5.0, verify=True)
+            # Google itself has an issue (rare)
+            if check_response.status_code >= 500:
+                final_error_message = (f"Failed to upload file. Internet connectivity check to Google failed "
                                        f"(status {check_response.status_code}). Original error: {str(last_exception)}")
-                 # Not raising LocalNetworkError here as Google itself might be down.
+                # Not raising LocalNetworkError here as Google itself might be down.
             # If Google is reachable, the issue is likely with the upload server or a more specific local problem
             # not caught by a simple Google ping (e.g., DNS for the specific upload URL, firewall).
             # The original last_exception is probably most relevant.
@@ -709,14 +767,14 @@ class ApiClient:
             final_error_message = (f"Failed to upload file due to network connectivity issues "
                                    f"(cannot reach Google: {str(conn_check_exc)}). "
                                    f"Original upload error: {str(last_exception)}")
-            request_logger.log_request_response( # Log final failure reason
+            request_logger.log_request_response(  # Log final failure reason
                 operation_id=operation_id,
                 request_method="PUT", request_url=upload_url,
                 error_message=final_error_message
             )
             raise LocalNetworkError(final_error_message) from last_exception
 
-        request_logger.log_request_response( # Log final failure reason if not LocalNetworkError
+        request_logger.log_request_response(  # Log final failure reason if not LocalNetworkError
             operation_id=operation_id,
             request_method="PUT", request_url=upload_url,
             error_message=final_error_message
@@ -764,7 +822,7 @@ class SynchronousOperation(Generic[T, R]):
         api_base: str | None = None,
         auth_token: Optional[str] = None,
         comfy_api_key: Optional[str] = None,
-        auth_kwargs: Optional[Dict[str,str]] = None,
+        auth_kwargs: Optional[Dict[str, str]] = None,
         timeout: float = 604800.0,
         verify_ssl: bool = True,
         content_type: str = "application/json",
@@ -773,19 +831,59 @@ class SynchronousOperation(Generic[T, R]):
         retry_delay: float = 1.0,
         retry_backoff_factor: float = 2.0,
     ):
-        self.endpoint = endpoint
-        self.request = request
-        self.response = None
-        self.error = None
         self.api_base: str = api_base or args.comfy_api_base
         self.auth_token = auth_token
         self.comfy_api_key = comfy_api_key
         if auth_kwargs is not None:
+            # Handle standard auth keys
             self.auth_token = auth_kwargs.get("auth_token", self.auth_token)
-            self.comfy_api_key = auth_kwargs.get("comfy_api_key", self.comfy_api_key)
+            self.comfy_api_key = auth_kwargs.get(
+                "comfy_api_key", self.comfy_api_key)
+
+            # Handle Stability AI specific auth keys
+            self.auth_token = auth_kwargs.get(
+                "AUTH_TOKEN_COMFY_ORG", self.auth_token)
+            self.comfy_api_key = auth_kwargs.get(
+                "API_KEY_COMFY_ORG", self.comfy_api_key)
+
+            # Additional fallback: check if auth_token is None but we have the workflow extra_data keys
+            if not self.auth_token:
+                # Try alternative key names that might be used
+                for key in ["AUTH_TOKEN_COMFY_ORG", "auth_token", "comfy_auth_token", "firebase_token"]:
+                    if key in auth_kwargs and auth_kwargs[key]:
+                        self.auth_token = auth_kwargs[key]
+                        print(
+                            f"[DEBUG] Found auth_token using key '{key}': {self.auth_token[:10]}...")
+                        break
+
+            # Debug logging for auth parameter extraction
+            print(f"[DEBUG] auth_kwargs received: {list(auth_kwargs.keys())}")
+            print(
+                f"[DEBUG] Extracted auth_token: {self.auth_token[:10] + '...' if self.auth_token else 'None'}")
+            print(
+                f"[DEBUG] Extracted comfy_api_key: {self.comfy_api_key[:10] + '...' if self.comfy_api_key else 'None'}")
+
+            # If still no auth_token, try to get it from the global workflow context
+            if not self.auth_token:
+                try:
+                    # Try to access ComfyUI's current execution context
+                    import execution
+                    if hasattr(execution, 'current_extra_data') and execution.current_extra_data:
+                        extra_data = execution.current_extra_data
+                        if 'AUTH_TOKEN_COMFY_ORG' in extra_data:
+                            self.auth_token = extra_data['AUTH_TOKEN_COMFY_ORG']
+                            print(
+                                f"[DEBUG] Extracted auth_token from execution context: {self.auth_token[:10]}...")
+                except Exception as e:
+                    print(
+                        f"[DEBUG] Could not extract from execution context: {e}")
+        self.endpoint = endpoint
+        self.request = request
+        self.response = None
+        self.error = None
+        self.files = files
         self.timeout = timeout
         self.verify_ssl = verify_ssl
-        self.files = files
         self.content_type = content_type
         self.multipart_parser = multipart_parser
         self.max_retries = max_retries
@@ -795,6 +893,12 @@ class SynchronousOperation(Generic[T, R]):
     def execute(self, client: Optional[ApiClient] = None) -> R:
         """Execute the API operation using the provided client or create one with retry support"""
         try:
+            # Debug logging for auth parameters
+            print(
+                f"[DEBUG] SynchronousOperation auth_token: {self.auth_token[:10] + '...' if self.auth_token else 'None'}")
+            print(
+                f"[DEBUG] SynchronousOperation comfy_api_key: {self.comfy_api_key[:10] + '...' if self.comfy_api_key else 'None'}")
+
             # Create client if not provided
             if client is None:
                 client = ApiClient(
@@ -807,6 +911,10 @@ class SynchronousOperation(Generic[T, R]):
                     retry_delay=self.retry_delay,
                     retry_backoff_factor=self.retry_backoff_factor,
                 )
+                print(
+                    f"[DEBUG] Created ApiClient with auth_token: {client.auth_token[:10] + '...' if client.auth_token else 'None'}")
+                print(
+                    f"[DEBUG] Created ApiClient with comfy_api_key: {client.comfy_api_key[:10] + '...' if client.comfy_api_key else 'None'}")
 
             # Convert request model to dict, but use None for EmptyRequest
             request_dict = (
@@ -823,8 +931,10 @@ class SynchronousOperation(Generic[T, R]):
             logging.debug(
                 f"[DEBUG] API Request: {self.endpoint.method.value} {self.endpoint.path}"
             )
-            logging.debug(f"[DEBUG] Request Data: {json.dumps(request_dict, indent=2)}")
-            logging.debug(f"[DEBUG] Query Params: {self.endpoint.query_params}")
+            logging.debug(
+                f"[DEBUG] Request Data: {json.dumps(request_dict, indent=2)}")
+            logging.debug(
+                f"[DEBUG] Query Params: {self.endpoint.query_params}")
 
             # Make the request with built-in retry
             resp = client.request(
@@ -841,7 +951,8 @@ class SynchronousOperation(Generic[T, R]):
             logging.debug("=" * 50)
             logging.debug("[DEBUG] RESPONSE DETAILS:")
             logging.debug("[DEBUG] Status Code: 200 (Success)")
-            logging.debug(f"[DEBUG] Response Body: {json.dumps(resp, indent=2)}")
+            logging.debug(
+                f"[DEBUG] Response Body: {json.dumps(resp, indent=2)}")
             logging.debug("=" * 50)
 
             # Parse and return the response
@@ -897,9 +1008,10 @@ class PollingOperation(Generic[T, R]):
         api_base: str | None = None,
         auth_token: Optional[str] = None,
         comfy_api_key: Optional[str] = None,
-        auth_kwargs: Optional[Dict[str,str]] = None,
+        auth_kwargs: Optional[Dict[str, str]] = None,
         poll_interval: float = 5.0,
-        max_poll_attempts: int = 120,  # Default max polling attempts (10 minutes with 5s interval)
+        # Default max polling attempts (10 minutes with 5s interval)
+        max_poll_attempts: int = 120,
         max_retries: int = 3,  # Max retries per individual API call
         retry_delay: float = 1.0,
         retry_backoff_factor: float = 2.0,
@@ -913,7 +1025,8 @@ class PollingOperation(Generic[T, R]):
         self.comfy_api_key = comfy_api_key
         if auth_kwargs is not None:
             self.auth_token = auth_kwargs.get("auth_token", self.auth_token)
-            self.comfy_api_key = auth_kwargs.get("comfy_api_key", self.comfy_api_key)
+            self.comfy_api_key = auth_kwargs.get(
+                "comfy_api_key", self.comfy_api_key)
         self.poll_interval = poll_interval
         self.max_poll_attempts = max_poll_attempts
         self.max_retries = max_retries
@@ -1000,7 +1113,8 @@ class PollingOperation(Generic[T, R]):
         """Poll until the task is complete"""
         poll_count = 0
         consecutive_errors = 0
-        max_consecutive_errors = min(5, self.max_retries * 2)  # Limit consecutive errors
+        # Limit consecutive errors
+        max_consecutive_errors = min(5, self.max_retries * 2)
 
         if self.progress_extractor:
             progress = utils.ProgressBar(PROGRESS_BAR_MAX)
@@ -1036,7 +1150,8 @@ class PollingOperation(Generic[T, R]):
                 consecutive_errors = 0
 
                 # Parse response
-                response_obj = self.poll_endpoint.response_model.model_validate(resp)
+                response_obj = self.poll_endpoint.response_model.model_validate(
+                    resp)
 
                 # Check if task is complete
                 status = self._check_task_status(response_obj)
@@ -1046,7 +1161,8 @@ class PollingOperation(Generic[T, R]):
                 if self.progress_extractor:
                     new_progress = self.progress_extractor(response_obj)
                     if new_progress is not None:
-                        progress.update_absolute(new_progress, total=PROGRESS_BAR_MAX)
+                        progress.update_absolute(
+                            new_progress, total=PROGRESS_BAR_MAX)
 
                 if status == TaskStatus.COMPLETED:
                     message = "Task completed successfully"
@@ -1067,7 +1183,8 @@ class PollingOperation(Generic[T, R]):
                     logging.error(f"[DEBUG] {message}")
                     raise Exception(message)
                 else:
-                    logging.debug("[DEBUG] Task still pending, continuing to poll...")
+                    logging.debug(
+                        "[DEBUG] Task still pending, continuing to poll...")
 
                 # Wait before polling again
                 logging.debug(

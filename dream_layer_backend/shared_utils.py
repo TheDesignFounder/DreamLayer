@@ -12,12 +12,16 @@ from dream_layer_backend_utils.shared_workflow_parameters import increment_seed_
 
 # Global constants
 COMFY_API_URL = "http://127.0.0.1:8188"
-SERVED_IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'served_images')
+SERVED_IMAGES_DIR = os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), 'served_images')
 
 # Model display name mapping file
-MODEL_DISPLAY_NAMES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model_display_names.json')
+MODEL_DISPLAY_NAMES_FILE = os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), 'model_display_names.json')
 
 # Display names are user-friendly names for models, stored in a JSON file
+
+
 def load_model_display_names() -> Dict[str, str]:
     """Load the mapping of actual filenames to display names"""
     try:
@@ -28,6 +32,7 @@ def load_model_display_names() -> Dict[str, str]:
         print(f"Warning: Could not load model display names: {e}")
     return {}
 
+
 def save_model_display_names(mapping: Dict[str, str]) -> None:
     """Save the mapping of actual filenames to display names"""
     try:
@@ -36,11 +41,13 @@ def save_model_display_names(mapping: Dict[str, str]) -> None:
     except Exception as e:
         print(f"Warning: Could not save model display names: {e}")
 
+
 def add_model_display_name(filename: str, display_name: str) -> None:
     """Add a new filename -> display name mapping"""
     mapping = load_model_display_names()
     mapping[filename] = display_name
     save_model_display_names(mapping)
+
 
 def get_model_display_name(filename: str) -> str:
     """Get the display name for a filename, fallback to processed filename"""
@@ -51,6 +58,7 @@ def get_model_display_name(filename: str) -> str:
     # Fallback: process the filename to create a display name
     name = Path(filename).stem.replace('-', ' ').replace('_', ' ')
     return ' '.join(word.capitalize() for word in name.split())
+
 
 # Sampler name mapping from frontend to ComfyUI
 SAMPLER_NAME_MAP = {
@@ -76,58 +84,72 @@ SAMPLER_NAME_MAP = {
 }
 os.makedirs(SERVED_IMAGES_DIR, exist_ok=True)
 
-def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int = 300) -> List[Dict[str, Any]]:
+
+def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int = 900) -> List[Dict[str, Any]]:
     """
     Wait for image generation to complete and return the generated images
     This is a shared function used by both txt2img and img2img servers
     """
     output_dir, _ = get_directories()
     start_time = time.time()
-    
+
     while time.time() - start_time < max_wait_time:
         try:
             # Check queue status
             response = requests.get(f"{COMFY_API_URL}/queue")
             if response.status_code == 200:
                 queue_data = response.json()
-                
+
                 # Check if our prompt is still in queue
                 running_queue = queue_data.get('queue_running', [])
                 pending_queue = queue_data.get('queue_pending', [])
-                
+
                 # Look for our prompt_id in running or pending queues
-                prompt_in_queue = any(item[1] == prompt_id for item in running_queue + pending_queue)
-                
+                prompt_in_queue = any(
+                    item[1] == prompt_id for item in running_queue + pending_queue)
+
                 if not prompt_in_queue:
                     # Prompt is no longer in queue, check for results
-                    history_response = requests.get(f"{COMFY_API_URL}/history/{prompt_id}")
+                    history_response = requests.get(
+                        f"{COMFY_API_URL}/history/{prompt_id}")
                     if history_response.status_code == 200:
                         history_data = history_response.json()
                         if prompt_id in history_data:
                             # Get outputs from the save node
-                            outputs = history_data[prompt_id].get('outputs', {})
+                            outputs = history_data[prompt_id].get(
+                                'outputs', {})
                             if save_node_id in outputs:
-                                images_data = outputs[save_node_id].get('images', [])
-                                print(f"📸 Found {len(images_data)} images in save node {save_node_id}")
+                                images_data = outputs[save_node_id].get(
+                                    'images', [])
+                                print(
+                                    f"📸 Found {len(images_data)} images in save node {save_node_id}")
                                 if images_data:
                                     image_objects = []
                                     for img_info in images_data:
                                         filename = img_info.get('filename')
-                                        print(f"📄 Processing image: {filename}")
+                                        print(
+                                            f"📄 Processing image: {filename}")
                                         if filename:
                                             # Copy to served images directory
-                                            src_path = os.path.join(output_dir, filename)
-                                            dest_path = os.path.join(SERVED_IMAGES_DIR, filename)
-                                            
+                                            src_path = os.path.join(
+                                                output_dir, filename)
+                                            dest_path = os.path.join(
+                                                SERVED_IMAGES_DIR, filename)
+
                                             print(f"📁 Source path: {src_path}")
-                                            print(f"📁 Destination path: {dest_path}")
-                                            print(f"📁 Source exists: {os.path.exists(src_path)}")
-                                            print(f"📁 Dest dir exists: {os.path.exists(SERVED_IMAGES_DIR)}")
-                                            
+                                            print(
+                                                f"📁 Destination path: {dest_path}")
+                                            print(
+                                                f"📁 Source exists: {os.path.exists(src_path)}")
+                                            print(
+                                                f"📁 Dest dir exists: {os.path.exists(SERVED_IMAGES_DIR)}")
+
                                             if os.path.exists(src_path):
                                                 try:
-                                                    shutil.copy2(src_path, dest_path)
-                                                    print(f"✅ Successfully copied {filename} to served directory")
+                                                    shutil.copy2(
+                                                        src_path, dest_path)
+                                                    print(
+                                                        f"✅ Successfully copied {filename} to served directory")
                                                     # Create proper image object with URL
                                                     image_objects.append({
                                                         "filename": filename,
@@ -136,26 +158,30 @@ def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int =
                                                         "subfolder": ""
                                                     })
                                                 except Exception as copy_error:
-                                                    print(f"❌ Error copying {filename}: {copy_error}")
+                                                    print(
+                                                        f"❌ Error copying {filename}: {copy_error}")
                                             else:
-                                                print(f"❌ Source file not found: {src_path}")
-                                    
+                                                print(
+                                                    f"❌ Source file not found: {src_path}")
+
                                     if image_objects:
-                                        print(f"🎉 Returning {len(image_objects)} image objects")
+                                        print(
+                                            f"🎉 Returning {len(image_objects)} image objects")
                                         return image_objects
                                     else:
                                         print("⚠️ No image objects created")
                                 else:
                                     print("⚠️ No images found in save node")
-            
+
             time.sleep(2)  # Wait 2 seconds before checking again
-            
+
         except Exception as e:
             print(f"Error checking image status: {e}")
             time.sleep(2)
-    
+
     print(f"Timeout waiting for image generation (prompt_id: {prompt_id})")
     return []
+
 
 def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -166,7 +192,7 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
         from dream_layer_backend_utils.workflow_loader import analyze_workflow
         workflow_info = analyze_workflow(workflow)
         batch_size = workflow_info['batch_size']
-        
+
         if workflow_info['is_api']:
             # API workflows: remove batch_size, loop multiple times
             for node in workflow.get('prompt', {}).values():
@@ -177,25 +203,28 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
         else:
             # Local workflows: keep batch_size, loop once
             iterations = 1
-        
+
         all_images = []
         last_response_data = None
-        
+
         for i in range(iterations):
             # Increment seed for variation
 
-            current_workflow = increment_seed_in_workflow(copy.deepcopy(workflow), i) if i > 0 else workflow
-            
+            current_workflow = increment_seed_in_workflow(
+                copy.deepcopy(workflow), i) if i > 0 else workflow
+
             # Send to ComfyUI
-            response = requests.post(f"{COMFY_API_URL}/prompt", json=current_workflow)
-            
+            response = requests.post(
+                f"{COMFY_API_URL}/prompt", json=current_workflow)
+
             if response.status_code == 200:
                 response_data = response.json()
                 last_response_data = response_data
                 if "prompt_id" in response_data:
                     save_node_id = find_save_node(current_workflow) or "9"
                     print(f"🔍 Found save node ID: {save_node_id}")
-                    images = wait_for_image(response_data["prompt_id"], save_node_id)
+                    images = wait_for_image(
+                        response_data["prompt_id"], save_node_id)
                     if images:
                         all_images.extend(images)
                     print(f"Iteration {i+1}/{iterations} completed")
@@ -206,7 +235,7 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
                 error_msg = f"ComfyUI server error: {response.status_code} - {response.text}"
                 print(error_msg)
                 return {"error": error_msg}
-        
+
         if all_images:
             # Return the last valid ComfyUI response but with all images
             if last_response_data:
@@ -215,11 +244,12 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
             return last_response_data
         else:
             return {"error": "No images were generated"}
-            
+
     except Exception as e:
         error_msg = f"Error sending workflow to ComfyUI: {str(e)}"
         print(error_msg)
         return {"error": error_msg}
+
 
 def serve_image(filename: str) -> Any:
     """
@@ -227,47 +257,48 @@ def serve_image(filename: str) -> Any:
     This is a shared function used by all servers
     """
     from flask import send_file, jsonify
-    
+
     try:
         # First check in served_images directory (for generated images)
         served_filepath = os.path.join(SERVED_IMAGES_DIR, filename)
-        
+
         if os.path.exists(served_filepath):
             return send_file(served_filepath, mimetype='image/png')
-        
+
         # If not found in served_images, check in ComfyUI input directory (for ControlNet images)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         parent_dir = os.path.dirname(current_dir)
         input_dir = os.path.join(parent_dir, "ComfyUI", "input")
         input_filepath = os.path.join(input_dir, filename)
-        
+
         if os.path.exists(input_filepath):
             return send_file(input_filepath, mimetype='image/png')
-        
+
         # If not found in either location, check ComfyUI output directory
         output_dir, _ = get_directories()
         output_filepath = os.path.join(output_dir, filename)
-        
+
         if os.path.exists(output_filepath):
             return send_file(output_filepath, mimetype='image/png')
-        
+
         # If still not found, return 404
         print(f"❌ Image not found in any directory: {filename}")
         print(f"   Checked: {served_filepath}")
         print(f"   Checked: {input_filepath}")
         print(f"   Checked: {output_filepath}")
-        
+
         return jsonify({
             "status": "error",
             "message": "Image not found"
         }), 404
-            
+
     except Exception as e:
         print(f"❌ Error serving image {filename}: {str(e)}")
         return jsonify({
             "status": "error",
             "message": str(e)
         }), 500
+
 
 def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
     """
@@ -276,35 +307,35 @@ def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
     """
     try:
         print("🖼️ ControlNet image upload request received")
-        
+
         if not file or file.filename == '':
             return {
                 "status": "error",
                 "message": "No file provided or no file selected"
             }, 400
-        
+
         print(f"📁 Uploading file: {file.filename} for unit {unit_index}")
         print(f"📊 File content type: {file.content_type}")
-        
+
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
         input_dir = os.path.join(project_root, "ComfyUI", "input")
         print(f"📁 Target directory: {input_dir}")
-        
+
         os.makedirs(input_dir, exist_ok=True)
-        
+
         timestamp = int(time.time() * 1000)
         filename = f"controlnet_unit_{unit_index}_{timestamp}.png"
         filepath = os.path.join(input_dir, filename)
-        
+
         print(f"📄 Saving to: {filepath}")
         file.save(filepath)
-        
+
         if os.path.exists(filepath):
             file_size = os.path.getsize(filepath)
             print(f"✅ Successfully saved ControlNet image: {filename}")
             print(f"📏 File size: {file_size} bytes")
-            
+
             return {
                 "status": "success",
                 "filename": filename,
@@ -318,7 +349,7 @@ def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
                 "status": "error",
                 "message": "Failed to save file"
             }, 500
-            
+
     except Exception as e:
         print(f"❌ Error uploading ControlNet image: {str(e)}")
         import traceback
@@ -387,7 +418,8 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
                 "message": f"Invalid model type. Allowed: {', '.join(model_type_dirs.keys())}"
             }, 400
 
-        target_dir = os.path.join(comfyui_models_dir, model_type_dirs[model_type])
+        target_dir = os.path.join(
+            comfyui_models_dir, model_type_dirs[model_type])
 
         models_base_dir = Path(comfyui_models_dir).resolve()
         target_dir_path = Path(target_dir).resolve()
@@ -414,8 +446,10 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
         target_path = Path(target_dir) / safe_filename
 
         # Create display name from original filename (without timestamp)
-        original_display_name = Path(file.filename).stem.replace('-', ' ').replace('_', ' ')
-        original_display_name = ' '.join(word.capitalize() for word in original_display_name.split())
+        original_display_name = Path(file.filename).stem.replace(
+            '-', ' ').replace('_', ' ')
+        original_display_name = ' '.join(
+            word.capitalize() for word in original_display_name.split())
 
         final_target_path = target_path.resolve()
         try:
@@ -461,14 +495,17 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
 
             # 💾 DISPLAY NAME: Save the display name mapping
             add_model_display_name(safe_filename, original_display_name)
-            print(f"📝 Display name mapping saved: {safe_filename} -> {original_display_name}")
+            print(
+                f"📝 Display name mapping saved: {safe_filename} -> {original_display_name}")
 
             # 🔄 WEBSOCKET: Emit model refresh event
             try:
                 emit_model_refresh(model_type, safe_filename)
-                print(f"📡 WebSocket event emitted: models-refresh for {model_type}")
+                print(
+                    f"📡 WebSocket event emitted: models-refresh for {model_type}")
             except Exception as ws_error:
-                print(f"⚠️ Warning: Failed to emit WebSocket event: {ws_error}")
+                print(
+                    f"⚠️ Warning: Failed to emit WebSocket event: {ws_error}")
                 # Don't fail the upload if WebSocket fails
 
             return {
@@ -561,10 +598,12 @@ def emit_model_refresh(model_type: str, filename: str) -> None:
             print("✅ WebSocket event sent successfully")
 
         else:
-            print("⚠️ Warning: PromptServer instance not available for WebSocket emission")
+            print(
+                "⚠️ Warning: PromptServer instance not available for WebSocket emission")
 
     except ImportError as e:
-        print(f"⚠️ Warning: Could not import ComfyUI server for WebSocket: {e}")
+        print(
+            f"⚠️ Warning: Could not import ComfyUI server for WebSocket: {e}")
     except Exception as e:
         print(f"❌ Error emitting WebSocket event: {e}")
         import traceback

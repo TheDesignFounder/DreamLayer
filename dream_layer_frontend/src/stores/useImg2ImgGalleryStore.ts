@@ -10,6 +10,8 @@ interface Img2ImgGalleryState {
   images: ImageResult[];
   isLoading: boolean;
   inputImage: InputImage | null;
+  maskFile: File | null; // NEW: mask file
+  maskPreview: string | null; // NEW: mask preview
   coreSettings: CoreGenerationSettings;
   customWorkflow: any | null;
   addImages: (newImages: ImageResult[]) => void;
@@ -17,6 +19,8 @@ interface Img2ImgGalleryState {
   removeImage: (id: string) => void;
   setLoading: (loading: boolean) => void;
   setInputImage: (image: InputImage | null) => void;
+  setMaskFile: (file: File | null) => void; // NEW: set mask file
+  setMaskPreview: (url: string | null) => void; // NEW: set mask preview
   setCustomWorkflow: (workflow: any | null) => void;
   updateCoreSettings: (updates: Partial<CoreGenerationSettings>) => void;
   handlePromptChange: (value: string, isNegative?: boolean) => void;
@@ -32,6 +36,8 @@ export const useImg2ImgGalleryStore = create<Img2ImgGalleryState>((set) => ({
   images: [],
   isLoading: false,
   inputImage: null,
+  maskFile: null, // NEW: mask file
+  maskPreview: null, // NEW: mask preview
   coreSettings: defaultCoreSettings,
   customWorkflow: null,
   addImages: (newImages) => set((state) => ({
@@ -61,6 +67,8 @@ export const useImg2ImgGalleryStore = create<Img2ImgGalleryState>((set) => ({
     }
     return { inputImage: image };
   }),
+  setMaskFile: (file) => set({ maskFile: file }), // NEW: set mask file
+  setMaskPreview: (url) => set({ maskPreview: url }), // NEW: set mask preview
   setCustomWorkflow: (workflow) => set({ customWorkflow: workflow }),
   updateCoreSettings: (updates) => set((state) => ({
     coreSettings: { ...state.coreSettings, ...updates }

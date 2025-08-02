@@ -1,14 +1,25 @@
-import React from 'react';
-import SingleImageUploader from './SingleImageUploader';
-import DualImageUploader from './DualImageUploader';
-import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
+import React from "react";
+import SingleImageUploader from "./SingleImageUploader";
+import DualImageUploader from "./DualImageUploader";
+import { useImg2ImgGalleryStore } from "@/stores/useImg2ImgGalleryStore";
+import { useState } from "react";
 
 interface ImageUploaderProps {
   activeImg2ImgTool?: string;
 }
 
-const ImageUploader = ({ activeImg2ImgTool = "img2img" }: ImageUploaderProps) => {
-  const { inputImage, setInputImage } = useImg2ImgGalleryStore();
+const ImageUploader = ({
+  activeImg2ImgTool = "img2img",
+}: ImageUploaderProps) => {
+  const {
+    inputImage,
+    setInputImage,
+    maskFile,
+    maskPreview,
+    setMaskFile,
+    setMaskPreview,
+  } = useImg2ImgGalleryStore();
+  const [maskError, setMaskError] = useState<string | null>(null);
 
   const handleImageChange = (file: File) => {
     const url = URL.createObjectURL(file);
@@ -16,9 +27,62 @@ const ImageUploader = ({ activeImg2ImgTool = "img2img" }: ImageUploaderProps) =>
   };
 
   const handleMaskChange = (file: File) => {
-    // For now, we'll just handle the main image
-    // TODO: Add mask handling in the future
-    console.log("Mask change:", file);
+    setMaskError(null);
+    // Validate PNG
+    if (file.type !== "image/png") {
+      setMaskError("Only PNG files are accepted.");
+      setMaskFile(null);
+      setMaskPreview(null);
+      return;
+    }
+    // Validate size <= 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      setMaskError("File size must be 10 MB or less.");
+      setMaskFile(null);
+      setMaskPreview(null);
+      return;
+    }
+    // Generate 128px thumbnail
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        // Create canvas for 128px thumbnail
+        const canvas = document.createElement("canvas");
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.fillStyle = "black";
+          ctx.fillRect(0, 0, 128, 128);
+          // Fit image into 128x128, preserving aspect ratio
+          let w = img.width;
+          let h = img.height;
+          let scale = Math.min(128 / w, 128 / h);
+          let nw = w * scale;
+          let nh = h * scale;
+          let nx = (128 - nw) / 2;
+          let ny = (128 - nh) / 2;
+          ctx.drawImage(img, nx, ny, nw, nh);
+          setMaskPreview(canvas.toDataURL("image/png"));
+        } else {
+          setMaskPreview(e.target?.result as string);
+        }
+        setMaskFile(file);
+      };
+      img.onerror = () => {
+        setMaskError("Failed to load image.");
+        setMaskFile(null);
+        setMaskPreview(null);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => {
+      setMaskError("Failed to read file.");
+      setMaskFile(null);
+      setMaskPreview(null);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleImageDrop = (e: React.DragEvent) => {
@@ -63,6 +127,15 @@ const ImageUploader = ({ activeImg2ImgTool = "img2img" }: ImageUploaderProps) =>
     setInputImage(null);
   };
 
+  const handleClearMask = () => {
+    if (maskPreview) {
+      URL.revokeObjectURL(maskPreview);
+    }
+    setMaskFile(null);
+    setMaskPreview(null);
+    setMaskError(null);
+  };
+
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
@@ -73,14 +146,15 @@ const ImageUploader = ({ activeImg2ImgTool = "img2img" }: ImageUploaderProps) =>
           </button>
         )}
       </div>
-      {activeImg2ImgTool === "inpaint-upload" ? (
+      {activeImg2ImgTool === "inpaint-upload" ||
+      activeImg2ImgTool === "inpaint" ? (
         <DualImageUploader
           imagePreview={inputImage?.url || null}
-          maskPreview={null}
+          maskPreview={maskPreview}
           onImageChange={handleImageChange}
           onMaskChange={handleMaskChange}
           onImageClear={handleClearImage}
-          onMaskClear={() => {}}
+          onMaskClear={handleClearMask}
           onImageDrop={handleImageDrop}
           onMaskDrop={handleMaskDrop}
           onDragOver={handleDragOver}
@@ -90,6 +164,9 @@ const ImageUploader = ({ activeImg2ImgTool = "img2img" }: ImageUploaderProps) =>
           onDrop={handleImageDrop}
           onDragOver={handleDragOver}
         />
+      )}
+      {maskError && (
+        <div className="text-red-500 text-xs mt-2">{maskError}</div>
       )}
     </div>
   );
