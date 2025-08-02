@@ -1,7 +1,0 @@
-This directory should contain the following LoRA models:
-
-blue_pencil-XL-v7.0.0.safetensors (6.5GB)
-- Blue pencil art style LoRA for SDXL
-- Download from: Hugging Face
-
-Place all .safetensors LoRA files in this directory. 
