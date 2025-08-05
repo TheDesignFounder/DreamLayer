@@ -4,6 +4,7 @@ from folder_paths import folder_names_and_paths, get_directory_by_type
 from api_server.services.terminal_service import TerminalService
 import app.logger
 import os
+import csv
 
 class InternalRoutes:
     '''
@@ -63,6 +64,28 @@ class InternalRoutes:
                 key=lambda entry: -entry.stat().st_mtime
             )
             return web.json_response([entry.name for entry in sorted_files], status=200)
+        
+        @self.routes.get('/inference/badge')
+        async def get_inference_badge(request):
+            csv_path = "inference_trace.csv"
+            if not os.path.exists(csv_path):
+                return web.json_response({"badge": "N/A"})
+
+            times = []
+            gpu_name = "Unknown"
+
+            with open(csv_path, newline='') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    times.append(float(row["wall_time_sec"]))
+                    gpu_name = row["gpu_name"]
+
+            if not times:
+                return web.json_response({"badge": "N/A"})
+
+            avg_time = sum(times) / len(times)
+            badge = f"{avg_time:.2f} s per image · {gpu_name}"
+            return web.json_response({"badge": badge})
 
 
     def get_app(self):
