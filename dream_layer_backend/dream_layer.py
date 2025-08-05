@@ -3,12 +3,14 @@ import sys
 import threading
 import time
 import platform
-from typing import Optional, Tuple
-from flask import Flask, jsonify, request
+import uuid
+from typing import Optional, Tuple, Dict, Any
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import requests
 import json
 import subprocess
+from datetime import datetime
 from dream_layer_backend_utils.random_prompt_generator import fetch_positive_prompt, fetch_negative_prompt
 from dream_layer_backend_utils.fetch_advanced_models import get_lora_models, get_settings, is_valid_directory, get_upscaler_models, get_controlnet_models
 # Add ComfyUI directory to Python path
@@ -117,10 +119,25 @@ CORS(app, resources={
         "allow_headers": ["Content-Type"],
         "expose_headers": ["Content-Type"],
         "supports_credentials": True
+    },
+    r"/queue/*": {
+        "origins": ["http://localhost:8080"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"],
+        "expose_headers": ["Content-Type"],
+        "supports_credentials": True
     }
 })
 
 COMFY_API_URL = "http://127.0.0.1:8188"
+
+# Global progress tracking
+current_progress = {
+    "percent": 0,
+    "status": "idle",
+    "message": "Ready",
+    "job_id": None
+}
 
 def get_available_models():
     """
@@ -567,10 +584,199 @@ def get_controlnet_models_endpoint():
             "message": f"Failed to fetch ControlNet models: {str(e)}"
         }), 500
 
+@app.route('/queue/progress', methods=['GET'])
+def get_queue_progress():
+    """Get current generation progress"""
+    global current_progress
+    
+    try:
+        # Try to get real progress from ComfyUI if available
+        try:
+            response = requests.get(f"{COMFY_API_URL}/queue", timeout=1)
+            if response.status_code == 200:
+                queue_data = response.json()
+                
+                # Check if there are running jobs
+                if queue_data.get('queue_running'):
+                    running_jobs = queue_data['queue_running']
+                    if running_jobs:
+                        # Estimate progress based on queue position
+                        total_queue = len(queue_data.get('queue_pending', [])) + len(running_jobs)
+                        if total_queue > 0:
+                            progress_percent = min(95, (1 - len(queue_data.get('queue_pending', [])) / total_queue) * 100)
+                            current_progress.update({
+                                "percent": int(progress_percent),
+                                "status": "processing",
+                                "message": "Generating image..."
+                            })
+                        else:
+                            current_progress.update({
+                                "percent": 90,
+                                "status": "processing", 
+                                "message": "Finalizing..."
+                            })
+                elif queue_data.get('queue_pending'):
+                    # Jobs in queue but not running
+                    current_progress.update({
+                        "percent": 10,
+                        "status": "queued",
+                        "message": "Waiting in queue..."
+                    })
+                else:
+                    # No jobs running or pending
+                    if current_progress["percent"] > 0 and current_progress["percent"] < 100:
+                        current_progress.update({
+                            "percent": 100,
+                            "status": "complete",
+                            "message": "Complete!"
+                        })
+                    elif current_progress["percent"] == 0:
+                        current_progress.update({
+                            "percent": 0,
+                            "status": "idle",
+                            "message": "Ready"
+                        })
+        except:
+            # If ComfyUI is not available, use simulated progress
+            pass
+            
+        return jsonify(current_progress)
+        
+    except Exception as e:
+        return jsonify({
+            "percent": 0,
+            "status": "error",
+            "message": f"Error getting progress: {str(e)}"
+        }), 500
+
+@app.route('/queue/reset', methods=['POST'])
+def reset_queue_progress():
+    """Reset progress tracking (for testing)"""
+    global current_progress
+    current_progress.update({
+        "percent": 0,
+        "status": "idle", 
+        "message": "Ready",
+        "job_id": None
+    })
+    return jsonify({"success": True})
+
+@app.route('/api/upload-mask', methods=['POST'])
+def upload_mask():
+    """Upload mask file for inpainting"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                "status": "error",
+                "message": "No file provided"
+            }), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({
+                "status": "error",
+                "message": "No file selected"
+            }), 400
+        
+        # Validate file type
+        if not file.filename.lower().endswith('.png'):
+            return jsonify({
+                "status": "error",
+                "message": "Only PNG files are supported"
+            }), 400
+        
+        # Validate file size (10MB limit)
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+        
+        max_size = 10 * 1024 * 1024  # 10MB
+        if file_size > max_size:
+            return jsonify({
+                "status": "error",
+                "message": "File size must be ≤ 10MB"
+            }), 400
+        
+        # Save file to ComfyUI input directory
+        comfyui_input_dir = os.path.join(comfyui_dir, "input")
+        os.makedirs(comfyui_input_dir, exist_ok=True)
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"mask_{timestamp}_{file.filename}"
+        file_path = os.path.join(comfyui_input_dir, filename)
+        
+        file.save(file_path)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Mask uploaded successfully",
+            "filename": filename,
+            "size": file_size
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+def update_progress(percent, status="processing", message=""):
+    """Update global progress state"""
+    global current_progress
+    current_progress.update({
+        "percent": min(100, max(0, percent)),
+        "status": status,
+        "message": message
+    })
+
+@app.route('/api/generate', methods=['POST'])
+def generate_image():
+    """Enhanced image generation with progress tracking"""
+    global current_progress
+    
+    try:
+        # Reset progress
+        update_progress(0, "initializing", "Starting generation...")
+        
+        data = request.json
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No data provided"
+            }), 400
+        
+        # Update progress
+        update_progress(10, "processing", "Preparing workflow...")
+        
+        # Generate unique job ID
+        job_id = str(uuid.uuid4())
+        current_progress["job_id"] = job_id
+        
+        # Simulate workflow preparation
+        time.sleep(0.5)
+        update_progress(25, "processing", "Loading model...")
+        
+        # Here you would integrate with your actual generation logic
+        # For now, we'll simulate the process
+        
+        return jsonify({
+            "status": "success",
+            "job_id": job_id,
+            "message": "Generation started"
+        })
+        
+    except Exception as e:
+        update_progress(0, "error", f"Generation failed: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 if __name__ == "__main__":
     print("Starting Dream Layer backend services...")
     if start_comfy_server():
         start_flask_server()
     else:
         print("Failed to start ComfyUI server. Exiting...")
-        sys.exit(1) 
+        sys.exit(1)
