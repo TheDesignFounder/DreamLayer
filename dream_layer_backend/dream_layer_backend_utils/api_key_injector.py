@@ -132,16 +132,16 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
         # Priority: BFL_API_KEY first, then OPENAI_API_KEY, then LUMA_API_KEY, then IDEOGRAM_API_KEY
         if "BFL_API_KEY" in needed_env_keys and "BFL_API_KEY" in all_api_keys:
             api_key_comfy_org = all_api_keys["BFL_API_KEY"]
-            print(f"[DEBUG] Using BFL_API_KEY for api_key_comfy_org")
+            print("[DEBUG] Using BFL_API_KEY for api_key_comfy_org")
         elif "OPENAI_API_KEY" in needed_env_keys and "OPENAI_API_KEY" in all_api_keys:
             api_key_comfy_org = all_api_keys["OPENAI_API_KEY"]
-            print(f"[DEBUG] Using OPENAI_API_KEY for api_key_comfy_org")
+            print("[DEBUG] Using OPENAI_API_KEY for api_key_comfy_org")
         elif "LUMA_API_KEY" in needed_env_keys and "LUMA_API_KEY" in all_api_keys:
             api_key_comfy_org = all_api_keys["LUMA_API_KEY"]
-            print(f"[DEBUG] Using LUMA_API_KEY for api_key_comfy_org")
+            print("[DEBUG] Using LUMA_API_KEY for api_key_comfy_org")
         elif "IDEOGRAM_API_KEY" in needed_env_keys and "IDEOGRAM_API_KEY" in all_api_keys:
             api_key_comfy_org = all_api_keys["IDEOGRAM_API_KEY"]
-            print(f"[DEBUG] Using IDEOGRAM_API_KEY for api_key_comfy_org")
+            print("[DEBUG] Using IDEOGRAM_API_KEY for api_key_comfy_org")
         else:
             print(f"[DEBUG] No available API keys for needed services: {needed_env_keys}")
     

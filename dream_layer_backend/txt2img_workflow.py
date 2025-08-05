@@ -158,11 +158,11 @@ def transform_to_txt2img_workflow(data):
         
         # Load workflow using the workflow loader
         workflow = load_workflow(workflow_request)
-        print(f"Workflow loaded successfully")
+        print("Workflow loaded successfully")
         
         # Inject API keys if needed (for DALL-E, FLUX, etc.)
         workflow = inject_api_keys_into_workflow(workflow)
-        print(f"API keys injected")
+        print("API keys injected")
         
         # Custom workflow support from smallFeatures
         custom_workflow = data.get('custom_workflow')
@@ -180,39 +180,39 @@ def transform_to_txt2img_workflow(data):
             workflow = override_workflow(workflow, core_generation_settings)
             print("No valid custom workflow provided, using default workflow with overrides")
         
-        print(f"Core settings applied")
+        print("Core settings applied")
         
         # Apply LoRA parameters if enabled
         if use_lora:
-            print(f"Applying LoRA parameters...")
+            print("Applying LoRA parameters...")
             workflow = inject_lora_parameters(workflow, data.get('lora', {}))
         
         # Apply ControlNet parameters if enabled
         if use_controlnet:
-            print(f"Applying ControlNet parameters...")
+            print("Applying ControlNet parameters...")
             workflow = inject_controlnet_parameters(workflow, controlnet_data)
         
         # Apply Face Restoration parameters if enabled
         if use_face_restoration:
-            print(f"Applying Face Restoration parameters...")
+            print("Applying Face Restoration parameters...")
             workflow = inject_face_restoration_parameters(workflow, face_restoration_data)
         
         # Apply Tiling parameters if enabled
         if use_tiling:
-            print(f"Applying Tiling parameters...")
+            print("Applying Tiling parameters...")
             workflow = inject_tiling_parameters(workflow, tiling_data)
         
         # Apply Hires.fix parameters if enabled
         if hires_fix_data.get('hires_fix', False):
-            print(f"Applying Hires.fix parameters...")
+            print("Applying Hires.fix parameters...")
             workflow = inject_hires_fix_parameters(workflow, hires_fix_data)
         
         # Apply Refiner parameters if enabled
         if refiner_data.get('refiner_enabled', False):
-            print(f"Applying Refiner parameters...")
+            print("Applying Refiner parameters...")
             workflow = inject_refiner_parameters(workflow, refiner_data)
         
-        print(f"Workflow transformation complete")
+        print("Workflow transformation complete")
         print(f"Generated workflow: {json.dumps(workflow, indent=2)}")
         return workflow
         

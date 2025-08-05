@@ -133,7 +133,7 @@ if args.cpu:
 
 # Auto-detect if CUDA is not available and fall back to CPU
 if cpu_state == CPUState.GPU and not torch.cuda.is_available():
-    print("CUDA not available, falling back to CPU mode")
+    logging.info("CUDA not available, falling back to CPU mode")
     cpu_state = CPUState.CPU
 
 def is_intel_xpu():

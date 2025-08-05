@@ -45,7 +45,7 @@ def handle_txt2img():
             
             # Check ControlNet data specifically
             controlnet_data = data.get('controlnet', {})
-            print(f"\nControlNet Data:")
+            print("\nControlNet Data:")
             print("-"*20)
             print(f"ControlNet enabled: {controlnet_data.get('enabled', False)}")
             if controlnet_data.get('units'):
