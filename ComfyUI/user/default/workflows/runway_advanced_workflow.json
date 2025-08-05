@@ -2,7 +2,8 @@
     "3": {
       "class_type": "RunwayText2ImgNode",
       "inputs": {
-        "prompt": "A beautiful sunset over mountains with dramatic clouds"
+        "prompt": "A beautiful sunset over mountains with dramatic clouds",
+        "ratio": "1024:1024"
       }
     },
     "4": {

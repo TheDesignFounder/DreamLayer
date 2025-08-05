@@ -782,6 +782,18 @@ class RunwayText2ImgNode(ComfyNodeABC):
             raise ConnectionError(f"Failed to connect to Runway API: {str(e)}")
         except Exception as e:
             raise RuntimeError(f"Unhandled error: {str(e)}")
+        
+        except requests.exceptions.HTTPError:
+            if response.status_code == 401:
+                raise RunwayApiError("Invalid Runway API key. Please check your RUNWAY_API_KEY.")
+            elif response.status_code == 400:
+                raise RunwayApiError(f"Bad request: {response.text}")
+            else:
+                raise RunwayApiError(f"Runway API error (HTTP {response.status_code}): {response.text}")
+        except requests.exceptions.RequestException as e:
+            raise RunwayApiError(f"Failed to connect to Runway API: {str(e)}")
+        except Exception as e:
+            raise RunwayApiError(f"Unhandled error: {str(e)}")
 
 # Node mappings
 NODE_CLASS_MAPPINGS = {

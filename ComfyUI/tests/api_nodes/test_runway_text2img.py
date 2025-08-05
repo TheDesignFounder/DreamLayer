@@ -1,185 +1,101 @@
+"""
+Integration test for Runway Text2Img Node.
+This test should be run when the full ComfyUI environment is available.
+"""
+
 import os
+import sys
+import ast
 import pytest
 import torch
-import base64
-import io
-import numpy as np
+import importlib.util
 from unittest import mock
-from PIL import Image
 
-# Test the core functionality without importing the full node
-def test_base64_to_tensor_conversion():
-    """Test converting base64 image data to tensor."""
-    # Create a simple 1x1 red image
-    image = Image.new('RGB', (1, 1), color='red')
+# --- Setup Helpers ---
+
+def get_comfyui_root():
+    return os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+def get_nodes_file_path():
+    return os.path.join(get_comfyui_root(), "comfy_api_nodes", "nodes_runway.py")
+
+def read_nodes_file():
+    with open(get_nodes_file_path(), "r") as f:
+        return f.read()
+
+# --- Fixtures ---
+
+@pytest.fixture(scope="module", autouse=True)
+def add_comfyui_to_sys_path():
+    """Automatically add ComfyUI paths to sys.path for all tests."""
+    comfyui_root = get_comfyui_root()
+    current_dir = os.path.dirname(os.path.dirname(__file__))
+    sys.path.insert(0, comfyui_root)
+    sys.path.insert(0, current_dir)
+
+# --- Tests ---
+
+def test_nodes_file_exists():
+    """Test that the node file exists."""
+    assert os.path.exists(get_nodes_file_path()), "nodes_runway.py file is missing"
+
+def test_runway_node_has_expected_content():
+    """Test that expected strings exist in the source code."""
+    content = read_nodes_file()
     
-    # Convert to base64
-    buffer = io.BytesIO()
-    image.save(buffer, format='PNG')
-    image_bytes = buffer.getvalue()
-    base64_string = base64.b64encode(image_bytes).decode('utf-8')
+    expected_lines = [
+        "class RunwayText2ImgNode",
+        "RETURN_TYPES = (\"IMAGE\",)",
+        "FUNCTION = \"generate_image\"",
+        "CATEGORY = \"api node/image/Runway\"",
+        "def generate_image(self, prompt: str, ratio: str, unique_id: Optional[str] = None",
+        "RUNWAY_API_KEY",
+    ]
     
-    # Convert back to tensor (simulating the node's conversion logic)
-    image_bytes = base64.b64decode(base64_string)
-    image = Image.open(io.BytesIO(image_bytes))
-    
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
-    
-    image_array = np.array(image).astype(np.float32) / 255.0
-    image_tensor = torch.from_numpy(image_array).permute(2, 0, 1)  # HWC to CHW
-    image_tensor = image_tensor.unsqueeze(0)  # Add batch dimension
-    
-    assert isinstance(image_tensor, torch.Tensor)
-    assert image_tensor.shape == (1, 3, 1, 1)
-    assert image_tensor.dtype == torch.float32
+    for line in expected_lines:
+        assert line in content, f"Expected line missing: {line}"
 
-def test_api_key_validation():
-    """Test API key validation logic."""
-    # Test missing API key
-    if "RUNWAY_API_KEY" in os.environ:
-        del os.environ["RUNWAY_API_KEY"]
-    
-    api_key = os.getenv('RUNWAY_API_KEY')
-    assert api_key is None
-    
-    # Test with fake API key
-    os.environ["RUNWAY_API_KEY"] = "fake_key"
-    api_key = os.getenv('RUNWAY_API_KEY')
-    assert api_key == "fake_key"
+def test_runway_node_ast_valid_and_has_generate_image():
+    """Test that RunwayText2ImgNode and generate_image() exist via AST."""
+    content = read_nodes_file()
+    tree = ast.parse(content)
 
-def test_prompt_validation():
-    """Test prompt validation logic."""
-    # Test empty prompt
-    prompt = ""
-    assert not prompt or not prompt.strip()
-    
-    # Test whitespace-only prompt
-    prompt = "   "
-    assert not prompt or not prompt.strip()
-    
-    # Test valid prompt
-    prompt = "A cat in space"
-    assert prompt and prompt.strip()
+    class_defs = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+    runway_node = next((cls for cls in class_defs if cls.name == "RunwayText2ImgNode"), None)
 
-@mock.patch("requests.post")
-def test_api_request_structure(mock_post):
-    """Test the structure of API requests."""
-    # Mock successful response
-    mock_post.return_value.status_code = 200
-    mock_post.return_value.json.return_value = {
-        "output": "fake_base64_data"
-    }
-    
-    # Test API request structure
-    url = "https://api.dev.runwayml.com/v1/text_to_image"
-    headers = {
-        "Authorization": "Bearer fake_key",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "prompt": "A cat in space",
-        "model": "gen4_image",
-        "ratio": "1:1"
-    }
-    
-    # This would be the actual request in the node
-    # response = requests.post(url, headers=headers, json=payload, timeout=60)
-    
-    # Verify the structure is correct
-    assert url == "https://api.dev.runwayml.com/v1/text_to_image"
-    assert "Authorization" in headers
-    assert "Content-Type" in headers
-    assert "prompt" in payload
-    assert "model" in payload
-    assert "ratio" in payload
+    assert runway_node is not None, "RunwayText2ImgNode class not found"
 
-@mock.patch("requests.post")
-def test_http_400_bad_request(mock_post):
-    mock_post.return_value.status_code = 400
-    mock_post.return_value.text = "Bad request example"
-    mock_post.return_value.raise_for_status.side_effect = Exception("400 Error")
+    func_defs = [f for f in runway_node.body if isinstance(f, ast.FunctionDef)]
+    func_names = [f.name for f in func_defs]
+    assert "generate_image" in func_names, "generate_image method not found in RunwayText2ImgNode"
 
-    with pytest.raises(Exception) as exc_info:
-        # simulate your actual API logic here
-        raise Exception(f"Bad request to Runway API: {mock_post.return_value.text}")
+    func = next(f for f in func_defs if f.name == "generate_image")
+    arg_names = [arg.arg for arg in func.args.args]
 
-    assert "Bad request to Runway API" in str(exc_info.value)
+    assert "prompt" in arg_names, "Missing 'prompt' argument"
+    assert "ratio" in arg_names, "Missing 'ratio' argument"
+    assert "unique_id" in arg_names, "Missing 'unique_id' argument"
 
-@mock.patch("requests.post")
-def test_http_401_unauthorized(mock_post):
-    mock_post.return_value.status_code = 401
-    mock_post.return_value.text = "Unauthorized"
-    mock_post.return_value.raise_for_status.side_effect = Exception("401 Unauthorized")
+def test_runway_node_mappings_exist():
+    """Test NODE_CLASS_MAPPINGS and NODE_DISPLAY_NAME_MAPPINGS are present and valid."""
+    content = read_nodes_file()
+    assert "NODE_CLASS_MAPPINGS" in content, "NODE_CLASS_MAPPINGS not found"
+    assert "RunwayText2ImgNode" in content, "RunwayText2ImgNode not in NODE_CLASS_MAPPINGS"
+    assert "NODE_DISPLAY_NAME_MAPPINGS" in content, "NODE_DISPLAY_NAME_MAPPINGS not found"
 
-    with pytest.raises(Exception) as exc_info:
-        raise Exception("Invalid Runway API key. Please check your RUNWAY_API_KEY.")
-
-    assert "Invalid Runway API key" in str(exc_info.value)
-
-@mock.patch("requests.post")
-def test_http_500_server_error(mock_post):
-    mock_post.return_value.status_code = 500
-    mock_post.return_value.text = "Internal Server Error"
-    mock_post.return_value.raise_for_status.side_effect = Exception("500 Internal Error")
-
-    with pytest.raises(Exception) as exc_info:
-        raise Exception(f"Runway API error (HTTP 500): Internal Server Error")
-
-    assert "Runway API error (HTTP 500)" in str(exc_info.value)
-
-@mock.patch("requests.get")
-def test_api_polling_timeout(mock_get):
-    mock_get.return_value.status_code = 200
-    mock_get.return_value.json.return_value = {
-        "status": "IN_PROGRESS"
+def test_runway_node_import_with_mock_dependencies():
+    """Test node file can be imported with mocked dependencies."""
+    mock_modules = {
+        'utils.json_util': mock.MagicMock(),
+        'server': mock.MagicMock(),
+        'comfy': mock.MagicMock(),
+        'comfy.comfy_types': mock.MagicMock(),
+        'comfy.comfy_types.node_typing': mock.MagicMock(),
     }
 
-    # Simulate timeout after N retries
-    max_attempts = 5
-    for _ in range(max_attempts):
-        status = mock_get.return_value.json()["status"]
-        assert status == "IN_PROGRESS"
+    with mock.patch.dict('sys.modules', mock_modules):
+        spec = importlib.util.spec_from_file_location("nodes_runway", get_nodes_file_path())
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-    # Simulate exception due to timeout
-    with pytest.raises(Exception) as exc_info:
-        raise Exception("Timeout waiting for image generation.")
-
-    assert "Timeout waiting for image generation" in str(exc_info.value)
-
-@mock.patch("requests.get")
-def test_image_download_failure(mock_get):
-    mock_get.return_value.status_code = 404
-    mock_get.return_value.raise_for_status.side_effect = Exception("404 Not Found")
-
-    with pytest.raises(Exception) as exc_info:
-        raise Exception("No image URL found in successful response.")
-
-    assert "No image URL found" in str(exc_info.value)
-
-def test_invalid_tensor_shape():
-    bad_tensor = torch.rand(1, 1, 256, 256)  # Wrong channel count
-
-    with pytest.raises(ValueError) as exc_info:
-        if bad_tensor.shape[1] != 3:
-            raise ValueError(f"Unexpected image tensor shape: {bad_tensor.shape}")
-
-    assert "Unexpected image tensor shape" in str(exc_info.value)
-
-def test_error_handling():
-    """Test error handling patterns."""
-    # Test ValueError for missing API key
-    try:
-        raise ValueError(
-            "RUNWAY_API_KEY environment variable is required but not set. "
-            "Please set your Runway API key in the .env file or environment variables."
-        )
-    except ValueError as e:
-        assert "RUNWAY_API_KEY" in str(e)
-    
-    # Test ValueError for empty prompt
-    try:
-        raise ValueError("Prompt cannot be empty")
-    except ValueError as e:
-        assert "Prompt cannot be empty" in str(e)
+        assert hasattr(module, "RunwayText2ImgNode"), "RunwayText2ImgNode not found after import"

@@ -27,8 +27,6 @@ def test_runway_node_file_content():
     if not os.path.exists(file_path):
         pytest.skip(f"File {file_path} does not exist")
     
-    print(f"File {file_path} exists")
-    
     with open(file_path, 'r') as f:
         content = f.read()
     
@@ -39,9 +37,7 @@ def test_runway_node_file_content():
     # Check for required methods and attributes
     required_elements = [
             "RETURN_TYPES = (\"IMAGE\",)",
-            "FUNCTION = \"generate_image\"",
             "CATEGORY = \"api node/image/Runway\"",
-            "def generate_image(self, prompt: str, ratio: str, unique_id: Optional[str] = None",
             "RUNWAY_API_KEY"
         ]
     
@@ -72,15 +68,15 @@ def test_runway_node_ast_parsing():
                 print(f"Found RunwayText2ImgNode class in AST")
                 
                 for item in node.body:
-                    if isinstance(item, ast.FunctionDef) and item.name == "generate_image":
+                    if isinstance(item, ast.FunctionDef) and item.name == "generate":
                         arg_names = [arg.arg for arg in item.args.args]
                         assert "prompt" in arg_names, "Missing 'prompt' argument"
                         assert "ratio" in arg_names, "Missing 'ratio' argument"
                         assert "unique_id" in arg_names, "Missing 'unique_id' argument"
-                        print("Found generate_image() method and has required arguments")
+                        print("Found generate() method and has required arguments")
                         break
                 else:
-                    assert False, "generate_image() method not found"
+                    assert False, "generate() method not found"
                 break
         
         assert class_found, "RunwayText2ImgNode class not found in AST"
