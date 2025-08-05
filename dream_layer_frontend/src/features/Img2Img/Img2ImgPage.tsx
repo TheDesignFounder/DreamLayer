@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ImageUploader from '@/components/ImageUploader';
 import AdvancedSettings from '@/components/AdvancedSettings';
 import ExternalExtensions from '@/components/ExternalExtensions';
@@ -16,6 +16,8 @@ import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+import { HOTKEYS } from '@/hooks/useHotkeys';
+import { useSaveSettings } from '@/hooks/useSaveSettings';
 
 import {
   Accordion,
@@ -26,6 +28,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface Img2ImgPageProps {
@@ -40,6 +43,9 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const [batchSize, setBatchSize] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Add save settings hook
+  const { saveSettings } = useSaveSettings();
   
   // ControlNet configuration will be managed by useControlNetStore
   
@@ -98,7 +104,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     setControlNetConfig(config?.enabled ? config : null);
   };
 
-  const handleGenerateImage = async () => {
+  const handleGenerateImage = useCallback(async () => {
     if (isGenerating) {
       await fetch('http://localhost:5004/api/img2img/interrupt', {
         method: 'POST',
@@ -173,7 +179,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
         
         testImage.onload = () => {
           console.log('Test image loaded successfully:', firstImageUrl);
-          const images = data.comfy_response.generated_images.map((img: any) => ({
+          const images = data.comfy_response.generated_images.map((img: { url: string; timestamp: string }) => ({
             id: `${Date.now()}-${Math.random()}`,
             url: img.url,
             prompt: requestData.prompt,
@@ -207,7 +213,26 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       setLoading(false);
       setIsGenerating(false);
     }
-  };
+  }, [isGenerating, setLoading, controlNetConfig, coreSettings, customWorkflow, selectedLora, addImages, inputImage, selectedModel]);
+
+  // Add hotkey event listeners
+  useEffect(() => {
+    const handleHotkeyGenerate = () => {
+      handleGenerateImage();
+    };
+
+    const handleHotkeySaveSettings = () => {
+      saveSettings();
+    };
+
+    window.addEventListener('hotkey:generate', handleHotkeyGenerate);
+    window.addEventListener('hotkey:saveSettings', handleHotkeySaveSettings);
+    
+    return () => {
+      window.removeEventListener('hotkey:generate', handleHotkeyGenerate);
+      window.removeEventListener('hotkey:saveSettings', handleHotkeySaveSettings);
+    };
+  }, [handleGenerateImage, saveSettings]);
 
   const getSectionTitle = () => {
     switch (activeSubTab) {
@@ -406,16 +431,33 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <h3 className="text-base font-medium text-foreground">Image to Image Generation</h3>
             <div className="flex space-x-2">
-              <Button 
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                onClick={handleGenerateImage}
-                disabled={!inputImage}
-              >
-                {isGenerating ? 'Interrupt' : 'Generate Image'}
-              </Button>
-              {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                Save Settings
-              </button>}
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button 
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    onClick={handleGenerateImage}
+                    disabled={!inputImage}
+                  >
+                    {isGenerating ? 'Interrupt' : 'Generate Image'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isGenerating ? 'Click to interrupt image generation' : `Generate image (${HOTKEYS.GENERATE})`}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button 
+                    className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                    onClick={saveSettings}
+                  >
+                    Save Settings
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save current settings ({HOTKEYS.SAVE_SETTINGS})</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
           
