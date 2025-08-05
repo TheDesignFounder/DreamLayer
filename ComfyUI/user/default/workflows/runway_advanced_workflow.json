@@ -1,17 +1,4 @@
 {
-    "1": {
-      "class_type": "CLIPTextEncode",
-      "inputs": {
-        "prompt": "A beautiful sunset over mountains with dramatic clouds, high quality, detailed",
-        "clip": ["2", 0]
-      }
-    },
-    "2": {
-      "class_type": "CheckpointLoaderSimple",
-      "inputs": {
-        "ckpt_name": "v1-5-pruned.ckpt"
-      }
-    },
     "3": {
       "class_type": "RunwayText2ImgNode",
       "inputs": {

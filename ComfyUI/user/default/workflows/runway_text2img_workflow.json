@@ -2,21 +2,22 @@
   "1": {
     "class_type": "RunwayText2ImgNode",
     "inputs": {
-      "prompt": "A beautiful sunset over mountains with dramatic clouds",
-      "ratio": "1024:1024"
+      "prompt": "A beautiful sunset over mountains and forest with dramatic clouds",
+      "ratio": "1024:1024",
+      "timeout": 120
     }
   },
   "2": {
-    "class_type": "PreviewImage",
-    "inputs": {
-      "images": ["1", 0]
-    }
-  },
-  "3": {
     "class_type": "SaveImage",
     "inputs": {
       "images": ["1", 0],
       "filename_prefix": "runway_generated_img"
     }
+  },
+  "3": {
+    "class_type": "PreviewImage",
+    "inputs": {
+      "images": ["1", 0]
+    }
   }
-} 
+}

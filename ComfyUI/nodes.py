@@ -1581,8 +1581,22 @@ class SaveImage:
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
         results = list()
         for (batch_number, image) in enumerate(images):
-            i = 255. * image.cpu().numpy()
-            img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+            # Ensure image is [C, H, W]
+            if image.ndim == 4:
+                image = image.squeeze(0)  # from [1, C, H, W] → [C, H, W]
+            elif image.ndim != 3:
+                raise ValueError(f"Unexpected image shape: {image.shape}")
+
+            img_np = image.permute(1, 2, 0).cpu().numpy()  # [H, W, C]
+            if img_np.max() <= 1.0:
+               img_np = (img_np * 255).astype(np.uint8)
+            else:
+               img_np = np.clip(img_np, 0, 255).astype(np.uint8)
+ 
+            if img_np.shape[2] != 3:
+               raise ValueError(f"Image must have 3 channels, got shape: {img_np.shape}")
+
+            img = Image.fromarray(img_np)
             metadata = None
             if not args.disable_metadata:
                 metadata = PngInfo()
@@ -1785,15 +1799,16 @@ class ImageScale:
         if width == 0 and height == 0:
             s = image
         else:
-            samples = image.movedim(-1,1)
+           samples = image  # already [B, C, H, W]
 
-            if width == 0:
-                width = max(1, round(samples.shape[3] * height / samples.shape[2]))
-            elif height == 0:
-                height = max(1, round(samples.shape[2] * width / samples.shape[3]))
+        if width == 0:
+            width = max(1, round(samples.shape[3] * height / samples.shape[2]))
+        elif height == 0:
+            height = max(1, round(samples.shape[2] * width / samples.shape[3]))
 
-            s = comfy.utils.common_upscale(samples, width, height, upscale_method, crop)
-            s = s.movedim(1,-1)
+        # Perform upscaling using ComfyUI utils
+        s = comfy.utils.common_upscale(samples, width, height, upscale_method, crop)
+
         return (s,)
 
 class ImageScaleBy:
