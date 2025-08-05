@@ -35,6 +35,8 @@ from app.model_manager import ModelFileManager
 from app.custom_node_manager import CustomNodeManager
 from typing import Optional, Union
 from api_server.routes.internal.internal_routes import InternalRoutes
+import threading
+import time
 
 class BinaryEventTypes:
     PREVIEW_IMAGE = 1
@@ -165,6 +167,10 @@ class PromptServer():
         self.messages = asyncio.Queue()
         self.client_session:Optional[aiohttp.ClientSession] = None
         self.number = 0
+        
+        # Task progress tracking
+        self.task_progress = {}  # prompt_id -> progress info
+        self.task_progress_lock = threading.RLock()
 
         middlewares = [cache_control]
         if args.enable_compress_response_body:
@@ -625,6 +631,53 @@ class PromptServer():
             queue_info['queue_pending'] = current_queue[1]
             return web.json_response(queue_info)
 
+        @routes.get("/queue/progress")
+        async def get_queue_progress(request):
+            progress_info = {}
+            current_queue = self.prompt_queue.get_current_queue_volatile()
+            running_queue = current_queue[0]
+            pending_queue = current_queue[1]
+            
+            # Calculate progress based on actual task completion
+            total_tasks = len(running_queue) + len(pending_queue)
+            
+            if total_tasks == 0:
+                # No tasks in queue, clear any stale progress data and return 0% progress
+                self.clear_all_progress()
+                
+                progress_info['percent'] = 0
+                progress_info['status'] = 'idle'
+                progress_info['queue_running'] = []
+                progress_info['queue_pending'] = []
+                progress_info['task_details'] = []
+            else:
+                # Calculate progress based on actual task progress
+                overall_progress = self.get_overall_progress()
+                
+                if len(running_queue) > 0:
+                    progress_info['status'] = 'running'
+                else:
+                    progress_info['status'] = 'pending'
+                
+                progress_info['percent'] = overall_progress
+                progress_info['queue_running'] = running_queue
+                progress_info['queue_pending'] = pending_queue
+                
+                # Include detailed task progress information
+                task_details = []
+                with self.task_progress_lock:
+                    for prompt_id, progress in self.task_progress.items():
+                        task_details.append({
+                            'prompt_id': prompt_id,
+                            'current_step': progress['current_step'],
+                            'total_steps': progress['total_steps'],
+                            'step_name': progress['step_name'],
+                            'percent': progress['percent']
+                        })
+                progress_info['task_details'] = task_details
+            
+            return web.json_response(progress_info)
+
         @routes.post("/prompt")
         async def post_prompt(request):
             logging.info("got prompt")
@@ -674,17 +727,23 @@ class PromptServer():
             if "clear" in json_data:
                 if json_data["clear"]:
                     self.prompt_queue.wipe_queue()
+                    # Clear all progress data when queue is wiped
+                    self.clear_all_progress()
             if "delete" in json_data:
                 to_delete = json_data['delete']
                 for id_to_delete in to_delete:
                     delete_func = lambda a: a[1] == id_to_delete
                     self.prompt_queue.delete_queue_item(delete_func)
+                    # Clear progress for deleted tasks
+                    self.clear_task_progress(id_to_delete)
 
             return web.Response(status=200)
 
         @routes.post("/interrupt")
         async def post_interrupt(request):
             nodes.interrupt_processing()
+            # Clear all progress data when processing is interrupted
+            self.clear_all_progress()
             return web.Response(status=200)
 
         @routes.post("/free")
@@ -714,6 +773,8 @@ class PromptServer():
     async def setup(self):
         timeout = aiohttp.ClientTimeout(total=None) # no timeout
         self.client_session = aiohttp.ClientSession(timeout=timeout)
+        # Clear any stale progress data on startup
+        self.clear_all_progress()
 
     def add_routes(self):
         self.user_manager.add_routes(self.routes)
@@ -897,3 +958,55 @@ class PromptServer():
         message = struct.pack(">I", len(node_id_bytes)) + node_id_bytes + text
 
         self.send_sync(BinaryEventTypes.TEXT, message, sid)
+
+    def update_task_progress(self, prompt_id: str, current_step: int, total_steps: int, step_name: str = None):
+        """Update progress for a specific task"""
+        with self.task_progress_lock:
+            self.task_progress[prompt_id] = {
+                'current_step': current_step,
+                'total_steps': total_steps,
+                'step_name': step_name,
+                'percent': min(100, int((current_step / total_steps) * 100)) if total_steps > 0 else 0,
+                'timestamp': time.time()
+            }
+
+    def get_task_progress(self, prompt_id: str):
+        """Get progress for a specific task"""
+        with self.task_progress_lock:
+            return self.task_progress.get(prompt_id, None)
+
+    def clear_all_progress(self):
+        """Clear all progress data"""
+        with self.task_progress_lock:
+            self.task_progress.clear()
+
+    def clear_task_progress(self, prompt_id: str):
+        """Clear progress for a completed task"""
+        with self.task_progress_lock:
+            self.task_progress.pop(prompt_id, None)
+
+    def cleanup_stale_progress(self, max_age_seconds: int = 300):
+        """Remove progress entries older than max_age_seconds"""
+        current_time = time.time()
+        with self.task_progress_lock:
+            stale_keys = [
+                prompt_id for prompt_id, progress in self.task_progress.items()
+                if current_time - progress['timestamp'] > max_age_seconds
+            ]
+            for prompt_id in stale_keys:
+                self.task_progress.pop(prompt_id, None)
+
+    def get_overall_progress(self):
+        """Calculate overall progress across all tasks"""
+        with self.task_progress_lock:
+            if not self.task_progress:
+                return 0
+            
+            # Clean up stale entries first
+            self.cleanup_stale_progress()
+            
+            if not self.task_progress:
+                return 0
+            
+            total_percent = sum(progress['percent'] for progress in self.task_progress.values())
+            return min(100, int(total_percent / len(self.task_progress)))

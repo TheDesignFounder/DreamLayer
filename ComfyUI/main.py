@@ -181,6 +181,10 @@ def prompt_worker(q, server_instance):
                             status_str='success' if e.success else 'error',
                             completed=e.success,
                             messages=e.status_messages))
+            
+            # Clear task progress when task completes
+            server_instance.clear_task_progress(prompt_id)
+            
             if server_instance.client_id is not None:
                 server_instance.send_sync("executing", {"node": None, "prompt_id": prompt_id}, server_instance.client_id)
 
@@ -224,6 +228,15 @@ def hijack_progress(server_instance):
     def hook(value, total, preview_image):
         comfy.model_management.throw_exception_if_processing_interrupted()
         progress = {"value": value, "max": total, "prompt_id": server_instance.last_prompt_id, "node": server_instance.last_node_id}
+
+        # Update task progress tracking
+        if server_instance.last_prompt_id:
+            server_instance.update_task_progress(
+                server_instance.last_prompt_id,
+                value,
+                total,
+                f"Node {server_instance.last_node_id}" if server_instance.last_node_id else "Processing"
+            )
 
         server_instance.send_sync("progress", progress, server_instance.client_id)
         if preview_image is not None:
