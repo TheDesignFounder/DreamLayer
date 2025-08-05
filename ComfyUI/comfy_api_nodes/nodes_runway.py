@@ -770,18 +770,6 @@ class RunwayText2ImgNode(ComfyNodeABC):
                 raise ValueError(f"Unexpected image tensor shape before return: {tensor.shape}")
 
             return (tensor,)
-
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 401:
-                raise PermissionError("Invalid API key.")
-            elif response.status_code == 400:
-                raise ValueError(f"Bad request: {response.text}")
-            else:
-                raise RuntimeError(f"Runway API error (HTTP {response.status_code}): {response.text}")
-        except requests.exceptions.RequestException as e:
-            raise ConnectionError(f"Failed to connect to Runway API: {str(e)}")
-        except Exception as e:
-            raise RuntimeError(f"Unhandled error: {str(e)}")
         
         except requests.exceptions.HTTPError:
             if response.status_code == 401:
