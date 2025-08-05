@@ -3,6 +3,7 @@ import Accordion from '@/components/Accordion';
 import Slider from '@/components/Slider';
 import SubTabNavigation from '@/components/SubTabNavigation';
 import SizingSettings from '@/components/SizingSettings';
+import BatchReportGenerator from '@/components/batch-report/BatchReportGenerator';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Select,
@@ -20,6 +21,9 @@ import { toast } from 'sonner';
 import ImageUploadButton from '@/components/ImageUploadButton';
 import { fetchUpscalerModels } from "@/services/modelService";
 import { useModelRefresh } from "@/hooks/useModelRefresh";
+import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
+import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
+import { ImageReportData } from '@/services/reportService';
 
 const ExtrasPage = () => {
   const [activeSubTab, setActiveSubTab] = useState("upscale");
@@ -28,6 +32,8 @@ const ExtrasPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [availableUpscalers, setAvailableUpscalers] = useState([]);
+  const txt2imgImages = useTxt2ImgGalleryStore((state) => state.images);
+  const img2imgImages = useImg2ImgGalleryStore((state) => state.images);
   
   // New state for advanced upscaling options
   const [upscaleMethod, setUpscaleMethod] = useState("upscale-by");
@@ -45,6 +51,8 @@ const ExtrasPage = () => {
 
   const subtabs = [
     { id: "upscale", label: "Single Image", active: activeSubTab === "upscale" },
+    { id: "batch", label: "Batch Processing", active: activeSubTab === "batch" },
+    { id: "report", label: "Batch Report", active: activeSubTab === "report" },
   ];
 
   const handleSubTabChange = (tabId: string) => {
@@ -376,6 +384,61 @@ const ExtrasPage = () => {
             {renderUpscalingOptions()}
           </div>
         );
+        
+      case "report":
+        // Batch Report tab - generate reports from gallery images
+        const galleryImages: ImageReportData[] = [...txt2imgImages, ...img2imgImages].map((img, index) => {
+          // Generate proper filename
+          let filename: string;
+          if (img.url.startsWith('data:')) {
+            // For data URLs, create a filename based on the ID
+            filename = `${img.id}.png`;
+          } else {
+            // For regular URLs, extract the filename
+            filename = img.url.split('/').pop() || `image_${index}.png`;
+          }
+          
+          return {
+            id: img.id,
+            filename: filename,
+            url: img.url,
+            prompt: img.prompt,
+            negativePrompt: img.negativePrompt,
+            timestamp: img.timestamp,
+            settings: {
+              model: img.settings?.model || 'unknown',
+              sampler: img.settings?.sampler || 'unknown',
+              steps: img.settings?.steps || 20,
+              cfg_scale: img.settings?.cfg_scale || 7.0,
+              seed: img.settings?.seed || -1,
+              width: img.settings?.width || 512,
+              height: img.settings?.height || 512,
+              ...img.settings
+            }
+          };
+        });
+        
+        const allImages = galleryImages;
+        
+        return (
+          <div className="space-y-4 mb-4">
+            <BatchReportGenerator 
+              images={allImages}
+              config={{
+                session_id: new Date().getTime().toString(),
+                total_images: allImages.length
+              }}
+            />
+            
+            {/* Data source indicator */}
+            {allImages.length > 0 && (
+              <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
+                Images available: {txt2imgImages.length} from txt2img, {img2imgImages.length} from img2img
+              </div>
+            )}
+          </div>
+        );
+        
       default:
         // "upscale" tab (default) - Single Image
         return renderUpscalingOptions();
@@ -406,9 +469,14 @@ const ExtrasPage = () => {
             onTabChange={handleSubTabChange}
           />
           
-          <Accordion title={activeSubTab === "upscale" ? "Upscaling Options" : "Batch Options"} 
-                     number={activeSubTab === "upscale" ? "1" : "1"} 
-                     defaultOpen={true}>
+          <Accordion 
+            title={
+              activeSubTab === "upscale" ? "Upscaling Options" : 
+              activeSubTab === "batch" ? "Batch Processing Options" : 
+              "Report Options"
+            } 
+            number="1" 
+            defaultOpen={true}>
             {renderSubTabContent()}
           </Accordion>
         </div>

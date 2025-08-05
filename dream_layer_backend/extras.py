@@ -3,11 +3,12 @@ import sys
 import json
 import time
 import requests
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import tempfile
 import shutil
 from dream_layer import get_directories
+from dream_layer_backend_utils import BatchReportGenerator
 
 # Create Flask app
 app = Flask(__name__)
@@ -312,6 +313,88 @@ def upscale_image():
         }), 500
 
 # This endpoint is now handled by dream_layer.py
+
+@app.route('/api/batch-report/generate', methods=['POST', 'OPTIONS'])
+def generate_batch_report():
+    """Generate a batch report ZIP file containing CSV, JSON, images, and README"""
+    if request.method == 'OPTIONS':
+        # Handle preflight request
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:8080')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response
+
+    try:
+        data = request.json
+        print(f"📊 Batch report generation request received")
+        
+        # Validate required fields
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'No data provided'
+            }), 400
+            
+        images_data = data.get('images', [])
+        config = data.get('config', {})
+        report_name = data.get('report_name', None)
+        
+        if not images_data:
+            return jsonify({
+                'status': 'error',
+                'message': 'No images data provided'
+            }), 400
+        
+        print(f"📸 Processing {len(images_data)} images for batch report")
+        
+        # Initialize the batch report generator
+        generator = BatchReportGenerator()
+        
+        # Generate the report
+        zip_path = generator.generate_report(
+            images_data=images_data,
+            config=config,
+            report_name=report_name
+        )
+        
+        # Validate the generated ZIP
+        if not os.path.exists(zip_path):
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to generate report ZIP file'
+            }), 500
+        
+        # Validate CSV schema
+        if not generator.validate_csv_schema(os.path.join(os.path.dirname(zip_path), 'results.csv')):
+            print("⚠️ Warning: CSV schema validation failed, but continuing...")
+        
+        # Validate ZIP contents
+        if not generator.validate_zip_contents(zip_path):
+            print("⚠️ Warning: ZIP contents validation failed, but continuing...")
+        
+        # Get file info
+        file_size = os.path.getsize(zip_path)
+        file_name = os.path.basename(zip_path)
+        
+        print(f"✅ Batch report generated successfully: {file_name} ({file_size} bytes)")
+        
+        # Return the file for download
+        return send_file(
+            zip_path,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=file_name
+        )
+        
+    except Exception as e:
+        print(f"❌ Error generating batch report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 def start_extras_server():
     """Start the Extras API server"""
