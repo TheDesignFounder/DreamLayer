@@ -587,6 +587,8 @@ class ApiClient:
                 user_display_error_message = "There is a problem with your account. Please contact support@comfy.org."
             elif status_code == 429:
                 user_display_error_message = "Rate Limit Exceeded: Please try again later."
+            elif status_code == 403:
+                user_display_error_message = "Forbidden: Your API key may be invalid or you don't have permission to access this resource. Please check your API key and try again."
             # else, user_display_error_message remains as parsed from response or original HTTPError string
 
             raise Exception(user_display_error_message) # Raise with the user-friendly message

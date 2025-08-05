@@ -36,7 +36,10 @@ NODE_TO_API_KEY_MAPPING = {
     "IdeogramV3": "IDEOGRAM_API_KEY",
     
     # Luma Nodes
-    "LumaText2Img": "LUMA_API_KEY",
+    "LumaImageNode": "LUMA_API_KEY",
+    "LumaImageModifyNode": "LUMA_API_KEY", 
+    "LumaVideoNode": "LUMA_API_KEY",
+    "LumaImageToVideoNode": "LUMA_API_KEY",
 }
 
 # Mapping of environment variable names to ComfyUI extra_data keys
