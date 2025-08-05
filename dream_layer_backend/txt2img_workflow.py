@@ -212,6 +212,14 @@ def transform_to_txt2img_workflow(data):
             print(f"✨ Applying Refiner parameters...")
             workflow = inject_refiner_parameters(workflow, refiner_data)
         
+        # Add preset information to workflow metadata if provided
+        preset_info = data.get('preset_info')
+        if preset_info:
+            print(f"📋 Adding preset info to workflow: {preset_info}")
+            if 'meta' not in workflow:
+                workflow['meta'] = {}
+            workflow['meta']['preset'] = preset_info
+        
         print(f"✅ Workflow transformation complete")
         print(f"📋 Generated workflow: {json.dumps(workflow, indent=2)}")
         return workflow

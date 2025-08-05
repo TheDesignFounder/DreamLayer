@@ -11,6 +11,7 @@ import ImagePreview from '@/components/tabs/txt2img/ImagePreview';
 import CheckpointBrowser from '@/components/checkpoint/CheckpointBrowser';
 import LoraBrowser from '@/components/lora/LoraBrowser';
 import CustomWorkflowBrowser from '@/components/custom-workflow/CustomWorkflowBrowser';
+import PresetManager from '@/components/PresetManager';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import useLoraStore from '@/stores/useLoraStore';
 import { LoraRequest } from '@/types/lora';
+import { usePresetStore } from '@/stores/usePresetStore';
 
 interface Txt2ImgPageProps {
   selectedModel: string;
@@ -41,6 +43,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const controlNetConfig = useControlNetStore(state => state.controlNetConfig);
   const { setControlNetConfig } = useControlNetStore();
   const loraConfig = useLoraStore(state => state.loraConfig);
+  const { getSelectedPreset, applyPresetToSettings } = usePresetStore();
 
   // Add effect to update model when selectedModel prop changes
   useEffect(() => {
@@ -130,6 +133,13 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     updateCoreSettings({ refiner_switch_at: value });
   };
 
+  const handlePresetApplied = (settings: any, controlnet?: any) => {
+    setCoreSettings(settings);
+    if (controlnet) {
+      setControlNetConfig(controlnet);
+    }
+  };
+
   const handleCopyPrompts = () => {
     const promptTextarea = document.querySelector('textarea[placeholder="Enter your prompt here"]') as HTMLTextAreaElement;
     const negativePromptTextarea = document.querySelector('textarea[placeholder="Enter negative prompt here"]') as HTMLTextAreaElement;
@@ -171,6 +181,15 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
       
       console.log("ControlNetConfig at generate time:", JSON.stringify(controlNetConfig, null, 2));
       
+      // Get selected preset info for metadata
+      const selectedPreset = getSelectedPreset();
+      const presetInfo = selectedPreset ? {
+        id: selectedPreset.id,
+        name: selectedPreset.name,
+        version: selectedPreset.version,
+        hash: selectedPreset.hash
+      } : null;
+
       // Prepare the request data
       const requestData = {
         ...coreSettings,
@@ -178,7 +197,9 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
         // Only include controlnet if it's properly configured
         ...(controlNetConfig && { controlnet: controlNetConfig }),
         // Only include lora if it's enabled and configured
-        ...(loraConfig?.enabled && { lora: loraConfig })
+        ...(loraConfig?.enabled && { lora: loraConfig }),
+        // Include preset info for metadata
+        ...(presetInfo && { preset_info: presetInfo })
       };
       
       if (controlNetConfig?.units) {
@@ -285,6 +306,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const SubTabNavigation = () => {
     const tabs = [
       { id: "generation", label: "Generation", active: activeSubTab === "generation" },
+      { id: "presets", label: "Presets", active: activeSubTab === "presets" },
       { id: "checkpoints", label: "Custom Workflow", active: activeSubTab === "checkpoints" },
       { id: "lora", label: "Lora", active: activeSubTab === "lora" }
     ];
@@ -311,6 +333,12 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const renderActiveSubTabContent = () => {
     switch (activeSubTab) {
+      case "presets":
+        return <PresetManager 
+          currentSettings={coreSettings}
+          currentControlnet={controlNetConfig}
+          onPresetApplied={handlePresetApplied}
+        />;
       case "checkpoints":
         return <CustomWorkflowBrowser 
           onWorkflowChange={setCustomWorkflow}

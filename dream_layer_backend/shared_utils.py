@@ -4,11 +4,16 @@ import time
 import requests
 import copy
 import json
-from typing import List, Dict, Any
+import logging
+import asyncio
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 from dream_layer import get_directories
 from dream_layer_backend_utils.update_custom_workflow import find_save_node
 from dream_layer_backend_utils.shared_workflow_parameters import increment_seed_in_workflow
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Global constants
 COMFY_API_URL = "http://127.0.0.1:8188"
@@ -24,9 +29,13 @@ def load_model_display_names() -> Dict[str, str]:
         if os.path.exists(MODEL_DISPLAY_NAMES_FILE):
             with open(MODEL_DISPLAY_NAMES_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
+        else:
+            # Create default file
+            save_model_display_names({}) # Initialize with empty dict if file not found
+            return {}
     except Exception as e:
-        print(f"Warning: Could not load model display names: {e}")
-    return {}
+        logger.error(f"Error loading model display names: {e}")
+        return {}
 
 def save_model_display_names(mapping: Dict[str, str]) -> None:
     """Save the mapping of actual filenames to display names"""
@@ -34,7 +43,7 @@ def save_model_display_names(mapping: Dict[str, str]) -> None:
         with open(MODEL_DISPLAY_NAMES_FILE, 'w', encoding='utf-8') as f:
             json.dump(mapping, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        print(f"Warning: Could not save model display names: {e}")
+        logger.error(f"Error saving model display names: {e}")
 
 def add_model_display_name(filename: str, display_name: str) -> None:
     """Add a new filename -> display name mapping"""
@@ -79,82 +88,69 @@ os.makedirs(SERVED_IMAGES_DIR, exist_ok=True)
 def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int = 300) -> List[Dict[str, Any]]:
     """
     Wait for image generation to complete and return the generated images
-    This is a shared function used by both txt2img and img2img servers
     """
     output_dir, _ = get_directories()
     start_time = time.time()
     
     while time.time() - start_time < max_wait_time:
         try:
-            # Check queue status
-            response = requests.get(f"{COMFY_API_URL}/queue")
+            # Check if the prompt has completed
+            response = requests.get(f"http://127.0.0.1:8188/history/{prompt_id}")
+            
             if response.status_code == 200:
-                queue_data = response.json()
+                history_data = response.json()
                 
-                # Check if our prompt is still in queue
-                running_queue = queue_data.get('queue_running', [])
-                pending_queue = queue_data.get('queue_pending', [])
-                
-                # Look for our prompt_id in running or pending queues
-                prompt_in_queue = any(item[1] == prompt_id for item in running_queue + pending_queue)
-                
-                if not prompt_in_queue:
-                    # Prompt is no longer in queue, check for results
-                    history_response = requests.get(f"{COMFY_API_URL}/history/{prompt_id}")
-                    if history_response.status_code == 200:
-                        history_data = history_response.json()
-                        if prompt_id in history_data:
-                            # Get outputs from the save node
-                            outputs = history_data[prompt_id].get('outputs', {})
-                            if save_node_id in outputs:
-                                images_data = outputs[save_node_id].get('images', [])
-                                print(f"📸 Found {len(images_data)} images in save node {save_node_id}")
-                                if images_data:
-                                    image_objects = []
-                                    for img_info in images_data:
-                                        filename = img_info.get('filename')
-                                        print(f"📄 Processing image: {filename}")
-                                        if filename:
-                                            # Copy to served images directory
-                                            src_path = os.path.join(output_dir, filename)
-                                            dest_path = os.path.join(SERVED_IMAGES_DIR, filename)
-                                            
-                                            print(f"📁 Source path: {src_path}")
-                                            print(f"📁 Destination path: {dest_path}")
-                                            print(f"📁 Source exists: {os.path.exists(src_path)}")
-                                            print(f"📁 Dest dir exists: {os.path.exists(SERVED_IMAGES_DIR)}")
-                                            
-                                            if os.path.exists(src_path):
-                                                try:
-                                                    shutil.copy2(src_path, dest_path)
-                                                    print(f"✅ Successfully copied {filename} to served directory")
-                                                    # Create proper image object with URL
-                                                    image_objects.append({
-                                                        "filename": filename,
-                                                        "url": f"http://localhost:5001/api/images/{filename}",
-                                                        "type": "output",
-                                                        "subfolder": ""
-                                                    })
-                                                except Exception as copy_error:
-                                                    print(f"❌ Error copying {filename}: {copy_error}")
-                                            else:
-                                                print(f"❌ Source file not found: {src_path}")
+                if prompt_id in history_data:
+                    outputs = history_data[prompt_id].get('outputs', {})
+                    
+                    if save_node_id in outputs:
+                        images_data = outputs[save_node_id].get('images', [])
+                        logger.info(f"📸 Found {len(images_data)} images in save node {save_node_id}")
+                        if images_data:
+                            image_objects = []
+                            for img_info in images_data:
+                                filename = img_info.get('filename')
+                                logger.info(f"📄 Processing image: {filename}")
+                                if filename:
+                                    # Copy to served images directory
+                                    src_path = os.path.join(output_dir, filename)
+                                    dest_path = os.path.join(SERVED_IMAGES_DIR, filename)
                                     
-                                    if image_objects:
-                                        print(f"🎉 Returning {len(image_objects)} image objects")
-                                        return image_objects
+                                    logger.info(f"📁 Source path: {src_path}")
+                                    logger.info(f"📁 Destination path: {dest_path}")
+                                    logger.info(f"📁 Source exists: {os.path.exists(src_path)}")
+                                    logger.info(f"📁 Dest dir exists: {os.path.exists(SERVED_IMAGES_DIR)}")
+                                    
+                                    if os.path.exists(src_path):
+                                        try:
+                                            shutil.copy2(src_path, dest_path)
+                                            logger.info(f"✅ Successfully copied {filename} to served directory")
+                                            # Create proper image object with URL
+                                            image_objects.append({
+                                                "filename": filename,
+                                                "url": f"/api/images/{filename}",
+                                                "type": "output"
+                                            })
+                                        except Exception as copy_error:
+                                            logger.error(f"❌ Error copying {filename}: {copy_error}")
                                     else:
-                                        print("⚠️ No image objects created")
-                                else:
-                                    print("⚠️ No images found in save node")
+                                        logger.warning(f"❌ Source file not found: {src_path}")
+                            
+                            if image_objects:
+                                logger.info(f"🎉 Returning {len(image_objects)} image objects")
+                                return image_objects
+                            else:
+                                logger.warning("⚠️ No image objects created")
+                        else:
+                            logger.warning("⚠️ No images found in save node")
             
             time.sleep(2)  # Wait 2 seconds before checking again
             
         except Exception as e:
-            print(f"Error checking image status: {e}")
+            logger.error(f"Error checking image status: {e}")
             time.sleep(2)
     
-    print(f"Timeout waiting for image generation (prompt_id: {prompt_id})")
+    logger.warning(f"Timeout waiting for image generation (prompt_id: {prompt_id})")
     return []
 
 def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
@@ -194,17 +190,17 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
                 last_response_data = response_data
                 if "prompt_id" in response_data:
                     save_node_id = find_save_node(current_workflow) or "9"
-                    print(f"🔍 Found save node ID: {save_node_id}")
+                    logger.info(f"🔍 Found save node ID: {save_node_id}")
                     images = wait_for_image(response_data["prompt_id"], save_node_id)
                     if images:
                         all_images.extend(images)
-                    print(f"Iteration {i+1}/{iterations} completed")
+                    logger.info(f"Iteration {i+1}/{iterations} completed")
                 else:
-                    print(f"Error in iteration {i+1}: {response_data}")
+                    logger.warning(f"Error in iteration {i+1}: {response_data}")
                     return {"error": f"ComfyUI API error: {response_data}"}
             else:
                 error_msg = f"ComfyUI server error: {response.status_code} - {response.text}"
-                print(error_msg)
+                logger.error(error_msg)
                 return {"error": error_msg}
         
         if all_images:
@@ -218,7 +214,7 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
             
     except Exception as e:
         error_msg = f"Error sending workflow to ComfyUI: {str(e)}"
-        print(error_msg)
+        logger.error(error_msg)
         return {"error": error_msg}
 
 def serve_image(filename: str) -> Any:
@@ -252,10 +248,10 @@ def serve_image(filename: str) -> Any:
             return send_file(output_filepath, mimetype='image/png')
         
         # If still not found, return 404
-        print(f"❌ Image not found in any directory: {filename}")
-        print(f"   Checked: {served_filepath}")
-        print(f"   Checked: {input_filepath}")
-        print(f"   Checked: {output_filepath}")
+        logger.warning(f"❌ Image not found in any directory: {filename}")
+        logger.warning(f"   Checked: {served_filepath}")
+        logger.warning(f"   Checked: {input_filepath}")
+        logger.warning(f"   Checked: {output_filepath}")
         
         return jsonify({
             "status": "error",
@@ -263,7 +259,7 @@ def serve_image(filename: str) -> Any:
         }), 404
             
     except Exception as e:
-        print(f"❌ Error serving image {filename}: {str(e)}")
+        logger.error(f"❌ Error serving image {filename}: {str(e)}")
         return jsonify({
             "status": "error",
             "message": str(e)
@@ -275,7 +271,7 @@ def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
     This is a shared function used by multiple servers
     """
     try:
-        print("🖼️ ControlNet image upload request received")
+        logger.info("🖼️ ControlNet image upload request received")
         
         if not file or file.filename == '':
             return {
@@ -283,13 +279,13 @@ def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
                 "message": "No file provided or no file selected"
             }, 400
         
-        print(f"📁 Uploading file: {file.filename} for unit {unit_index}")
-        print(f"📊 File content type: {file.content_type}")
+        logger.info(f"📁 Uploading file: {file.filename} for unit {unit_index}")
+        logger.info(f"📊 File content type: {file.content_type}")
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
         input_dir = os.path.join(project_root, "ComfyUI", "input")
-        print(f"📁 Target directory: {input_dir}")
+        logger.info(f"📁 Target directory: {input_dir}")
         
         os.makedirs(input_dir, exist_ok=True)
         
@@ -297,13 +293,13 @@ def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
         filename = f"controlnet_unit_{unit_index}_{timestamp}.png"
         filepath = os.path.join(input_dir, filename)
         
-        print(f"📄 Saving to: {filepath}")
+        logger.info(f"📄 Saving to: {filepath}")
         file.save(filepath)
         
         if os.path.exists(filepath):
             file_size = os.path.getsize(filepath)
-            print(f"✅ Successfully saved ControlNet image: {filename}")
-            print(f"📏 File size: {file_size} bytes")
+            logger.info(f"✅ Successfully saved ControlNet image: {filename}")
+            logger.info(f"📏 File size: {file_size} bytes")
             
             return {
                 "status": "success",
@@ -313,14 +309,14 @@ def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
                 "size": file_size
             }
         else:
-            print(f"❌ File was not created: {filepath}")
+            logger.warning(f"❌ File was not created: {filepath}")
             return {
                 "status": "error",
                 "message": "Failed to save file"
             }, 500
             
     except Exception as e:
-        print(f"❌ Error uploading ControlNet image: {str(e)}")
+        logger.error(f"❌ Error uploading ControlNet image: {str(e)}")
         import traceback
         traceback.print_exc()
         return {
@@ -343,7 +339,7 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
         Dict containing status, filename, and other metadata
     """
     try:
-        print(f"🤖 Model upload request received for type: {model_type}")
+        logger.info(f"🤖 Model upload request received for type: {model_type}")
 
         if not file or file.filename == '':
             return {
@@ -361,9 +357,9 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
                 "message": f"Invalid file type. Supported formats: {', '.join(sorted(allowed_extensions))}"
             }, 400
 
-        print(f"📁 Uploading model: {file.filename}")
-        print(f"📊 File content type: {file.content_type}")
-        print(f"🏷️ Model type: {model_type}")
+        logger.info(f"📁 Uploading model: {file.filename}")
+        logger.info(f"📊 File content type: {file.content_type}")
+        logger.info(f"🏷️ Model type: {model_type}")
 
         # Get ComfyUI models directory structure
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -398,7 +394,7 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
             is_safe = str(target_dir_path).startswith(str(models_base_dir))
 
         if not is_safe:
-            print(f"❌ Path traversal attempt detected: {target_dir}")
+            logger.warning(f"❌ Path traversal attempt detected: {target_dir}")
             return {
                 "status": "error",
                 "message": "Invalid target directory"
@@ -406,7 +402,7 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
 
         # Create target directory if it doesn't exist
         os.makedirs(target_dir, exist_ok=True)
-        print(f"📁 Target directory: {target_dir}")
+        logger.info(f"📁 Target directory: {target_dir}")
 
         # Generate safe filename with timestamp for storage
         timestamp = int(time.time() * 1000)
@@ -424,13 +420,13 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
             is_safe = str(final_target_path).startswith(str(models_base_dir))
 
         if not is_safe:
-            print(f"❌ Final path traversal check failed: {final_target_path}")
+            logger.warning(f"❌ Final path traversal check failed: {final_target_path}")
             return {
                 "status": "error",
                 "message": "Invalid file path"
             }, 400
 
-        print(f"📄 Saving to: {target_path}")
+        logger.info(f"📄 Saving to: {target_path}")
 
         # 🔒 ATOMIC WRITE: Write to temporary file first
         temp_path = target_path.with_suffix(target_path.suffix + '.tmp')
@@ -445,7 +441,7 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
             # Atomic rename to final destination
             temp_path.rename(target_path)
 
-            print(f"✅ Atomic write completed: {safe_filename}")
+            logger.info(f"✅ Atomic write completed: {safe_filename}")
 
         except Exception as e:
             # Clean up temp file if something went wrong
@@ -456,19 +452,19 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
         # Verify file was created successfully
         if target_path.exists():
             file_size = target_path.stat().st_size
-            print(f"✅ Successfully saved model: {safe_filename}")
-            print(f"📏 File size: {file_size} bytes")
+            logger.info(f"✅ Successfully saved model: {safe_filename}")
+            logger.info(f"📏 File size: {file_size} bytes")
 
             # 💾 DISPLAY NAME: Save the display name mapping
             add_model_display_name(safe_filename, original_display_name)
-            print(f"📝 Display name mapping saved: {safe_filename} -> {original_display_name}")
+            logger.info(f"📝 Display name mapping saved: {safe_filename} -> {original_display_name}")
 
             # 🔄 WEBSOCKET: Emit model refresh event
             try:
                 emit_model_refresh(model_type, safe_filename)
-                print(f"📡 WebSocket event emitted: models-refresh for {model_type}")
+                logger.info(f"📡 WebSocket event emitted: models-refresh for {model_type}")
             except Exception as ws_error:
-                print(f"⚠️ Warning: Failed to emit WebSocket event: {ws_error}")
+                logger.warning(f"⚠️ Warning: Failed to emit WebSocket event: {ws_error}")
                 # Don't fail the upload if WebSocket fails
 
             return {
@@ -482,14 +478,14 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
                 "message": f"Model uploaded successfully to {model_type}"
             }
         else:
-            print(f"❌ File was not created: {target_path}")
+            logger.warning(f"❌ File was not created: {target_path}")
             return {
                 "status": "error",
                 "message": "Failed to save file"
             }, 500
 
     except Exception as e:
-        print(f"❌ Error uploading model: {str(e)}")
+        logger.error(f"❌ Error uploading model: {str(e)}")
         import traceback
         traceback.print_exc()
         return {
@@ -527,7 +523,7 @@ def _setup_comfyui_websocket():
 
         return None
     except Exception as e:
-        print(f"⚠️ Warning: Failed to setup ComfyUI WebSocket: {e}")
+        logger.warning(f"⚠️ Warning: Failed to setup ComfyUI WebSocket: {e}")
         return None
 
 
@@ -552,21 +548,100 @@ def emit_model_refresh(model_type: str, filename: str) -> None:
                 "timestamp": int(time.time() * 1000)
             }
 
-            print("📡 Emitting WebSocket event: models-refresh")
-            print(f"📊 Event data: {event_data}")
+            logger.info("📡 Emitting WebSocket event: models-refresh")
+            logger.info(f"📊 Event data: {event_data}")
 
             # Emit the event using ComfyUI's WebSocket infrastructure
             prompt_server.send_sync("models-refresh", event_data)
 
-            print("✅ WebSocket event sent successfully")
+            logger.info("✅ WebSocket event sent successfully")
 
         else:
-            print("⚠️ Warning: PromptServer instance not available for WebSocket emission")
+            logger.warning("⚠️ Warning: PromptServer instance not available for WebSocket emission")
 
     except ImportError as e:
-        print(f"⚠️ Warning: Could not import ComfyUI server for WebSocket: {e}")
+        logger.warning(f"⚠️ Warning: Could not import ComfyUI server for WebSocket: {e}")
     except Exception as e:
-        print(f"❌ Error emitting WebSocket event: {e}")
+        logger.error(f"❌ Error emitting WebSocket event: {e}")
         import traceback
         traceback.print_exc()
         # Don't raise - we don't want WebSocket failures to break uploads
+
+async def wait_for_file_creation(file_path: str, timeout: int = 30) -> bool:
+    """
+    Wait for a file to be created with proper async handling.
+    
+    Args:
+        file_path: Path to the file to wait for
+        timeout: Maximum time to wait in seconds
+        
+    Returns:
+        bool: True if file was created, False if timeout
+    """
+    start_time = asyncio.get_event_loop().time()
+    
+    while not os.path.exists(file_path):
+        if asyncio.get_event_loop().time() - start_time > timeout:
+            logger.warning(f"Timeout waiting for file: {file_path}")
+            return False
+        
+        # Use asyncio.sleep instead of time.sleep
+        await asyncio.sleep(2)
+    
+    logger.info(f"File created: {file_path}")
+    return True
+
+async def wait_for_directory_creation(dir_path: str, timeout: int = 30) -> bool:
+    """
+    Wait for a directory to be created with proper async handling.
+    
+    Args:
+        dir_path: Path to the directory to wait for
+        timeout: Maximum time to wait in seconds
+        
+    Returns:
+        bool: True if directory was created, False if timeout
+    """
+    start_time = asyncio.get_event_loop().time()
+    
+    while not os.path.exists(dir_path):
+        if asyncio.get_event_loop().time() - start_time > timeout:
+            logger.warning(f"Timeout waiting for directory: {dir_path}")
+            return False
+        
+        # Use asyncio.sleep instead of time.sleep
+        await asyncio.sleep(2)
+    
+    logger.info(f"Directory created: {dir_path}")
+    return True
+
+def safe_file_operation(file_path: str, operation: str, data: Optional[bytes] = None) -> Optional[bytes]:
+    """
+    Safely perform file operations with proper error handling.
+    
+    Args:
+        file_path: Path to the file
+        operation: Operation to perform ('read', 'write', 'append')
+        data: Data to write (for write/append operations)
+        
+    Returns:
+        Optional[bytes]: File content for read operations, None for write/append operations
+    """
+    try:
+        if operation == 'read':
+            with open(file_path, 'rb') as f:
+                return f.read()
+        elif operation == 'write' and data is not None:
+            with open(file_path, 'wb') as f:
+                f.write(data)
+            return None
+        elif operation == 'append' and data is not None:
+            with open(file_path, 'ab') as f:
+                f.write(data)
+            return None
+        else:
+            logger.error(f"Invalid operation: {operation}")
+            return None
+    except Exception as e:
+        logger.error(f"Error in file operation {operation} on {file_path}: {e}")
+        return None
