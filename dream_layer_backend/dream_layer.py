@@ -29,6 +29,13 @@ API_KEY_TO_MODELS = {
     ],
     "IDEOGRAM_API_KEY": [
         {"id": "ideogram-v3", "name": "Ideogram V3", "filename": "ideogram-v3"},
+    ],
+    "LUMA_API_KEY": [
+        {"id": "photon-1", "name": "Luma Photon 1", "filename": "photon-1"},
+        {"id": "photon-flash-1", "name": "Luma Photon Flash 1", "filename": "photon-flash-1"},
+        {"id": "ray-2", "name": "Luma Ray 2", "filename": "ray-2"},
+        {"id": "ray-flash-2", "name": "Luma Ray Flash 2", "filename": "ray-flash-2"},
+        {"id": "ray-1-6", "name": "Luma Ray 1.6", "filename": "ray-1-6"},
     ]
 }
 

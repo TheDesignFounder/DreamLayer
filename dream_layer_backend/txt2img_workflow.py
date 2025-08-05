@@ -22,9 +22,9 @@ def transform_to_txt2img_workflow(data):
     Combines advanced ControlNet functionality with smallFeatures improvements
     """
     try:
-        print("\n🔄 Transforming txt2img workflow:")
+        print("\nTransforming txt2img workflow:")
         print("-" * 40)
-        print(f"📊 Data keys: {list(data.keys())}")
+        print(f"Data keys: {list(data.keys())}")
         
         # Extract and validate core parameters with smallFeatures improvements
         prompt = data.get('prompt', '')
@@ -64,7 +64,7 @@ def transform_to_txt2img_workflow(data):
         closed_source_models = ['dall-e-3', 'dall-e-2', 'flux-pro', 'flux-dev', 'ideogram-v3']
         
         if model_name in closed_source_models:
-            print(f"🎨 Using closed-source model: {model_name}")
+            print(f"Using closed-source model: {model_name}")
         
         print(f"\nUsing model: {model_name}")
         
@@ -82,11 +82,11 @@ def transform_to_txt2img_workflow(data):
             'ckpt_name': model_name,
             'denoise': 1.0
         }
-        print(f"🎯 Core settings: {core_generation_settings}")
+        print(f"Core settings: {core_generation_settings}")
         
         # Extract ControlNet data
         controlnet_data = data.get('controlnet', {})
-        print(f"🎮 ControlNet data: {controlnet_data}")
+        print(f"ControlNet data: {controlnet_data}")
         
         # Extract Face Restoration data
         face_restoration_data = {
@@ -95,7 +95,7 @@ def transform_to_txt2img_workflow(data):
             'codeformer_weight': data.get('codeformer_weight', 0.5),
             'gfpgan_weight': data.get('gfpgan_weight', 0.5)
         }
-        print(f"👤 Face Restoration data: {face_restoration_data}")
+        print(f"Face Restoration data: {face_restoration_data}")
         
         # Extract Tiling data
         tiling_data = {
@@ -103,7 +103,7 @@ def transform_to_txt2img_workflow(data):
             'tile_size': data.get('tile_size', 512),
             'tile_overlap': data.get('tile_overlap', 64)
         }
-        print(f"🧩 Tiling data: {tiling_data}")
+        print(f"Tiling data: {tiling_data}")
         
         # Extract Hires.fix data
         hires_fix_data = {
@@ -116,7 +116,7 @@ def transform_to_txt2img_workflow(data):
             'hires_fix_resize_height': data.get('hires_fix_resize_height', 4000),
             'hires_fix_upscaler': data.get('hires_fix_upscaler', '4x-ultrasharp')
         }
-        print(f"🖼️ Hires.fix data: {hires_fix_data}")
+        print(f"Hires.fix data: {hires_fix_data}")
         
         # Extract Refiner data
         refiner_data = {
@@ -124,7 +124,7 @@ def transform_to_txt2img_workflow(data):
             'refiner_model': data.get('refiner_model', 'none'),
             'refiner_switch_at': data.get('refiner_switch_at', 0.8)
         }
-        print(f"🖌️ Refiner data: {refiner_data}")
+        print(f"Refiner data: {refiner_data}")
         
         # Determine workflow template based on features
         use_controlnet = controlnet_data.get('enabled', False) and controlnet_data.get('units')
@@ -132,10 +132,10 @@ def transform_to_txt2img_workflow(data):
         use_face_restoration = face_restoration_data.get('restore_faces', False)
         use_tiling = tiling_data.get('tiling', False)
         
-        print(f"🔧 Use ControlNet: {use_controlnet}")
-        print(f"🔧 Use LoRA: {use_lora}")
-        print(f"🔧 Use Face Restoration: {use_face_restoration}")
-        print(f"🔧 Use Tiling: {use_tiling}")
+        print(f"Use ControlNet: {use_controlnet}")
+        print(f"Use LoRA: {use_lora}")
+        print(f"Use Face Restoration: {use_face_restoration}")
+        print(f"Use Tiling: {use_tiling}")
         
         # Create workflow request for the loader
         if model_name in ['dall-e-3', 'dall-e-2']:
@@ -154,15 +154,15 @@ def transform_to_txt2img_workflow(data):
             'lora': use_lora
         }
         
-        print(f"📄 Workflow request: {workflow_request}")
+        print(f"Workflow request: {workflow_request}")
         
         # Load workflow using the workflow loader
         workflow = load_workflow(workflow_request)
-        print(f"✅ Workflow loaded successfully")
+        print("Workflow loaded successfully")
         
         # Inject API keys if needed (for DALL-E, FLUX, etc.)
         workflow = inject_api_keys_into_workflow(workflow)
-        print(f"✅ API keys injected")
+        print("API keys injected")
         
         # Custom workflow support from smallFeatures
         custom_workflow = data.get('custom_workflow')
@@ -180,44 +180,44 @@ def transform_to_txt2img_workflow(data):
             workflow = override_workflow(workflow, core_generation_settings)
             print("No valid custom workflow provided, using default workflow with overrides")
         
-        print(f"✅ Core settings applied")
+        print("Core settings applied")
         
         # Apply LoRA parameters if enabled
         if use_lora:
-            print(f"🎨 Applying LoRA parameters...")
+            print("Applying LoRA parameters...")
             workflow = inject_lora_parameters(workflow, data.get('lora', {}))
         
         # Apply ControlNet parameters if enabled
         if use_controlnet:
-            print(f"🎮 Applying ControlNet parameters...")
+            print("Applying ControlNet parameters...")
             workflow = inject_controlnet_parameters(workflow, controlnet_data)
         
         # Apply Face Restoration parameters if enabled
         if use_face_restoration:
-            print(f"👤 Applying Face Restoration parameters...")
+            print("Applying Face Restoration parameters...")
             workflow = inject_face_restoration_parameters(workflow, face_restoration_data)
         
         # Apply Tiling parameters if enabled
         if use_tiling:
-            print(f"🧩 Applying Tiling parameters...")
+            print("Applying Tiling parameters...")
             workflow = inject_tiling_parameters(workflow, tiling_data)
         
         # Apply Hires.fix parameters if enabled
         if hires_fix_data.get('hires_fix', False):
-            print(f"✨ Applying Hires.fix parameters...")
+            print("Applying Hires.fix parameters...")
             workflow = inject_hires_fix_parameters(workflow, hires_fix_data)
         
         # Apply Refiner parameters if enabled
         if refiner_data.get('refiner_enabled', False):
-            print(f"✨ Applying Refiner parameters...")
+            print("Applying Refiner parameters...")
             workflow = inject_refiner_parameters(workflow, refiner_data)
         
-        print(f"✅ Workflow transformation complete")
-        print(f"📋 Generated workflow: {json.dumps(workflow, indent=2)}")
+        print("Workflow transformation complete")
+        print(f"Generated workflow: {json.dumps(workflow, indent=2)}")
         return workflow
         
     except Exception as e:
-        print(f"❌ Error transforming workflow: {str(e)}")
+        print(f"Error transforming workflow: {str(e)}")
         import traceback
         traceback.print_exc()
         return None

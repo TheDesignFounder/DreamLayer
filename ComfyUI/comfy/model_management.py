@@ -131,6 +131,11 @@ except:
 if args.cpu:
     cpu_state = CPUState.CPU
 
+# Auto-detect if CUDA is not available and fall back to CPU
+if cpu_state == CPUState.GPU and not torch.cuda.is_available():
+    logging.info("CUDA not available, falling back to CPU mode")
+    cpu_state = CPUState.CPU
+
 def is_intel_xpu():
     global cpu_state
     global xpu_available
@@ -169,7 +174,12 @@ def get_torch_device():
         elif is_mlu():
             return torch.device("mlu", torch.mlu.current_device())
         else:
-            return torch.device(torch.cuda.current_device())
+            # Check if CUDA is available before trying to use it
+            if torch.cuda.is_available():
+                return torch.device(torch.cuda.current_device())
+            else:
+                # Fall back to CPU if CUDA is not available
+                return torch.device("cpu")
 
 def get_total_memory(dev=None, torch_total_too=False):
     global directml_enabled
