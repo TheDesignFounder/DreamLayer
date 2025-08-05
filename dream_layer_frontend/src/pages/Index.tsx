@@ -8,6 +8,8 @@ import ExtrasPage from '@/features/Extras';
 import { ModelManagerPage } from '@/features/ModelManager';
 import { PNGInfoPage } from '@/features/PNGInfo';
 import { ConfigurationsPage } from '@/features/Configurations';
+import { RunRegistryPage } from '@/features/RunRegistry';
+import { ReportBundlePage } from '@/features/ReportBundle';
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 
@@ -42,6 +44,10 @@ const Index = () => {
         return <PNGInfoPage />;
       case "configurations":
         return <ConfigurationsPage />;
+      case "runregistry":
+        return <RunRegistryPage />;
+      case "reportbundle":
+        return <ReportBundlePage />;
       default:
         return <Txt2ImgPage selectedModel={selectedModel} onTabChange={handleTabChange} />;
     }

@@ -2,12 +2,15 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import os
+import requests
 from dream_layer import get_directories
 from dream_layer_backend_utils import interrupt_workflow
 from shared_utils import  send_to_comfyui
 from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
 from PIL import Image, ImageDraw
 from txt2img_workflow import transform_to_txt2img_workflow
+from run_registry import create_run_config_from_generation_data
+from dataclasses import asdict
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -76,11 +79,41 @@ def handle_txt2img():
                     "message": comfy_response["error"]
                 }), 500
             
+            # Extract generated image filenames
+            generated_images = []
+            if comfy_response.get("all_images"):
+                for img_data in comfy_response["all_images"]:
+                    if isinstance(img_data, dict) and "filename" in img_data:
+                        generated_images.append(img_data["filename"])
+            
+            print("Start register process")
+            # Register the completed run
+            try:
+                run_config = create_run_config_from_generation_data(
+                    data, generated_images, "txt2img"
+                )
+                
+                # Send to run registry
+                registry_response = requests.post(
+                    "http://localhost:5005/api/runs",
+                    json=asdict(run_config),
+                    timeout=5
+                )
+                
+                if registry_response.status_code == 200:
+                    print(f"✅ Run registered successfully: {run_config.run_id}")
+                else:
+                    print(f"⚠️ Failed to register run: {registry_response.text}")
+                    
+            except Exception as e:
+                print(f"⚠️ Error registering run: {str(e)}")
+            
             response = jsonify({
                 "status": "success",
                 "message": "Workflow sent to ComfyUI successfully",
                 "comfy_response": comfy_response,
-                "generated_images": comfy_response.get("all_images", [])
+                "generated_images": comfy_response.get("all_images", []),
+                "run_id": run_config.run_id if 'run_config' in locals() else None
             })
             
             return response
