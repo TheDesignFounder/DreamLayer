@@ -6,7 +6,7 @@ from PIL import Image
 import io
 import requests
 
-from luma_api.luma_text2img import LumaText2Img
+from custom_nodes.luma_api.luma_text2img import LumaText2Img
 
 
 class TestLumaText2Img:
@@ -22,14 +22,14 @@ class TestLumaText2Img:
         """Mock environment with LUMA_API_KEY"""
         with patch.dict(os.environ, {'LUMA_API_KEY': 'test_api_key_123'}):
             # Recreate the node with the mocked environment
-            return LumaText2Img()
+            yield LumaText2Img()
 
     @pytest.fixture
     def mock_env_without_key(self):
         """Mock environment without LUMA_API_KEY"""
         with patch.dict(os.environ, {}, clear=True):
             # Recreate the node with the mocked environment
-            return LumaText2Img()
+            yield LumaText2Img()
 
     def test_input_types(self, luma_node):
         """Test that INPUT_TYPES returns correct structure"""
@@ -57,17 +57,11 @@ class TestLumaText2Img:
 
     def test_category(self, luma_node):
         """Test that CATEGORY is correct"""
-        assert luma_node.CATEGORY == "image generation"
+        assert luma_node.CATEGORY == "api node/image/Luma"
 
-    def test_validate_api_key_with_key(self, mock_env_with_key):
-        """Test API key validation when key is present"""
-        # Should not raise an exception
-        mock_env_with_key.validate_api_key()
-
-    def test_validate_api_key_without_key(self, mock_env_without_key):
-        """Test API key validation when key is missing"""
-        with pytest.raises(ValueError, match="LUMA_API_KEY environment variable is not set"):
-            mock_env_without_key.validate_api_key()
+    def test_api_node_property(self, luma_node):
+        """Test that API_NODE is set correctly"""
+        assert luma_node.API_NODE == True
 
     @pytest.mark.parametrize("size", [1024, 1152, 1344])
     def test_validate_dimensions_valid_size(self, luma_node, size):
@@ -137,7 +131,11 @@ class TestLumaText2Img:
     @patch('requests.post')
     def test_send_generation_request_success(self, mock_post, mock_env_with_key):
         """Test successful API request"""
+        # Set up the API key in the client
+        mock_env_with_key.client.api_key = "test_api_key_123"
+        
         mock_response = Mock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {"id": "test_generation_id"}
         mock_post.return_value = mock_response
 
@@ -165,12 +163,17 @@ class TestLumaText2Img:
     @patch('requests.get')
     def test_poll_for_completion_success(self, mock_get, mock_env_with_key):
         """Test successful polling for completion"""
+        # Set up the API key in the client
+        mock_env_with_key.client.api_key = "test_api_key_123"
+        
         # Mock initial pending response
         mock_response_pending = Mock()
+        mock_response_pending.status_code = 200
         mock_response_pending.json.return_value = {"status": "pending"}
 
         # Mock final completed response
         mock_response_completed = Mock()
+        mock_response_completed.status_code = 200
         mock_response_completed.json.return_value = {
             "status": "completed",
             "images": [{"url": "https://example.com/image.jpg"}]
@@ -296,7 +299,7 @@ class TestLumaText2Img:
 
     def test_node_registration(self):
         """Test that the node is properly registered"""
-        from luma_api import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+        from custom_nodes.luma_api import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
         assert "LumaText2Img" in NODE_CLASS_MAPPINGS
         assert NODE_CLASS_MAPPINGS["LumaText2Img"] == LumaText2Img

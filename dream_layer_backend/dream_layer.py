@@ -29,6 +29,9 @@ API_KEY_TO_MODELS = {
     ],
     "IDEOGRAM_API_KEY": [
         {"id": "ideogram-v3", "name": "Ideogram V3", "filename": "ideogram-v3"},
+    ],
+    "LUMA_API_KEY": [
+        {"id": "luma-text2img", "name": "Luma Text to Image", "filename": "luma-text2img"},
     ]
 }
 

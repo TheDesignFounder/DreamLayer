@@ -34,6 +34,9 @@ NODE_TO_API_KEY_MAPPING = {
     "IdeogramV1": "IDEOGRAM_API_KEY",
     "IdeogramV2": "IDEOGRAM_API_KEY",
     "IdeogramV3": "IDEOGRAM_API_KEY",
+    
+    # Luma Nodes
+    "LumaText2Img": "LUMA_API_KEY",
 }
 
 # Mapping of environment variable names to ComfyUI extra_data keys
@@ -41,6 +44,7 @@ ENV_KEY_TO_EXTRA_DATA_MAPPING = {
     "BFL_API_KEY": "api_key_comfy_org",
     "OPENAI_API_KEY": "api_key_comfy_org",
     "IDEOGRAM_API_KEY": "api_key_comfy_org",
+    "LUMA_API_KEY": "api_key_comfy_org",
     # Future additions:
     # "GEMINI_API_KEY": "api_key_gemini",
     # "ANTHROPIC_API_KEY": "api_key_anthropic",
@@ -122,13 +126,16 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
     print(f"[DEBUG] all_api_keys keys: {all_api_keys.keys()}")
     if needed_env_keys:
         # If we have multiple keys that map to api_key_comfy_org, choose one
-        # Priority: BFL_API_KEY first, then OPENAI_API_KEY, then IDEOGRAM_API_KEY
+        # Priority: BFL_API_KEY first, then OPENAI_API_KEY, then LUMA_API_KEY, then IDEOGRAM_API_KEY
         if "BFL_API_KEY" in needed_env_keys and "BFL_API_KEY" in all_api_keys:
             api_key_comfy_org = all_api_keys["BFL_API_KEY"]
             print(f"[DEBUG] Using BFL_API_KEY for api_key_comfy_org")
         elif "OPENAI_API_KEY" in needed_env_keys and "OPENAI_API_KEY" in all_api_keys:
             api_key_comfy_org = all_api_keys["OPENAI_API_KEY"]
             print(f"[DEBUG] Using OPENAI_API_KEY for api_key_comfy_org")
+        elif "LUMA_API_KEY" in needed_env_keys and "LUMA_API_KEY" in all_api_keys:
+            api_key_comfy_org = all_api_keys["LUMA_API_KEY"]
+            print(f"[DEBUG] Using LUMA_API_KEY for api_key_comfy_org")
         elif "IDEOGRAM_API_KEY" in needed_env_keys and "IDEOGRAM_API_KEY" in all_api_keys:
             api_key_comfy_org = all_api_keys["IDEOGRAM_API_KEY"]
             print(f"[DEBUG] Using IDEOGRAM_API_KEY for api_key_comfy_org")
