@@ -89,7 +89,7 @@ class RunwayText2ImgNode(ComfyNodeABC):
     def validate_environment(self):
         """Validate that required environment variables are set."""
         if not os.environ.get("RUNWAY_API_KEY"):
-            raise ValueError()
+            raise ValueError("Missing required environment variable: RUNWAY_API_KEY. Please set this variable to use the Runway text-to-image node.")
 
     def validate_task_created(self, response: RunwayTextToImageResponse) -> bool:
         
@@ -201,7 +201,7 @@ class RunwayText2ImgNode(ComfyNodeABC):
             return (image_tensor,)
             
         except Exception as e:
-            raise RuntimeError(f"Failed to generate image: {str(e)}")
+            raise RuntimeError(f"Failed to generate image: {str(e)}") from e
 
 
 def poll_until_finished(
@@ -211,35 +211,52 @@ def poll_until_finished(
     node_id: Optional[str] = None,
     timeout: int = 300,
 ) -> TaskStatusResponse:
-
-    import time
+    """Poll until the task is finished using PollingOperation.
+    
+    Args:
+        auth_kwargs: Authentication parameters for the API
+        api_endpoint: The API endpoint to poll
+        estimated_duration: Estimated duration in seconds (used for progress reporting)
+        node_id: Optional node ID for progress reporting
+        timeout: Maximum time to wait in seconds
+        
+    Returns:
+        The final task status response
+        
+    Raises:
+        TimeoutError: If the task doesn't complete within the timeout
+        RuntimeError: If the task fails or is cancelled
+    """
     from datetime import datetime, timedelta
     
-    start_time = datetime.now()
-    timeout_time = start_time + timedelta(seconds=timeout)
-    
-    while datetime.now() < timeout_time:
+    def check_status() -> tuple[bool, TaskStatusResponse]:
         response = SynchronousOperation(
             endpoint=api_endpoint,
             auth_kwargs=auth_kwargs,
         ).execute()
         
         if response.status == TaskStatus.SUCCEEDED:
-            return response
+            return True, response
         elif response.status in {TaskStatus.FAILED, TaskStatus.CANCELLED}:
             raise RuntimeError(f"Task failed with status: {response.status}")
-            
-        # Calculate progress (0-1)
-        elapsed = (datetime.now() - start_time).total_seconds()
-        progress = min(0.9, elapsed / estimated_duration)  # Cap at 90% until done
-        
-        # TODO: Report progress back to ComfyUI if node_id is provided
-        # This would require integration with ComfyUI's progress reporting system
-        
-        # Wait before polling again (exponential backoff up to 5 seconds)
-        time.sleep(min(5, 1 + (elapsed / estimated_duration)))
+        return False, response
     
-    raise TimeoutError(f"Task did not complete within {timeout} seconds")
+    start_time = datetime.now()
+    timeout_time = start_time + timedelta(seconds=timeout)
+    
+    poller = PollingOperation(
+        operation=check_status,
+        check_interval_seconds=1.0,
+        timeout_seconds=timeout,
+        initial_delay_seconds=0.5,
+        max_interval_seconds=5.0,
+        backoff_factor=1.5,
+    )
+    
+    try:
+        return poller.run()
+    except TimeoutError:
+        raise TimeoutError(f"Task did not complete within {timeout} seconds")
 
 
 # Node mapping for ComfyUI
