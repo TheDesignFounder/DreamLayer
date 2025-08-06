@@ -11,11 +11,14 @@ import SizingSettings from '@/components/SizingSettings';
 import OutputQuantity from '@/components/OutputQuantity';
 import GenerationID from '@/components/GenerationID';
 import ImagePreview from '@/components/tabs/img2img/ImagePreview';
+import UndoRedoControls from '@/components/UndoRedoControls';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
+import useImg2ImgHistory from '@/hooks/useImg2ImgHistory';
 import { ControlNetRequest } from '@/types/controlnet';
 import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+import { defaultCoreSettings, CoreGenerationSettings } from '@/types/generationSettings';
 
 import {
   Accordion,
@@ -40,23 +43,24 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const [batchSize, setBatchSize] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [customWorkflow, setCustomWorkflow] = useState<any | null>(null);
   
-  // ControlNet configuration will be managed by useControlNetStore
+  // Initialize history with default settings
+  const history = useImg2ImgHistory({
+    ...defaultCoreSettings,
+    model_name: selectedModel
+  });
+
+  // Get current settings from history
+  const coreSettings = history.state;
   
   const { 
     inputImage, 
     setLoading, 
     addImages, 
     clearImages, 
-    coreSettings, 
-    customWorkflow,
-    setCustomWorkflow,
-    handlePromptChange, 
-    handleSamplingSettingsChange, 
-    handleSizeSettingsChange, 
-    handleBatchSettingsChange, 
-    handleSeedChange,
-    updateCoreSettings
+    setInputImage,
+    setCustomWorkflow: setStoreCustomWorkflow
   } = useImg2ImgGalleryStore();
   const selectedLora = useLoraStore(state => state.loraConfig);
   const { controlNetConfig, setControlNetConfig } = useControlNetStore();
@@ -65,6 +69,16 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     setIsLoaded(true);
     console.log("Img2ImgPage component mounted");
   }, []);
+
+  // Update model when selectedModel prop changes
+  useEffect(() => {
+    history.updateModel(selectedModel);
+  }, [selectedModel, history]);
+
+  // Sync custom workflow with store
+  useEffect(() => {
+    setStoreCustomWorkflow(customWorkflow);
+  }, [customWorkflow, setStoreCustomWorkflow]);
 
   const handleSubTabChange = (tabId: string) => {
     setActiveSubTab(tabId);
@@ -77,8 +91,38 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const handleLocalBatchSettingsChange = (newBatchSize: number, newBatchCount: number) => {
     setBatchSize(newBatchSize);
     setBatchCount(newBatchCount);
-    // Also update the store
-    handleBatchSettingsChange(newBatchCount, newBatchSize);
+    // Update history
+    history.updateBatchSize(newBatchSize);
+    history.updateBatchCount(newBatchCount);
+  };
+
+  const handlePromptChange = (value: string, isNegative: boolean = false) => {
+    if (isNegative) {
+      history.updateNegativePrompt(value);
+    } else {
+      history.updatePrompt(value);
+    }
+  };
+
+  const handleSamplingSettingsChange = (sampler: string, scheduler: string, steps: number, cfg: number) => {
+    history.updateSampler(sampler);
+    history.updateScheduler(scheduler);
+    history.updateSteps(steps);
+    history.updateCfgScale(cfg);
+  };
+
+  const handleSizeSettingsChange = (width: number, height: number) => {
+    history.updateWidth(width);
+    history.updateHeight(height);
+  };
+
+  const handleSeedChange = (seed: number, random: boolean = true) => {
+    history.updateSeed(seed);
+    history.updateRandomSeed(random);
+  };
+
+  const updateCoreSettings = (updates: Partial<CoreGenerationSettings>) => {
+    history.updateSettings(updates);
   };
 
   const handleCopyPrompts = () => {
@@ -404,7 +448,17 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       <div className="flex-1 space-y-4">
         <div className="flex flex-col">
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <h3 className="text-base font-medium text-foreground">Image to Image Generation</h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-base font-medium text-foreground">Image to Image Generation</h3>
+              <UndoRedoControls
+                canUndo={history.canUndo}
+                canRedo={history.canRedo}
+                onUndo={history.undo}
+                onRedo={history.redo}
+                historySize={history.historySize}
+                className="hidden sm:flex"
+              />
+            </div>
             <div className="flex space-x-2">
               <Button 
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
@@ -417,6 +471,17 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
                 Save Settings
               </button>}
             </div>
+          </div>
+          
+          {/* Mobile undo/redo controls */}
+          <div className="mb-2 sm:hidden">
+            <UndoRedoControls
+              canUndo={history.canUndo}
+              canRedo={history.canRedo}
+              onUndo={history.undo}
+              onRedo={history.redo}
+              historySize={history.historySize}
+            />
           </div>
           
           <div className="mb-[18px]">

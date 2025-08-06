@@ -11,7 +11,9 @@ import ImagePreview from '@/components/tabs/txt2img/ImagePreview';
 import CheckpointBrowser from '@/components/checkpoint/CheckpointBrowser';
 import LoraBrowser from '@/components/lora/LoraBrowser';
 import CustomWorkflowBrowser from '@/components/custom-workflow/CustomWorkflowBrowser';
+import UndoRedoControls from '@/components/UndoRedoControls';
 import { useIsMobile } from '@/hooks/use-mobile';
+import useGenerationHistory from '@/hooks/useGenerationHistory';
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,10 +31,6 @@ interface Txt2ImgPageProps {
 
 const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange }) => {
   const [activeSubTab, setActiveSubTab] = useState("generation");
-  const [coreSettings, setCoreSettings] = useState<Txt2ImgCoreSettings>({
-    ...defaultTxt2ImgSettings,
-    model_name: selectedModel
-  });
   const [customWorkflow, setCustomWorkflow] = useState<any | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const isMobile = useIsMobile();
@@ -42,38 +40,52 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const { setControlNetConfig } = useControlNetStore();
   const loraConfig = useLoraStore(state => state.loraConfig);
 
+  // Initialize history with default settings
+  const history = useGenerationHistory({
+    ...defaultTxt2ImgSettings,
+    model_name: selectedModel
+  });
+
+  // Get current settings from history
+  const coreSettings = history.state;
+
   // Add effect to update model when selectedModel prop changes
   useEffect(() => {
-    updateCoreSettings({ model_name: selectedModel });
-  }, [selectedModel]);
+    history.updateModel(selectedModel);
+  }, [selectedModel, history]);
 
   const updateCoreSettings = (updates: Partial<Txt2ImgCoreSettings>) => {
-    setCoreSettings(prev => ({ ...prev, ...updates }));
+    history.updateSettings(updates);
   };
 
   const handlePromptChange = (value: string, isNegative: boolean = false) => {
-    updateCoreSettings(isNegative ? { negative_prompt: value } : { prompt: value });
+    if (isNegative) {
+      history.updateNegativePrompt(value);
+    } else {
+      history.updatePrompt(value);
+    }
   };
 
   const handleBatchSettingsChange = (batchSize: number, batchCount: number) => {
-    updateCoreSettings({ batch_size: batchSize, batch_count: batchCount });
+    history.updateBatchSize(batchSize);
+    history.updateBatchCount(batchCount);
   };
 
   const handleSamplingSettingsChange = (sampler: string, scheduler: string, steps: number, cfg: number) => {
-    updateCoreSettings({
-      sampler_name: sampler,
-      scheduler: scheduler,
-      steps: steps,
-      cfg_scale: cfg
-    });
+    history.updateSampler(sampler);
+    history.updateScheduler(scheduler);
+    history.updateSteps(steps);
+    history.updateCfgScale(cfg);
   };
 
   const handleSizeSettingsChange = (width: number, height: number) => {
-    updateCoreSettings({ width, height });
+    history.updateWidth(width);
+    history.updateHeight(height);
   };
 
   const handleSeedChange = (seed: number, random: boolean = true) => {
-    updateCoreSettings({ seed, random_seed: random });
+    history.updateSeed(seed);
+    history.updateRandomSeed(random);
   };
 
   const handleSubTabChange = (tabId: string) => {
@@ -408,8 +420,29 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
       <div className="space-y-4">
         <div className="flex flex-col">
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <h3 className="text-base font-medium">Generation Settings</h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-base font-medium">Generation Settings</h3>
+              <UndoRedoControls
+                canUndo={history.canUndo}
+                canRedo={history.canRedo}
+                onUndo={history.undo}
+                onRedo={history.redo}
+                historySize={history.historySize}
+                className="hidden sm:flex"
+              />
+            </div>
             <ActionButtons />
+          </div>
+          
+          {/* Mobile undo/redo controls */}
+          <div className="mb-2 sm:hidden">
+            <UndoRedoControls
+              canUndo={history.canUndo}
+              canRedo={history.canRedo}
+              onUndo={history.undo}
+              onRedo={history.redo}
+              historySize={history.historySize}
+            />
           </div>
           
           {isMobile && <MobileImagePreview />}
