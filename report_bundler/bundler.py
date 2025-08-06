@@ -9,34 +9,43 @@ REQUIRED_COLUMNS = {"image_path", "sampler", "steps", "cfg", "preset", "seed"}
 def validate_csv_schema(csv_path):
     """
     Opens the CSV file and checks if it has all required columns.
-    If not, throws an error so we don't bundle bad data.
+    Handles missing headers and throws readable errors.
     """
     with open(csv_path, newline='') as f:
         reader = csv.DictReader(f)
+
+        if reader.fieldnames is None:
+            raise ValueError("CSV file is empty or missing a header row.")
+
         header_fields = set(reader.fieldnames)
-        
         if not REQUIRED_COLUMNS.issubset(header_fields):
             missing = REQUIRED_COLUMNS - header_fields
-            raise ValueError(f"Oops...Missing required columns: {missing}")
-        
+            raise ValueError(f"Missing required columns: {missing}")
+
         return list(reader)
 
 def collect_files(csv_rows):
     """
-    From the rows in the CSV, grab all image paths that need to be bundled.
-    We use a set to avoid duplicates just in case.
+    From the rows in the CSV, grab all valid image paths.
+    Filters out rows with missing or empty 'image_path' fields.
     """
     files = set()
-    for row in csv_rows:
-        files.add(row["image_path"])
+    for idx, row in enumerate(csv_rows):
+        if "image_path" not in row:
+            raise ValueError(f"Row {idx} missing 'image_path' key: {row}")
+        image_path = row["image_path"]
+        if image_path and image_path.strip():
+            files.add(image_path)
+        else:
+            print(f"Skipping row {idx} due to empty image_path.")
     return files
 
 def create_report_zip(output_path="report.zip"):
     """
-    This function does the real work:
-    - validates CSV
-    - checks all files exist
-    - packages everything neatly into a zip
+    This function:
+    - Validates the results.csv file
+    - Ensures all images listed exist and are safe
+    - Packages everything into report.zip
     """
     base_dir = Path(__file__).parent
     csv_path = base_dir / "results.csv"
@@ -44,30 +53,31 @@ def create_report_zip(output_path="report.zip"):
     readme_path = base_dir / "README.md"
     zip_path = base_dir / output_path
 
-    # Step 1: Load and validate the CSV
+    # Step 1: Validate CSV
     csv_rows = validate_csv_schema(csv_path)
 
-    # Step 2: Grab image file paths from CSV
+    # Step 2: Collect all valid image paths
     image_paths = collect_files(csv_rows)
 
-    # Step 3: Zip it all up!
+    # Step 3: Zip all files
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        # Add metadata and config
         zipf.write(csv_path, arcname="results.csv")
         zipf.write(config_path, arcname="config.json")
         zipf.write(readme_path, arcname="README.md")
 
-        # Add each grid image
         for path in image_paths:
+            norm_path = Path(path).resolve()
+            # Prevent path traversal by ensuring image is inside project directory
+            if ".." in path or not str(norm_path).startswith(str(base_dir.resolve())):
+                raise ValueError(f"🚨 Invalid image path: {path}")
+
             full_path = base_dir / path
             if not full_path.exists():
-                raise FileNotFoundError(f"Missing image file: {full_path}")
-            
-            # This keeps the zip path clean and relative (like grids/image1.png)
+                raise FileNotFoundError(f"Image not found: {full_path}")
+
             zipf.write(full_path, arcname=path)
 
-    print(f"Done! Report created: {zip_path}")
+    print(f"Done! Report created at: {zip_path}")
 
-# Run it as a script (not when imported)
 if __name__ == "__main__":
     create_report_zip()

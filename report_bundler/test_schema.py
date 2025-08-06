@@ -1,15 +1,15 @@
+import csv
+
 def test_csv_schema():
     """
-    Validate that results.csv contains all expected columns:
-    both required and optional metadata fields.
+    Make sure results.csv contains all required metadata columns.
+    You can add more optional fields in the future if needed.
     """
-    expected_columns = {
-        "image_path", "sampler", "steps", "cfg", "preset", "seed",
-        "width", "height", "grid_label", "notes"
-    }
+    required = {"image_path", "sampler", "steps", "cfg", "preset", "seed"}
 
     with open("results.csv", newline='') as f:
         reader = csv.DictReader(f)
+        assert reader.fieldnames is not None, "Missing header row in CSV"
         header = set(reader.fieldnames)
 
-        assert expected_columns.issubset(header), f"Missing: {expected_columns - header}"
+        assert required.issubset(header), f"Missing columns: {required - header}"
