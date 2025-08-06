@@ -9,6 +9,7 @@ Complete API documentation for DreamLayer AI based on the actual codebase implem
 #### Models Management
 
 **GET `/api/models`** - Get available checkpoint models
+
 ```python
 # [Source: dream_layer.py lines 150-180]
 def get_available_models():
@@ -19,22 +20,24 @@ def get_available_models():
 ```
 
 **Response Format:**
+
 ```json
 {
-    "status": "success",
-    "models": [
-        {
-            "id": "model_filename.safetensors",
-            "name": "Model Display Name",
-            "filename": "model_filename.safetensors"
-        }
-    ]
+  "status": "success",
+  "models": [
+    {
+      "id": "model_filename.safetensors",
+      "name": "Model Display Name",
+      "filename": "model_filename.safetensors"
+    }
+  ]
 }
 ```
 
 #### LoRA Models
 
 **GET `/api/lora-models`** - Get available LoRA models
+
 ```python
 # [Source: dream_layer.py lines 271-293]
 def get_available_lora_models():
@@ -47,6 +50,7 @@ def get_available_lora_models():
 #### Upscaler Models
 
 **GET `/api/upscaler-models`** - Get available upscaler models
+
 ```python
 # [Source: dream_layer.py lines 323-329]
 def get_upscaler_models_endpoint():
@@ -59,6 +63,7 @@ def get_upscaler_models_endpoint():
 #### ControlNet Models
 
 **GET `/api/controlnet/models`** - Get available ControlNet models
+
 ```python
 # [Source: dream_layer.py lines 466-486]
 def get_controlnet_models_endpoint():
@@ -71,6 +76,7 @@ def get_controlnet_models_endpoint():
 #### Settings Management
 
 **POST `/api/settings/paths`** - Configure output and models directories
+
 ```python
 # [Source: dream_layer.py lines 200-226]
 def handle_path_settings():
@@ -81,16 +87,18 @@ def handle_path_settings():
 ```
 
 **Request Format:**
+
 ```json
 {
-    "outputDirectory": "/path/to/output",
-    "modelsDirectory": "/path/to/models"
+  "outputDirectory": "/path/to/output",
+  "modelsDirectory": "/path/to/models"
 }
 ```
 
 #### Prompt Generation
 
 **GET `/api/fetch-prompt`** - Get random positive and negative prompts
+
 ```python
 # [Source: dream_layer.py lines 311-322]
 def fetch_prompt():
@@ -103,6 +111,7 @@ def fetch_prompt():
 #### File Operations
 
 **POST `/api/show-in-folder`** - Open file in system file manager
+
 ```python
 # [Source: dream_layer.py lines 330-363]
 def show_in_folder():
@@ -113,6 +122,7 @@ def show_in_folder():
 ```
 
 **POST `/api/send-to-img2img`** - Send image to img2img workflow
+
 ```python
 # [Source: dream_layer.py lines 364-381]
 def send_to_img2img():
@@ -123,6 +133,7 @@ def send_to_img2img():
 ```
 
 **POST `/api/send-to-extras`** - Send image to extras workflow
+
 ```python
 # [Source: dream_layer.py lines 382-405]
 def send_to_extras():
@@ -135,6 +146,7 @@ def send_to_extras():
 #### File Upload
 
 **POST `/api/upload-model`** - Upload model files to ComfyUI models directory
+
 ```python
 # [Source: dream_layer.py lines 456-481]
 def upload_model():
@@ -146,6 +158,7 @@ def upload_model():
 ```
 
 **Request Format:**
+
 ```
 Content-Type: multipart/form-data
 
@@ -154,20 +167,22 @@ model_type: checkpoints|loras|controlnet|upscale_models|vae|embeddings|hypernetw
 ```
 
 **Response Format:**
+
 ```json
 {
-    "status": "success",
-    "filename": "timestamped_filename.safetensors",
-    "original_filename": "original_name.safetensors",
-    "display_name": "Original Name",
-    "model_type": "checkpoints",
-    "filepath": "/path/to/saved/file",
-    "size": 1234567890,
-    "message": "Model uploaded successfully to checkpoints"
+  "status": "success",
+  "filename": "timestamped_filename.safetensors",
+  "original_filename": "original_name.safetensors",
+  "display_name": "Original Name",
+  "model_type": "checkpoints",
+  "filepath": "/path/to/saved/file",
+  "size": 1234567890,
+  "message": "Model uploaded successfully to checkpoints"
 }
 ```
 
 **POST `/api/upload-controlnet-image`** - Upload ControlNet image
+
 ```python
 # [Source: dream_layer.py lines 406-448]
 def upload_controlnet_image():
@@ -181,6 +196,7 @@ def upload_controlnet_image():
 #### Image Serving
 
 **GET `/api/images/<filename>`** - Serve generated images
+
 ```python
 # [Source: dream_layer.py lines 449-465]
 def serve_image(filename):
@@ -196,6 +212,7 @@ def serve_image(filename):
 ### Directory Management
 
 **`get_directories()`** - Get output and models directories
+
 ```python
 # [Source: dream_layer.py lines 35-75]
 def get_directories() -> Tuple[str, Optional[str]]:
@@ -208,6 +225,7 @@ def get_directories() -> Tuple[str, Optional[str]]:
 ### ComfyUI Integration
 
 **`import_comfyui_main()`** - Import ComfyUI main module
+
 ```python
 # [Source: dream_layer.py lines 77-95]
 def import_comfyui_main():
@@ -220,6 +238,7 @@ def import_comfyui_main():
 ### Settings Management
 
 **`save_settings(settings)`** - Save path settings to file
+
 ```python
 # [Source: dream_layer.py lines 182-190]
 def save_settings(settings):
@@ -235,6 +254,7 @@ def save_settings(settings):
 ### ComfyUI Server
 
 **`start_comfy_server()`** - Start ComfyUI server in background
+
 ```python
 # [Source: dream_layer.py lines 227-265]
 def start_comfy_server():
@@ -247,6 +267,7 @@ def start_comfy_server():
 ### Flask Server
 
 **`start_flask_server()`** - Start Flask API server
+
 ```python
 # [Source: dream_layer.py lines 266-270]
 def start_flask_server():
@@ -272,6 +293,10 @@ API_KEY_TO_MODELS = {
     ],
     "IDEOGRAM_API_KEY": [
         {"id": "ideogram-v3", "name": "Ideogram V3", "filename": "ideogram-v3"},
+    ],
+    "STABILITY_API_KEY": [
+        {"id": "stability-sdxl", "name": "Stability SDXL", "filename": "stability-sdxl"},
+        {"id": "stability-sd-turbo", "name": "Stability SD Turbo", "filename": "stability-sd-turbo"},
     ]
 }
 ```
@@ -295,4 +320,4 @@ CORS(app, resources={
 
 - [Architecture Overview](architecture.md) - System design and component relationships
 - [Usage Guide](usage.md) - How to use the API endpoints
-- [Installation Guide](installation.md) - Setup and configuration instructions 
+- [Installation Guide](installation.md) - Setup and configuration instructions

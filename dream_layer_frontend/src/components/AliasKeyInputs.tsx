@@ -21,13 +21,34 @@ const fields = [
     placeholder: "Enter Ideogram API Key",
     docs: "https://developer.ideogram.ai/ideogram-api/api-setup",
   },
+  {
+    name: "Stability AI",
+    alias: "STABILITY_API_KEY",
+    placeholder: "Enter Stability AI API Key",
+    docs: "https://platform.stability.ai/docs/getting-started/authentication",
+  },
 ];
 
 const ApiKeysForm: React.FC = () => {
-  const [keys, setKeys] = useState<string[]>(["", "", ""]);
-  const [submitted, setSubmitted] = useState<boolean[]>([false, false, false]);
-  const [loading, setLoading] = useState<boolean[]>([false, false, false]);
-  const [showText, setShowText] = useState<boolean[]>([false, false, false]);
+  const [keys, setKeys] = useState<string[]>(["", "", "", ""]);
+  const [submitted, setSubmitted] = useState<boolean[]>([
+    false,
+    false,
+    false,
+    false,
+  ]);
+  const [loading, setLoading] = useState<boolean[]>([
+    false,
+    false,
+    false,
+    false,
+  ]);
+  const [showText, setShowText] = useState<boolean[]>([
+    false,
+    false,
+    false,
+    false,
+  ]);
 
   const handleChange = (index: number, value: string) => {
     setKeys((prev) => {
@@ -136,7 +157,10 @@ const ApiKeysForm: React.FC = () => {
           )}
         </div>
       ))}
-      <div className="space-y-6">* Please Click of Refresh Models After Adding the Keys to View the Models</div>
+      <div className="space-y-6">
+        * Please Click of Refresh Models After Adding the Keys to View the
+        Models
+      </div>
     </div>
   );
 };
