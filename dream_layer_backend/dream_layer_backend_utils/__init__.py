@@ -8,6 +8,7 @@ from .fetch_advanced_models import (
     get_all_advanced_models
 )
 from .workflow_execution import interrupt_workflow
+from .batch_report_generator import BatchReportGenerator
 
 __all__ = [
     'read_api_keys_from_env',
@@ -16,5 +17,6 @@ __all__ = [
     'get_lora_models',
     'get_upscaler_models',
     'get_all_advanced_models',
-    'interrupt_workflow'
+    'interrupt_workflow',
+    'BatchReportGenerator'
 ] 
