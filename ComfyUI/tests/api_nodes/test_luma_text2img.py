@@ -190,10 +190,11 @@ class TestLumaText2Img:
     def test_poll_for_completion_failed(self, mock_get, mock_env_with_key):
         """Test failed polling for completion"""
         mock_response = Mock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {"status": "failed", "error": "Generation failed"}
         mock_get.return_value = mock_response
 
-        with pytest.raises(RuntimeError, match="Generation failed"):
+        with pytest.raises(RuntimeError, match="Generation failed:"):
             mock_env_with_key.client.poll_for_completion("test_id")
 
     @patch('requests.get')
@@ -223,19 +224,18 @@ class TestLumaText2Img:
         with pytest.raises(RuntimeError, match="Failed to download image"):
             luma_node.client.download_image("https://example.com/image.jpg")
 
-    @patch.object(LumaText2Img, 'client')
-    def test_generate_image_success(self, mock_client, mock_env_with_key):
+    def test_generate_image_success(self, mock_env_with_key):
         """Test successful image generation end-to-end"""
-        # Mock the client methods
-        mock_client.send_generation_request.return_value = {"id": "test_generation_id"}
-        mock_client.poll_for_completion.return_value = {
+        # Mock the client methods directly on the instance
+        mock_env_with_key.client.send_generation_request = Mock(return_value={"id": "test_generation_id"})
+        mock_env_with_key.client.poll_for_completion = Mock(return_value={
             "status": "completed",
             "images": [{"url": "https://example.com/image.jpg"}]
-        }
+        })
 
         # Create a test image array matching the requested dimensions
         test_image_array = np.random.rand(1024, 1024, 3).astype(np.float32)
-        mock_client.download_image.return_value = test_image_array
+        mock_env_with_key.client.download_image = Mock(return_value=test_image_array)
 
         # Test the main function
         result = mock_env_with_key.generate_image(
