@@ -4,7 +4,9 @@ import {
   ImageIcon,
   Settings,
   GalleryHorizontal,
-  HardDrive
+  HardDrive,
+  History,
+  Download
 } from "lucide-react";
 
 const tabs = [
@@ -13,7 +15,9 @@ const tabs = [
   { id: "extras", label: "Extras", icon: GalleryHorizontal },
   { id: "models", label: "Models", icon: HardDrive },
   { id: "pnginfo", label: "PNG Info", icon: FileText },
-  { id: "configurations", label: "Configurations", icon: Settings }
+  { id: "configurations", label: "Configurations", icon: Settings },
+  { id: "runregistry", label: "Run Registry", icon: History },
+  { id: "reportbundle", label: "Report Bundle", icon: Download }
 ];
 
 interface TabsNavProps {

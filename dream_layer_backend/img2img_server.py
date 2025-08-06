@@ -4,6 +4,7 @@ import base64
 import json
 import logging
 import os
+import requests
 from PIL import Image
 import io
 import time
@@ -11,6 +12,8 @@ from shared_utils import send_to_comfyui
 from img2img_workflow import transform_to_img2img_workflow
 from shared_utils import COMFY_API_URL
 from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
+from run_registry import create_run_config_from_generation_data
+from dataclasses import asdict
 
 # Configure logging
 logging.basicConfig(
@@ -178,11 +181,40 @@ def handle_img2img():
                 logger.info(f"  Subfolder: {img.get('subfolder', 'None')}")
                 logger.info(f"  URL: {img.get('url')}")
         
+        # Extract generated image filenames
+        generated_images = []
+        if comfy_response.get("generated_images"):
+            for img_data in comfy_response["generated_images"]:
+                if isinstance(img_data, dict) and "filename" in img_data:
+                    generated_images.append(img_data["filename"])
+        
+        # Register the completed run
+        try:
+            run_config = create_run_config_from_generation_data(
+                data, generated_images, "img2img"
+            )
+            
+            # Send to run registry
+            registry_response = requests.post(
+                "http://localhost:5005/api/runs",
+                json=asdict(run_config),
+                timeout=5
+            )
+            
+            if registry_response.status_code == 200:
+                logger.info(f"✅ Run registered successfully: {run_config.run_id}")
+            else:
+                logger.warning(f"⚠️ Failed to register run: {registry_response.text}")
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Error registering run: {str(e)}")
+        
         response = jsonify({
             "status": "success",
             "message": "Workflow sent to ComfyUI successfully",
             "comfy_response": comfy_response,
-            "workflow": workflow
+            "workflow": workflow,
+            "run_id": run_config.run_id if 'run_config' in locals() else None
         })
         
         # Clean up the temporary image file
