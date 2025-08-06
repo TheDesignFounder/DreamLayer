@@ -66,7 +66,7 @@ Successfully integrated Luma AI API into DreamLayer, providing direct API calls 
 *[Note: Generated image would show successful Luma AI output]*
 
 ### Server Logs
-```
+```log
 [DEBUG] Found LUMA_API_KEY: luma_xxxxxxxxxxxxx
 [DEBUG] Making request to Luma AI API with data: {
   "prompt": "A beautiful sunset over mountains",
@@ -79,7 +79,7 @@ Prompt executed in 8.45 seconds
 ```
 
 ### Test Results
-```
+```text
 ============================= test session starts =============================
 platform win32 -- Python 3.11.0, pytest-7.4.0, pluggy-1.2.0
 rootdir: C:\Users\HF\DreamLayer\ComfyUI
@@ -106,21 +106,21 @@ tests/api_nodes/test_luma_text2img.py .......                           [100%]
 ## Summary by Sourcery
 Integrate Luma AI direct API support into DreamLayer by implementing dedicated Luma nodes, bypassing the ComfyUI proxy, and adding comprehensive model support for all Luma AI services.
 
-### New Features:
+### New Features
 - Implement direct HTTP requests to Luma AI endpoints using proper JSON payloads
 - Add support for `LUMA_API_KEY` injection for all Luma AI nodes
 - Include all Luma models (Photon 1, Photon Flash 1, Ray 2, Ray Flash 2, Ray 1.6) in available models list
 - Introduce dedicated workflow templates for Luma AI generation flows
 - Extend workflow transformers to recognize and route Luma models to appropriate workflows
 
-### Enhancements:
+### Enhancements
 - Remove legacy ComfyUI proxy authentication logic for Luma nodes
 - Implement comprehensive error handling for all HTTP status codes (401, 402, 403, 409, 429)
 - Simplify `.env` configuration to require only `LUMA_API_KEY`
 - Improve debug logging and error messages for better user experience
 - Add automatic CPU fallback for systems without CUDA support
 
-### Bug Fixes:
+### Bug Fixes
 - Fixed indentation error in test file
 - Corrected node class name mappings in API key injector
 - Removed unnecessary f-string prefixes and emojis from code comments

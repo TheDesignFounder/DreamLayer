@@ -133,7 +133,7 @@ class TestLumaText2Img:
         """Test successful API request"""
         # Set up the API key in the client
         mock_env_with_key.client.api_key = "test_api_key_123"
-        
+
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"id": "test_generation_id"}
@@ -165,7 +165,7 @@ class TestLumaText2Img:
         """Test successful polling for completion"""
         # Set up the API key in the client
         mock_env_with_key.client.api_key = "test_api_key_123"
-        
+
         # Mock initial pending response
         mock_response_pending = Mock()
         mock_response_pending.status_code = 200
