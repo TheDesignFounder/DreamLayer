@@ -11,6 +11,7 @@ import json
 import subprocess
 from dream_layer_backend_utils.random_prompt_generator import fetch_positive_prompt, fetch_negative_prompt
 from dream_layer_backend_utils.fetch_advanced_models import get_lora_models, get_settings, is_valid_directory, get_upscaler_models, get_controlnet_models
+from run_registry import get_registry
 # Add ComfyUI directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -604,6 +605,101 @@ def get_controlnet_models_endpoint():
         return jsonify({
             "status": "error",
             "message": f"Failed to fetch ControlNet models: {str(e)}"
+        }), 500
+
+
+# Run Registry API Endpoints
+@app.route('/api/runs', methods=['GET'])
+def get_runs():
+    """Get list of generation runs"""
+    try:
+        registry = get_registry()
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        runs = registry.get_runs(limit=limit, offset=offset)
+        return jsonify({
+            "status": "success",
+            "runs": runs
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to fetch runs: {str(e)}"
+        }), 500
+
+
+@app.route('/api/runs/<run_id>', methods=['GET'])
+def get_run(run_id):
+    """Get a specific run by ID"""
+    try:
+        registry = get_registry()
+        run = registry.get_run(run_id)
+        
+        if run is None:
+            return jsonify({
+                "status": "error",
+                "message": "Run not found"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "run": run
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to fetch run: {str(e)}"
+        }), 500
+
+
+@app.route('/api/runs', methods=['POST'])
+def save_run():
+    """Save a new generation run"""
+    try:
+        registry = get_registry()
+        config = request.json
+        
+        if not config:
+            return jsonify({
+                "status": "error",
+                "message": "No configuration provided"
+            }), 400
+        
+        run_id = registry.save_run(config)
+        
+        return jsonify({
+            "status": "success",
+            "run_id": run_id
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to save run: {str(e)}"
+        }), 500
+
+
+@app.route('/api/runs/<run_id>', methods=['DELETE'])
+def delete_run(run_id):
+    """Delete a specific run"""
+    try:
+        registry = get_registry()
+        success = registry.delete_run(run_id)
+        
+        if not success:
+            return jsonify({
+                "status": "error",
+                "message": "Run not found"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "message": "Run deleted successfully"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to delete run: {str(e)}"
         }), 500
 
 

@@ -11,6 +11,9 @@ from shared_utils import send_to_comfyui
 from img2img_workflow import transform_to_img2img_workflow
 from shared_utils import COMFY_API_URL
 from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from run_registry import get_registry
 
 # Configure logging
 logging.basicConfig(
@@ -177,6 +180,22 @@ def handle_img2img():
                 logger.info(f"  Type: {img.get('type')}")
                 logger.info(f"  Subfolder: {img.get('subfolder', 'None')}")
                 logger.info(f"  URL: {img.get('url')}")
+        
+        # Save run to registry
+        try:
+            registry = get_registry()
+            run_config = {
+                **data,
+                'generation_type': 'img2img',
+                'workflow': workflow,
+                'workflow_version': '1.0.0',
+                'output_images': comfy_response.get("all_images", [])
+            }
+            run_id = registry.save_run(run_config)
+            logger.info(f"✅ Run saved with ID: {run_id}")
+        except Exception as save_error:
+            logger.warning(f"⚠️ Failed to save run: {str(save_error)}")
+            # Don't fail the request if saving fails
         
         response = jsonify({
             "status": "success",

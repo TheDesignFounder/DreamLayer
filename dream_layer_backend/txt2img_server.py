@@ -1,13 +1,14 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
-import os
-from dream_layer import get_directories
-from dream_layer_backend_utils import interrupt_workflow
-from shared_utils import  send_to_comfyui
-from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
-from PIL import Image, ImageDraw
 from txt2img_workflow import transform_to_txt2img_workflow
+from shared_utils import send_to_comfyui, interrupt_workflow
+from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from run_registry import get_registry
+from PIL import Image, ImageDraw
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -75,6 +76,22 @@ def handle_txt2img():
                     "status": "error",
                     "message": comfy_response["error"]
                 }), 500
+            
+            # Save run to registry
+            try:
+                registry = get_registry()
+                run_config = {
+                    **data,
+                    'generation_type': 'txt2img',
+                    'workflow': workflow,
+                    'workflow_version': '1.0.0',
+                    'output_images': comfy_response.get("all_images", [])
+                }
+                run_id = registry.save_run(run_config)
+                print(f"✅ Run saved with ID: {run_id}")
+            except Exception as save_error:
+                print(f"⚠️ Failed to save run: {str(save_error)}")
+                # Don't fail the request if saving fails
             
             response = jsonify({
                 "status": "success",
