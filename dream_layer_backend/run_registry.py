@@ -79,7 +79,7 @@ class RunRegistry:
                 
                 # Advanced features
                 'loras': config.get('loras', []),
-                'controlnet': config.get('controlnet', {}),
+                'controlnets': config.get('controlnet', config.get('controlnets', {})),  # Map controlnet to controlnets for frontend compatibility
                 
                 # Generation metadata
                 'generation_type': config.get('generation_type', 'txt2img'),
@@ -181,6 +181,19 @@ class RunRegistry:
             
             # Clear index
             self._save_index([])
+    
+    def list_runs(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """
+        Alias for get_runs() to maintain compatibility with tests
+        
+        Args:
+            limit: Maximum number of runs to return
+            offset: Number of runs to skip
+            
+        Returns:
+            List of run summaries
+        """
+        return self.get_runs(limit=limit, offset=offset)
 
 
 # Global registry instance

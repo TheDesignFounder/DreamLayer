@@ -58,7 +58,7 @@ class TestRunRegistry:
         # Check all required keys exist
         required_keys = [
             'id', 'timestamp', 'prompt', 'negative_prompt', 
-            'model', 'vae', 'loras', 'controlnet',
+            'model', 'vae', 'loras', 'controlnets',
             'seed', 'sampler', 'steps', 'cfg_scale',
             'generation_type', 'workflow', 'workflow_version'
         ]
@@ -99,7 +99,7 @@ class TestRunRegistry:
         assert run['prompt'] == ''
         assert run['negative_prompt'] is None
         assert run['loras'] == []
-        assert run['controlnet'] == {}
+        assert run['controlnets'] == {}
         assert run['workflow'] is None
     
     def test_handle_missing_keys_with_defaults(self, temp_registry):
@@ -118,7 +118,7 @@ class TestRunRegistry:
         assert run['model'] == 'Unknown'  # Default model
         assert run['vae'] == 'Default'  # Default VAE
         assert run['loras'] == []  # Default empty list
-        assert run['controlnet'] == {}  # Default empty dict
+        assert run['controlnets'] == {}  # Default empty dict
         assert run['seed'] == -1  # Default seed
         assert run['sampler'] == 'euler'  # Default sampler
         assert run['steps'] == 20  # Default steps
@@ -279,7 +279,7 @@ class TestRunRegistry:
         run = temp_registry.get_run(run_id)
         assert run is not None
         assert len(run['loras']) == 50
-        assert len(run['controlnet']['units']) == 5
+        assert len(run['controlnets']['units']) == 5
         assert len(run['workflow']['nodes']) == 100
     
     def test_run_summary_format(self, temp_registry):

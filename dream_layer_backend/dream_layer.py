@@ -285,7 +285,7 @@ def start_comfy_server():
                     print("\nComfyUI server is ready!")
                     return True
             except requests.exceptions.ConnectionError:
-                time.sleep(1)
+                pass  # Continue checking without delay
 
         print("Error: ComfyUI server failed to start within the timeout period")
         return False
