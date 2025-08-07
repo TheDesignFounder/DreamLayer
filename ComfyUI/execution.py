@@ -358,8 +358,27 @@ def execute(server, dynprompt, caches, current_item, extra_data, executed, promp
             end_time = time.perf_counter()
             elapsed_time = end_time - start_time
 
-            with open("inference_trace.csv", "a") as f:
+            csv_path = "inference_trace.csv"
+            with open(csv_path, "a") as f:
                 f.write(f"{unique_id},{elapsed_time:.4f},{gpu_name},{gpu_driver}\n")
+
+            # Check if this is the last node execution, then calculate variance
+            if execution_list.is_empty():
+                import pandas as pd
+                import numpy as np
+
+                try:
+                    df = pd.read_csv(csv_path, names=["node_id", "inference_time", "gpu_name", "gpu_driver"])
+                    mean = np.mean(df["inference_time"])
+                    stddev = np.std(df["inference_time"])
+                    tolerance = stddev / mean
+
+                    with open(csv_path, "a") as f:
+                        f.write(f"mean,{mean:.4f},{gpu_name},{gpu_driver}\n")
+                        f.write(f"stddev,{stddev:.4f},{gpu_name},{gpu_driver}\n")
+                        f.write(f"tolerance,{tolerance:.4f},{gpu_name},{gpu_driver}\n")
+                except Exception as e:
+                    logging.error(f"Failed to append variance to CSV: {e}")
             # TIMING END
 
     except Exception as e:
