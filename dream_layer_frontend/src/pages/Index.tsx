@@ -6,6 +6,7 @@ import { Txt2ImgPage } from '@/features/Txt2Img';
 import { Img2ImgPage } from '@/features/Img2Img';
 import ExtrasPage from '@/features/Extras';
 import { ModelManagerPage } from '@/features/ModelManager';
+import Runs from './Runs';
 import { PNGInfoPage } from '@/features/PNGInfo';
 import { ConfigurationsPage } from '@/features/Configurations';
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
@@ -38,6 +39,8 @@ const Index = () => {
         return <ExtrasPage />;
       case "models":
         return <ModelManagerPage />;
+      case "runs":
+        return <Runs />;
       case "pnginfo":
         return <PNGInfoPage />;
       case "configurations":
