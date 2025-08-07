@@ -1,3 +1,9 @@
 {
-    "Comfy.TutorialCompleted": true
+    "Comfy.TutorialCompleted": true,
+    "Comfy.ColorPalette": "dark",
+    "Comfy.Release.Version": "0.3.49",
+    "Comfy.Release.Timestamp": 1754554707284,
+    "Comfy.NodeLibrary.Bookmarks.V2": [
+        "KSamplerAdvanced"
+    ]
 }

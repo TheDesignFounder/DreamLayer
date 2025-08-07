@@ -88,7 +88,7 @@ if models_dir:
     sys.argv.extend(['--base-directory', models_dir])
 
 # Check for environment variable to force ComfyUI CPU mode
-if os.environ.get('DREAMLAYER_COMFYUI_CPU_MODE', 'false').lower() == 'true':
+if True:
     print("Forcing ComfyUI to run in CPU mode as requested.")
     sys.argv.append('--cpu')
 
@@ -322,6 +322,27 @@ def get_available_lora_models():
         print(f"Error fetching LoRA models: {str(e)}")
 
     return formatted_models
+
+@app.route('/api/generate-report', methods=['POST'])
+def handle_generate_report():
+    try:
+        script_path = os.path.join(os.path.dirname(__file__), '..\ComfyUI\utils\generate_report.py')
+        result = subprocess.run(["python", script_path], capture_output=True, text=True, check=True)
+        return jsonify({
+            "status": "success",
+            "message": "Report generated successfully.",
+            "output": result.stdout
+        })
+    except subprocess.CalledProcessError as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to generate report: {e.stderr}"
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Unexpected error: {str(e)}"
+        }), 500
 
 
 @app.route('/', methods=['GET'])
