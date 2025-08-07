@@ -1,0 +1,3 @@
+image_file,sampler,steps,cfg,seed
+grid_001.png,euler,20,8.0,244011703599022
+grid_002.png,euler,20,8.0,157166686672613

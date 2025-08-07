@@ -10,6 +10,7 @@ import { PNGInfoPage } from '@/features/PNGInfo';
 import { ConfigurationsPage } from '@/features/Configurations';
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
+import GenerateReportButton from "../components/GenerateReportButton";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("txt2img");
@@ -55,6 +56,10 @@ const Index = () => {
         <h2 className="mb-2 mt-6 text-lg font-medium text-foreground">Generation Modules</h2>
         <div className="bg-card rounded-lg shadow-[0px_4px_24px_rgba(51,51,51,0.15)] p-6 border border-border">
           <TabsNav activeTab={activeTab} onTabChange={handleTabChange} />
+          {/* Generate Report Button */}
+          <div className="my-4">
+            <GenerateReportButton />
+          </div>
           {renderTabContent()}
         </div>
       </div>

@@ -4,6 +4,8 @@ from folder_paths import folder_names_and_paths, get_directory_by_type
 from api_server.services.terminal_service import TerminalService
 import app.logger
 import os
+from pathlib import Path
+import subprocess
 
 class InternalRoutes:
     '''
@@ -43,7 +45,6 @@ class InternalRoutes:
 
             return web.Response(status=200)
 
-
         @self.routes.get('/folder_paths')
         async def get_folder_paths(request):
             response = {}
@@ -64,6 +65,23 @@ class InternalRoutes:
             )
             return web.json_response([entry.name for entry in sorted_files], status=200)
 
+        # ✅ NEW: Generate Report Route
+        @self.routes.post('/generate_report')
+        async def generate_report(request):
+            try:
+                script_path = Path(__file__).parent.parent.parent / "utils" / "generate_report.py"
+                result = subprocess.run(["python", str(script_path)], capture_output=True, text=True, check=True)
+                return web.json_response({
+                    "status": "success",
+                    "message": "Report generated successfully.",
+                    "output": result.stdout
+                })
+            except subprocess.CalledProcessError as e:
+                return web.json_response({
+                    "status": "error",
+                    "message": "Report generation failed.",
+                    "error": e.stderr
+                }, status=500)
 
     def get_app(self):
         if self._app is None:
