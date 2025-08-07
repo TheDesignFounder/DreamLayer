@@ -4,7 +4,8 @@ import {
   ImageIcon,
   Settings,
   GalleryHorizontal,
-  HardDrive
+  HardDrive,
+  History
 } from "lucide-react";
 
 const tabs = [
@@ -12,6 +13,7 @@ const tabs = [
   { id: "img2img", label: "Img2Img", icon: ImageIcon },
   { id: "extras", label: "Extras", icon: GalleryHorizontal },
   { id: "models", label: "Models", icon: HardDrive },
+  { id: "runs", label: "Runs", icon: History },
   { id: "pnginfo", label: "PNG Info", icon: FileText },
   { id: "configurations", label: "Configurations", icon: Settings }
 ];
