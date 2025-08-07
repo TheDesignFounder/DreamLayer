@@ -5,6 +5,7 @@ import threading
 import heapq
 import time
 import traceback
+import os
 from enum import Enum
 import inspect
 from typing import List, Literal, NamedTuple, Optional
@@ -17,14 +18,6 @@ from comfy_execution.graph import get_input_info, ExecutionList, DynamicPrompt, 
 from comfy_execution.graph_utils import is_link, GraphBuilder
 from comfy_execution.caching import HierarchicalCache, LRUCache, DependencyAwareCache, CacheKeySetInputSignature, CacheKeySetID
 from comfy_execution.validation import validate_node_input
-
-from pynvml import *
-
-nvmlInit()
-handle = nvmlDeviceGetHandleByIndex(0)
-gpu_name = nvmlDeviceGetName(handle).decode()
-gpu_driver = nvmlSystemGetDriverVersion().decode()
-
 class ExecutionResult(Enum):
     SUCCESS = 0
     FAILURE = 1
@@ -273,6 +266,18 @@ def format_value(x):
         return x
     else:
         return str(x)
+    
+def get_gpu_info():
+    try:
+        import pynvml 
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        gpu_name = pynvml.nvmlDeviceGetName(handle).decode()
+        gpu_driver = pynvml.nvmlSystemGetDriverVersion().decode()
+    except Exception:
+        gpu_name = "Unknown"
+        gpu_driver = "Unknown"
+    return gpu_name, gpu_driver
 
 def execute(server, dynprompt, caches, current_item, extra_data, executed, prompt_id, execution_list, pending_subgraph_results):
     unique_id = current_item
@@ -358,9 +363,56 @@ def execute(server, dynprompt, caches, current_item, extra_data, executed, promp
             end_time = time.perf_counter()
             elapsed_time = end_time - start_time
 
-            csv_path = "inference_trace.csv"
-            with open(csv_path, "a") as f:
-                f.write(f"{unique_id},{elapsed_time:.4f},{gpu_name},{gpu_driver}\n")
+            CSV_LOCK = threading.Lock()  
+            CSV_PATH = "inference_trace.csv"
+            CSV_HEADER = ["node_id", "inference_time", "gpu_name", "gpu_driver"]
+            MAX_CSV_ROWS = 10000  # Adjust as needed
+            
+            def write_inference_trace(unique_id, elapsed_time, gpu_name, gpu_driver):
+                try:
+                    with CSV_LOCK:
+                        file_exists = os.path.exists(CSV_PATH)
+                        # Read existing rows if file exists
+                        rows = []
+                        if file_exists:
+                            with open(CSV_PATH, "r") as f:
+                                rows = f.readlines()
+                        # Truncate if too many rows
+                        if len(rows) >= MAX_CSV_ROWS:
+                            rows = rows[-(MAX_CSV_ROWS - 1):]  # Keep last N-1 rows
+                        # Write header if file is new/empty
+                        with open(CSV_PATH, "w") as f:
+                            if not file_exists or (file_exists and len(rows) == 0):
+                                f.write(",".join(CSV_HEADER) + "\n")
+                            for row in rows:
+                                f.write(row)
+                            # Write new row
+                            f.write(f"{unique_id},{elapsed_time:.4f},{gpu_name},{gpu_driver}\n")
+                
+                except Exception as e:
+                    # Restore detailed exception handling and OOM detection
+                    logging.error(f"Exception during execution of node {unique_id}: {e}")
+                    tb_str = traceback.format_exc()
+                    error_type = type(e).__name__
+                    error_message = str(e)
+
+                    # Special handling for CUDA OOM errors
+                    is_oom = False
+                    if "CUDA out of memory" in error_message or "CUDNN_STATUS_NOT_SUPPORTED" in error_message:
+                        error_type = "OutOfMemoryError"
+                        is_oom = True
+
+                    error_info = {
+                        "error_type": error_type,
+                        "error_message": error_message,
+                        "traceback": tb_str,
+                        "is_oom": is_oom,
+                        "exception_object": repr(e),  # For debugging, but not for serialization
+                    }
+                    return (ExecutionResult.FAILURE, error_info, None)
+
+                # Usage in your execute() function:
+                write_inference_trace(unique_id, elapsed_time, gpu_name, gpu_driver)
 
             # Check if this is the last node execution, then calculate variance
             if execution_list.is_empty():
@@ -368,22 +420,29 @@ def execute(server, dynprompt, caches, current_item, extra_data, executed, promp
                 import numpy as np
 
                 try:
-                    df = pd.read_csv(csv_path, names=["node_id", "inference_time", "gpu_name", "gpu_driver"])
+                    df = pd.read_csv(CSV_PATH, names=["node_id", "inference_time", "gpu_name", "gpu_driver"])
                     mean = np.mean(df["inference_time"])
                     stddev = np.std(df["inference_time"])
                     tolerance = stddev / mean
 
-                    with open(csv_path, "a") as f:
-                        f.write(f"mean,{mean:.4f},{gpu_name},{gpu_driver}\n")
-                        f.write(f"stddev,{stddev:.4f},{gpu_name},{gpu_driver}\n")
-                        f.write(f"tolerance,{tolerance:.4f},{gpu_name},{gpu_driver}\n")
+                    with CSV_LOCK:
+                        with open(CSV_LOCK, "a") as f:
+                            f.write(f"mean,{mean:.4f},{gpu_name},{gpu_driver}\n")
+                            f.write(f"stddev,{stddev:.4f},{gpu_name},{gpu_driver}\n")
+                            f.write(f"tolerance,{tolerance:.4f},{gpu_name},{gpu_driver}\n")
                 except Exception as e:
                     logging.error(f"Failed to append variance to CSV: {e}")
             # TIMING END
 
     except Exception as e:
         logging.error(f"Exception during execution of node {unique_id}: {e}")
-        return (ExecutionResult.FAILURE, e, e)
+        # Return a serializable error structure instead of the exception object
+        error_info = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        return (ExecutionResult.FAILURE, error_info, None)
 
     caches.outputs.set(unique_id, output_data)
     caches.ui.set(unique_id, {"output": output_ui})

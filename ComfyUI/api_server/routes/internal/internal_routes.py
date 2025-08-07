@@ -74,10 +74,15 @@ class InternalRoutes:
             times = []
             gpu_name = "Unknown"
 
+            # Read CSV with explicit fieldnames to match writing format (no header)
             with open(csv_path, newline='') as csvfile:
-                reader = csv.DictReader(csvfile)
+                reader = csv.DictReader(csvfile, fieldnames=["node_id", "wall_time_sec", "gpu_name", "gpu_driver"])
                 for row in reader:
-                    times.append(float(row["wall_time_sec"]))
+                    # Skip summary rows if present
+                    try:
+                        times.append(float(row["wall_time_sec"]))
+                    except ValueError:
+                        continue
                     gpu_name = row["gpu_name"]
 
             if not times:
