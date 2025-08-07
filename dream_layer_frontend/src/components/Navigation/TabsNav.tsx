@@ -4,12 +4,14 @@ import {
   ImageIcon,
   Settings,
   GalleryHorizontal,
-  HardDrive
+  HardDrive,
+  Grid3X3
 } from "lucide-react";
 
 const tabs = [
   { id: "txt2img", label: "Txt2Img", icon: FileText },
   { id: "img2img", label: "Img2Img", icon: ImageIcon },
+  { id: "matrix", label: "Matrix Runner", icon: Grid3X3 },
   { id: "extras", label: "Extras", icon: GalleryHorizontal },
   { id: "models", label: "Models", icon: HardDrive },
   { id: "pnginfo", label: "PNG Info", icon: FileText },

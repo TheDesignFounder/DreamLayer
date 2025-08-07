@@ -5,6 +5,7 @@ Complete, OS-agnostic installation guide for DreamLayer AI with GPU/CPU setup in
 ## 📋 System Requirements
 
 ### Minimum Requirements
+
 - **OS:** Windows 10+, macOS 10.15+, or Linux (Ubuntu 18.04+)
 - **Python:** 3.8 or higher
 - **Node.js:** 16.0 or higher
@@ -12,12 +13,14 @@ Complete, OS-agnostic installation guide for DreamLayer AI with GPU/CPU setup in
 - **Storage:** 10GB free space
 
 ### Recommended Requirements
+
 - **GPU:** NVIDIA RTX 3060+ (8GB+ VRAM) or Apple Silicon M1+
 - **RAM:** 16GB or higher
 - **Storage:** 50GB+ free space (for models)
 - **Network:** Stable internet connection for model downloads
 
 ### GPU Support
+
 - **NVIDIA:** CUDA 11.8+ with compatible drivers
 - **Apple Silicon:** Native MPS acceleration
 - **AMD:** ROCm support (experimental)
@@ -28,12 +31,14 @@ Complete, OS-agnostic installation guide for DreamLayer AI with GPU/CPU setup in
 ### 1. Install Python
 
 **Windows:**
+
 ```bash
 # Download from python.org or use winget
 winget install Python.Python.3.11
 ```
 
 **macOS:**
+
 ```bash
 # Using Homebrew
 brew install python@3.11
@@ -42,6 +47,7 @@ brew install python@3.11
 ```
 
 **Linux (Ubuntu/Debian):**
+
 ```bash
 sudo apt update
 sudo apt install python3.11 python3.11-pip python3.11-venv
@@ -50,12 +56,14 @@ sudo apt install python3.11 python3.11-pip python3.11-venv
 ### 2. Install Node.js
 
 **Windows:**
+
 ```bash
 # Download from nodejs.org or use winget
 winget install OpenJS.NodeJS
 ```
 
 **macOS:**
+
 ```bash
 # Using Homebrew
 brew install node
@@ -64,6 +72,7 @@ brew install node
 ```
 
 **Linux (Ubuntu/Debian):**
+
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
@@ -72,12 +81,14 @@ sudo apt-get install -y nodejs
 ### 3. Install Git
 
 **Windows:**
+
 ```bash
 # Download from git-scm.com or use winget
 winget install Git.Git
 ```
 
 **macOS:**
+
 ```bash
 # Using Homebrew
 brew install git
@@ -86,6 +97,7 @@ brew install git
 ```
 
 **Linux (Ubuntu/Debian):**
+
 ```bash
 sudo apt install git
 ```
@@ -95,6 +107,7 @@ sudo apt install git
 ### Method 1: Automated Installation (Recommended)
 
 #### macOS/Linux
+
 ```bash
 # Clone the repository
 git clone https://github.com/DreamLayer-AI/DreamLayer.git
@@ -109,6 +122,7 @@ chmod +x start_dream_layer.sh
 ```
 
 #### Windows
+
 ```bash
 # Clone the repository
 git clone https://github.com/DreamLayer-AI/DreamLayer.git
@@ -121,12 +135,14 @@ install_windows_dependencies.bat
 ### Method 2: Manual Installation
 
 #### 1. Clone Repository
+
 ```bash
 git clone https://github.com/DreamLayer-AI/DreamLayer.git
 cd DreamLayer
 ```
 
 #### 2. Install Python Dependencies
+
 ```bash
 # Create virtual environment
 python -m venv venv
@@ -142,6 +158,7 @@ pip install -r requirements.txt
 ```
 
 #### 3. Install Node.js Dependencies
+
 ```bash
 cd dream_layer_frontend
 npm install
@@ -149,6 +166,7 @@ cd ..
 ```
 
 #### 4. Setup ComfyUI
+
 ```bash
 # ComfyUI should be included in the repository
 # If not, clone it manually:
@@ -166,6 +184,7 @@ Create a `.env` file in the root directory:
 OPENAI_API_KEY=your_openai_api_key_here
 IDEOGRAM_API_KEY=your_ideogram_api_key_here
 BFL_API_KEY=your_bfl_api_key_here
+STABILITY_API_KEY=your_stability_api_key_here
 
 # Server Configuration
 FLASK_PORT=5000
@@ -186,6 +205,7 @@ Set up your directories in the web interface:
 ### 3. Model Setup
 
 #### Download Models
+
 ```bash
 # Create models directory
 mkdir -p models/checkpoints
@@ -199,6 +219,7 @@ wget https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pru
 ```
 
 #### Supported Model Formats
+
 - **Checkpoints:** `.safetensors`, `.ckpt`
 - **LoRA:** `.safetensors`, `.pt`
 - **ControlNet:** `.safetensors`, `.pth`
@@ -209,11 +230,13 @@ wget https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pru
 ### Automated Start
 
 **macOS/Linux:**
+
 ```bash
 ./start_dream_layer.sh
 ```
 
 **Windows:**
+
 ```bash
 start_dream_layer.bat
 ```
@@ -221,18 +244,21 @@ start_dream_layer.bat
 ### Manual Start
 
 #### 1. Start ComfyUI Server
+
 ```bash
 cd ComfyUI
 python main.py --listen 0.0.0.0 --port 8188
 ```
 
 #### 2. Start Flask API Server
+
 ```bash
 cd dream_layer_backend
 python dream_layer.py
 ```
 
 #### 3. Start Frontend Development Server
+
 ```bash
 cd dream_layer_frontend
 npm run dev
@@ -241,6 +267,7 @@ npm run dev
 ### Access DreamLayer
 
 Open your browser and navigate to:
+
 - **Frontend:** http://localhost:8080
 - **API:** http://localhost:5000
 - **ComfyUI:** http://localhost:8188
@@ -250,12 +277,14 @@ Open your browser and navigate to:
 ### Check Installation
 
 1. **Verify Python packages:**
+
    ```bash
    python -c "import torch; print(f'PyTorch: {torch.__version__}')"
    python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
    ```
 
 2. **Verify Node.js packages:**
+
    ```bash
    cd dream_layer_frontend
    npm list --depth=0
@@ -277,12 +306,14 @@ Open your browser and navigate to:
 ### Common Issues
 
 #### Python Import Errors
+
 ```bash
 # Reinstall packages
 pip install --force-reinstall -r requirements.txt
 ```
 
 #### CUDA Issues
+
 ```bash
 # Check CUDA installation
 nvidia-smi
@@ -293,6 +324,7 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 ```
 
 #### Port Conflicts
+
 ```bash
 # Check port usage
 netstat -tulpn | grep :8080
@@ -304,6 +336,7 @@ kill -9 <PID>
 ```
 
 #### Memory Issues
+
 ```bash
 # Reduce batch size in settings
 # Use CPU mode for testing
@@ -319,6 +352,7 @@ kill -9 <PID>
 ## 🔄 Updates
 
 ### Updating DreamLayer
+
 ```bash
 # Pull latest changes
 git pull origin main
@@ -328,6 +362,7 @@ git pull origin main
 ```
 
 ### Updating Models
+
 ```bash
 # Models are automatically detected on restart
 # Or refresh in the web interface
@@ -335,4 +370,4 @@ git pull origin main
 
 ---
 
-*Need help? Check out the [Quick Start Guide](quick_start.md) for a faster setup.* 
+_Need help? Check out the [Quick Start Guide](quick_start.md) for a faster setup._

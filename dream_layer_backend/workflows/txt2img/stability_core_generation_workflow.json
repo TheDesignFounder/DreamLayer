@@ -1,0 +1,47 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "StabilityStableImageUltraNode",
+      "inputs": {
+        "prompt": "beautiful",
+        "aspect_ratio": "1:1",
+        "style_preset": "cinematic",
+        "seed": 0,
+        "negative_prompt": "ugly",
+        "batch_size": 1
+      }
+    },
+    "2": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["1", 0],
+        "filename_prefix": "DreamLayer_StabilityAI"
+      }
+    }
+  },
+  "meta": {
+    "description": "Stability AI Core Generation Workflow",
+    "model_options": {
+      "stability_sdxl": "StabilityStableImageUltraNode",
+      "stability_sd_turbo": "StabilityStableImageUltraNode"
+    },
+    "core_settings": {
+      "prompt": "Main generation prompt",
+      "aspect_ratio": "Image aspect ratio",
+      "style_preset": "Style preset",
+      "seed": "Random seed (0 for random)",
+      "batch_size": "Number of images to generate (1-10)"
+    },
+    "aspect_ratios": [
+      "1:1",
+      "16:9",
+      "9:16",
+      "3:2",
+      "2:3",
+      "5:4",
+      "4:5",
+      "21:9",
+      "9:21"
+    ]
+  }
+}
