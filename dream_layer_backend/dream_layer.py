@@ -3,6 +3,7 @@ import sys
 import threading
 import time
 import platform
+import shlex
 from typing import Optional, Tuple
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -399,14 +400,14 @@ def show_in_folder():
         system = platform.system()
         
         if system == "Darwin":  # macOS
-            subprocess.run(['open', '-R', image_path])
+            subprocess.run(['open', '-R', shlex.quote(image_path)], check=True)
             return jsonify({"status": "success", "message": f"Opened {filename} in Finder"})
         elif system == "Windows":  # Windows
-            subprocess.run(['explorer', '/select,', image_path])
+            subprocess.run(['explorer', '/select,', shlex.quote(image_path)], check=True)
             return jsonify({"status": "success", "message": f"Opened {filename} in File Explorer"})
         elif system == "Linux":  # Linux
             # Open the directory containing the file (can't highlight specific file reliably)
-            subprocess.run(['xdg-open', output_dir])
+            subprocess.run(['xdg-open', shlex.quote(output_dir)], check=True)
             return jsonify({"status": "success", "message": f"Opened directory containing {filename}"})
         else:
             return jsonify({"status": "error", "message": f"Unsupported operating system: {system}"}), 400
@@ -729,7 +730,6 @@ def save_grid_template():
     """Save a custom grid template"""
     try:
         from dream_layer_backend_utils.labeled_grid_exporter import GridTemplate, save_template
-        import os
         
         data = request.get_json()
         if not data:
@@ -775,7 +775,6 @@ def load_grid_template():
     """Load a grid template from file"""
     try:
         from dream_layer_backend_utils.labeled_grid_exporter import load_template
-        import os
         
         data = request.get_json()
         if not data:
@@ -877,6 +876,7 @@ def preview_grid():
         
         # Create temporary output file
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+            tmp_file.flush()  # Ensure data is written to disk
             temp_output = tmp_file.name
         
         try:
