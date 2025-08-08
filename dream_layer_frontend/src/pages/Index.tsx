@@ -8,6 +8,7 @@ import ExtrasPage from '@/features/Extras';
 import { ModelManagerPage } from '@/features/ModelManager';
 import { PNGInfoPage } from '@/features/PNGInfo';
 import { ConfigurationsPage } from '@/features/Configurations';
+import GridExporter from '@/features/GridExporter';
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 
@@ -42,6 +43,8 @@ const Index = () => {
         return <PNGInfoPage />;
       case "configurations":
         return <ConfigurationsPage />;
+      case "grid-exporter":
+        return <GridExporter />;
       default:
         return <Txt2ImgPage selectedModel={selectedModel} onTabChange={handleTabChange} />;
     }

@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+#### Task 3 – CLIP AI-powered Auto-labeling (August 2025)
+- **🤖 CLIP Integration**: Added OpenAI CLIP model for intelligent image understanding
+- **🏷️ Auto-labeling**: Automatically generate descriptive labels when no CSV metadata is provided
+- **🧠 Smart Fallback**: Priority system - CSV metadata → CLIP labels → filename
+- **⚙️ Optional Dependencies**: CLIP features work seamlessly without requiring PyTorch for basic functionality
+- **🎛️ CLI Enhancement**: New `--use-clip` and `--clip-model` command-line options
+- **📊 Batch Processing**: CLIP auto-labeling support for multiple directories
+- **🧪 Comprehensive Testing**: 30/30 tests passing including 18 new CLIP integration tests
+- **📚 Documentation**: Complete guides for CLIP setup and usage
+- **🔧 ComfyUI Compatibility**: Full integration with ComfyUI workflows
+- **🎨 Template System**: Save and reuse grid configurations
+
+#### Core Documentation
 - Comprehensive documentation system
 - MkDocs integration for GitHub Pages
 - API reference documentation

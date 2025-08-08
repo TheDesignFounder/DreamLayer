@@ -203,6 +203,74 @@ All contributions code, docs, art, tutorials—are welcome!
 
 ---
 
+## 🎨 Labeled Grid Exporter
+
+### What It Does
+
+The Labeled Grid Exporter is a powerful utility that creates organized image grids from AI-generated artwork with metadata labels overlaid on each image. Perfect for showcasing Stable Diffusion outputs with their generation parameters like seed, sampler, steps, and CFG values.
+
+![Task 3 Demo](docs/task3_demo_small.png)
+
+**New in Task 3:** AI-powered auto-labeling with CLIP! The script now intelligently understands image content and generates meaningful descriptions automatically when no CSV metadata is provided.
+
+### How to Run It
+
+```bash
+# Basic usage - create a simple grid
+python dream_layer_backend_utils/labeled_grid_exporter.py input_folder/ output_grid.png
+
+# With metadata labels from CSV
+python dream_layer_backend_utils/labeled_grid_exporter.py input_folder/ output_grid.png --csv metadata.csv --labels seed sampler steps cfg preset
+
+# With AI-powered auto-labeling (no CSV needed)
+python dream_layer_backend_utils/labeled_grid_exporter.py input_folder/ output_grid.png --use-clip --rows 3 --cols 3
+```
+
+### CLI Arguments and Examples
+
+**Core Arguments:**
+- `input_dir` - Directory containing images to process
+- `output_path` - Path for the output grid image
+- `--csv` - Optional CSV file with metadata
+- `--labels` - Column names to use as labels (e.g., seed sampler steps cfg)
+- `--rows` / `--cols` - Grid dimensions
+- `--cell-size` - Cell dimensions in pixels (default: 256x256)
+- `--margin` - Spacing between images (default: 10px)
+- `--font-size` - Label text size (default: 16)
+
+**Advanced Features:**
+- `--use-clip` - Enable AI auto-labeling with CLIP
+- `--clip-model` - Specify CLIP model variant
+- `--batch` - Process multiple directories
+- `--template` - Save/load grid configurations
+
+**Complete Examples:**
+
+```bash
+# ComfyUI workflow output
+python dream_layer_backend_utils/labeled_grid_exporter.py comfyui_outputs/ showcase.png --csv generation_log.csv --labels seed sampler steps cfg model --rows 3 --cols 3
+
+# Custom styling
+python dream_layer_backend_utils/labeled_grid_exporter.py images/ grid.png --cell-size 512 512 --margin 20 --font-size 24 --background 240 240 240
+
+# Batch processing with AI labeling
+python dream_layer_backend_utils/labeled_grid_exporter.py --batch folder1/ folder2/ folder3/ output_dir/ --use-clip --rows 2 --cols 4
+
+# Quick demo
+python dream_layer_backend_utils/labeled_grid_exporter.py tests/fixtures/images tests/fixtures/demo_grid.png --csv tests/fixtures/metadata.csv --labels seed sampler steps cfg preset --rows 2 --cols 2
+```
+
+**Sample CSV Format:**
+```csv
+filename,seed,sampler,steps,cfg,preset,model
+image_001.png,12345,euler_a,20,7.0,Standard,sd_xl_base.safetensors
+image_002.png,67890,dpm++_2m,25,8.5,Quality,sd_xl_base.safetensors
+```
+
+Run `python dream_layer_backend_utils/labeled_grid_exporter.py --help` for complete documentation.
+
+---
+
 ## 📚 Documentation
 
 Full docs will ship with the first code release.

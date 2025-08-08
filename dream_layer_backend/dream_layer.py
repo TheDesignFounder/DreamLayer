@@ -567,6 +567,360 @@ def get_controlnet_models_endpoint():
             "message": f"Failed to fetch ControlNet models: {str(e)}"
         }), 500
 
+@app.route('/api/create-labeled-grid', methods=['POST'])
+def create_labeled_grid():
+    """Create a labeled grid from images with enhanced features"""
+    try:
+        from dream_layer_backend_utils.labeled_grid_exporter import (
+            assemble_grid_enhanced, collect_images, read_metadata, 
+            GridTemplate, BatchProcessor, ImagePreprocessor
+        )
+        import tempfile
+        import json
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No data provided"
+            }), 400
+        
+        # Basic required parameters
+        input_dir = data.get('input_dir')
+        output_path = data.get('output_path')
+        
+        if not input_dir or not output_path:
+            return jsonify({
+                "status": "error",
+                "message": "input_dir and output_path are required"
+            }), 400
+        
+        # Enhanced parameters
+        csv_path = data.get('csv_path')
+        label_columns = data.get('label_columns', [])
+        export_format = data.get('export_format', 'png')
+        background_color = tuple(data.get('background_color', [255, 255, 255]))
+        
+        # CLIP auto-labeling parameters
+        use_clip = data.get('use_clip', False)
+        clip_model = data.get('clip_model', 'openai/clip-vit-base-patch32')
+        
+        # Grid template parameters
+        rows = data.get('rows')
+        cols = data.get('cols')
+        cell_size = tuple(data.get('cell_size', [256, 256]))
+        font_size = data.get('font_size', 16)
+        margin = data.get('margin', 10)
+        
+        # Create grid template
+        template = GridTemplate(
+            name="api",
+            rows=rows or 3,
+            cols=cols or 3,
+            cell_size=cell_size,
+            margin=margin,
+            font_size=font_size
+        )
+        
+        # Preprocessing options
+        preprocessing = None
+        if 'preprocessing' in data:
+            preprocessing = data['preprocessing']
+        
+        # Batch processing
+        if 'batch_dirs' in data and data['batch_dirs']:
+            processor = BatchProcessor(os.path.dirname(output_path))
+            results = processor.process_batch(
+                input_dirs=data['batch_dirs'],
+                template=template,
+                label_columns=label_columns,
+                csv_path=csv_path,
+                export_format=export_format,
+                preprocessing=preprocessing,
+                use_clip=use_clip,
+                clip_model=clip_model
+            )
+            
+            return jsonify({
+                "status": "success",
+                "message": f"Batch processing completed",
+                "results": results,
+                "total_processed": len(results)
+            })
+        
+        # Single directory processing
+        result = assemble_grid_enhanced(
+            input_dir=input_dir,
+            output_path=output_path,
+            template=template,
+            label_columns=label_columns,
+            csv_path=csv_path,
+            export_format=export_format,
+            preprocessing=preprocessing,
+            background_color=background_color,
+            use_clip=use_clip,
+            clip_model=clip_model
+        )
+        
+        # Get the actual output file size and dimensions
+        output_size = None
+        grid_size = "Unknown"
+        if os.path.exists(output_path):
+            output_size = os.path.getsize(output_path)
+            try:
+                from PIL import Image
+                with Image.open(output_path) as img:
+                    grid_size = f"{img.width}×{img.height}"
+            except:
+                grid_size = "Unknown"
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Labeled grid created successfully at {output_path}",
+            "output_path": output_path,
+            "images_processed": result['images_processed'],
+            "grid_dimensions": result['grid_dimensions'],
+            "canvas_size": result['canvas_size'],
+            "export_format": result['export_format'],
+            "grid_size": grid_size,
+            "file_size_bytes": output_size
+        })
+        
+    except Exception as e:
+        print(f"❌ Error creating labeled grid: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/grid-templates', methods=['GET'])
+def get_grid_templates():
+    """Get available grid templates"""
+    try:
+        from dream_layer_backend_utils.labeled_grid_exporter import GridTemplate
+        
+        # Default templates
+        templates = [
+            GridTemplate("default", 3, 3, (256, 256), 10, 16),
+            GridTemplate("compact", 4, 4, (200, 200), 5, 12),
+            GridTemplate("large", 2, 2, (400, 400), 20, 20),
+            GridTemplate("presentation", 3, 3, (300, 300), 15, 18),
+            GridTemplate("comparison", 2, 2, (350, 350), 12, 16),
+            GridTemplate("gallery", 4, 4, (250, 250), 8, 14),
+            GridTemplate("wide", 2, 5, (280, 280), 10, 16),
+            GridTemplate("tall", 5, 2, (280, 280), 10, 16)
+        ]
+        
+        return jsonify({
+            "status": "success",
+            "templates": [template.to_dict() for template in templates]
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/save-grid-template', methods=['POST'])
+def save_grid_template():
+    """Save a custom grid template"""
+    try:
+        from dream_layer_backend_utils.labeled_grid_exporter import GridTemplate, save_template
+        import os
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No data provided"
+            }), 400
+        
+        template_data = data.get('template')
+        filename = data.get('filename')
+        
+        if not template_data or not filename:
+            return jsonify({
+                "status": "error",
+                "message": "template and filename are required"
+            }), 400
+        
+        # Create template directory if it doesn't exist
+        template_dir = os.path.join(os.getcwd(), 'templates')
+        os.makedirs(template_dir, exist_ok=True)
+        
+        # Create template object
+        template = GridTemplate.from_dict(template_data)
+        
+        # Save template
+        filepath = os.path.join(template_dir, f"{filename}.json")
+        save_template(template, filepath)
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Template saved to {filepath}",
+            "filepath": filepath
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/load-grid-template', methods=['POST'])
+def load_grid_template():
+    """Load a grid template from file"""
+    try:
+        from dream_layer_backend_utils.labeled_grid_exporter import load_template
+        import os
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No data provided"
+            }), 400
+        
+        filename = data.get('filename')
+        if not filename:
+            return jsonify({
+                "status": "error",
+                "message": "filename is required"
+            }), 400
+        
+        # Load template
+        template_dir = os.path.join(os.getcwd(), 'templates')
+        filepath = os.path.join(template_dir, f"{filename}.json")
+        
+        if not os.path.exists(filepath):
+            return jsonify({
+                "status": "error",
+                "message": f"Template file not found: {filepath}"
+            }), 404
+        
+        template = load_template(filepath)
+        
+        return jsonify({
+            "status": "success",
+            "template": template.to_dict()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/preview-grid', methods=['POST'])
+def preview_grid():
+    """Generate a preview of the grid layout"""
+    try:
+        from dream_layer_backend_utils.labeled_grid_exporter import collect_images, GridTemplate
+        import tempfile
+        import base64
+        from io import BytesIO
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No data provided"
+            }), 400
+        
+        input_dir = data.get('input_dir')
+        if not input_dir:
+            return jsonify({
+                "status": "error",
+                "message": "input_dir is required"
+            }), 400
+        
+        # Create template from parameters
+        rows = data.get('rows', 3)
+        cols = data.get('cols', 3)
+        cell_size = tuple(data.get('cell_size', [256, 256]))
+        margin = data.get('margin', 10)
+        font_size = data.get('font_size', 16)
+        
+        template = GridTemplate(
+            name="preview",
+            rows=rows,
+            cols=cols,
+            cell_size=cell_size,
+            margin=margin,
+            font_size=font_size
+        )
+        
+        # Collect images (limit for preview)
+        images_info = collect_images(input_dir)
+        if not images_info:
+            return jsonify({
+                "status": "error",
+                "message": f"No supported image files found in '{input_dir}'"
+            }), 400
+        
+        # Limit images for preview
+        max_preview_images = rows * cols
+        images_info = images_info[:max_preview_images]
+        
+        # Create a small preview grid
+        preview_template = GridTemplate(
+            name="preview",
+            rows=rows,
+            cols=cols,
+            cell_size=(100, 100),  # Smaller for preview
+            margin=5,
+            font_size=10
+        )
+        
+        # Create temporary output file
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+            temp_output = tmp_file.name
+        
+        try:
+            # Generate preview
+            result = assemble_grid_enhanced(
+                input_dir=input_dir,
+                output_path=temp_output,
+                template=preview_template,
+                label_columns=data.get('label_columns', []),
+                csv_path=data.get('csv_path'),
+                export_format='png',
+                preprocessing=data.get('preprocessing'),
+                background_color=tuple(data.get('background_color', [255, 255, 255]))
+            )
+            
+            # Convert to base64 for frontend
+            with open(temp_output, 'rb') as f:
+                image_data = f.read()
+            
+            base64_image = base64.b64encode(image_data).decode('utf-8')
+            
+            return jsonify({
+                "status": "success",
+                "preview_image": f"data:image/png;base64,{base64_image}",
+                "images_found": len(collect_images(input_dir)),
+                "images_in_preview": len(images_info),
+                "grid_dimensions": result['grid_dimensions'],
+                "canvas_size": result['canvas_size']
+            })
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_output):
+                os.unlink(temp_output)
+        
+    except Exception as e:
+        print(f"❌ Error generating preview: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 if __name__ == "__main__":
     print("Starting Dream Layer backend services...")
     if start_comfy_server():

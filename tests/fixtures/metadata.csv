@@ -1,0 +1,5 @@
+filename,seed,sampler,steps,cfg,preset
+test_image_01.png,12345,euler_a,20,7.0,Standard
+test_image_02.png,67890,dpm++,25,8.5,Quality
+test_image_03.png,11111,heun,30,6.0,Fast
+test_image_04.png,22222,lms,15,9.0,Creative
