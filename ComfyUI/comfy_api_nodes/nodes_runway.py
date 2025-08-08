@@ -620,11 +620,250 @@ class RunwayTextToImageNode(ComfyNodeABC):
         return (download_url_to_image_tensor(image_url),)
 
 
+class RunwayText2ImgNode(ComfyNodeABC):
+    """
+    Runway Gen-4 Text-to-Image Node
+
+    Generates high-quality images from text prompts using Runway's Gen-4 model.
+    This node integrates seamlessly with ComfyUI workflows and can be used after
+    CLIPTextEncode blocks or with direct text input.
+
+    Environment Variables:
+        RUNWAY_API_KEY: Required. Your Runway API key from https://runwayml.com
+
+    Parameters:
+        prompt (str): Text description of the image to generate. Required.
+        ratio (str): Aspect ratio for the generated image. Options include:
+            - "1280:720" (16:9 landscape)
+            - "720:1280" (9:16 portrait)
+            - "1104:832" (4:3 landscape)
+            - "832:1104" (3:4 portrait)
+            - "960:960" (1:1 square)
+            - "1584:672" (ultra-wide)
+        reference_image (IMAGE, optional): Reference image to guide generation
+        timeout (int, optional): Maximum time to wait for generation in seconds.
+            Default: 120 seconds. Can be shortened for faster workflows or
+            extended for complex prompts that may take longer to process.
+
+    Returns:
+        IMAGE: Generated image tensor compatible with all ComfyUI image nodes
+
+    Usage:
+        1. Set RUNWAY_API_KEY environment variable
+        2. Connect text prompt (from CLIPTextEncode or direct input)
+        3. Select desired aspect ratio
+        4. Optionally provide reference image
+        5. Generated image can be used with any downstream ComfyUI node
+
+    API Endpoint:
+        POST https://api.dev.runwayml.com/v1/text_to_image
+    """
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate_image"
+    CATEGORY = "api node/image/Runway"
+    API_NODE = True
+    DESCRIPTION = "Generate images from text using Runway Gen-4. Requires RUNWAY_API_KEY environment variable."
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "A beautiful landscape with mountains and lakes",
+                        "tooltip": "Text description of the image to generate"
+                    }
+                ),
+                "ratio": (
+                    list(RunwayTextToImageAspectRatioEnum.__members__.values()),
+                    {
+                        "default": "1280:720",
+                        "tooltip": "Aspect ratio for the generated image"
+                    }
+                ),
+            },
+            "optional": {
+                "reference_image": (
+                    "IMAGE",
+                    {"tooltip": "Optional reference image to guide generation"}
+                ),
+                "timeout": (
+                    "INT",
+                    {
+                        "default": 120,
+                        "min": 30,
+                        "max": 600,
+                        "step": 10,
+                        "tooltip": "Maximum time to wait for generation (seconds)"
+                    }
+                ),
+            },
+            "hidden": {
+                "auth_token": "AUTH_TOKEN_COMFY_ORG",
+                "comfy_api_key": "API_KEY_COMFY_ORG",
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    def validate_environment(self):
+        """Validate that required environment variables are present."""
+        import os
+        if not os.getenv('RUNWAY_API_KEY'):
+            raise EnvironmentError(
+                "RUNWAY_API_KEY environment variable is required but not found. "
+                "Please set your Runway API key: export RUNWAY_API_KEY='your_key_here' "
+                "or add it to your .env file. Get your API key at https://runwayml.com"
+            )
+
+    def validate_task_created(self, response: RunwayTextToImageResponse) -> bool:
+        """Validate the task creation response from the Runway API."""
+        if not bool(response.id):
+            raise RunwayApiError("Invalid initial response from Runway API.")
+        return True
+
+    def validate_response(self, response: TaskStatusResponse) -> bool:
+        """Validate the successful task status response from the Runway API."""
+        if not response.output or len(response.output) == 0:
+            raise RunwayApiError(
+                "Runway task succeeded but no image data found in response."
+            )
+        return True
+
+    def get_response(
+        self,
+        task_id: str,
+        auth_kwargs: dict[str, str],
+        node_id: Optional[str] = None,
+        timeout: int = 120
+    ) -> TaskStatusResponse:
+        """Poll the task status until it is finished then get the response."""
+        # Create a custom polling operation with timeout handling
+        api_endpoint = ApiEndpoint(
+            path=f"{PATH_GET_TASK_STATUS}/{task_id}",
+            method=HttpMethod.GET,
+            request_model=EmptyRequest,
+            response_model=TaskStatusResponse,
+        )
+
+        try:
+            return poll_until_finished(
+                auth_kwargs,
+                api_endpoint,
+                estimated_duration=timeout,
+                node_id=node_id,
+            )
+        except TimeoutError as e:
+            raise TimeoutError(
+                f"Runway text-to-image generation timed out after {timeout} seconds. "
+                f"Try increasing the timeout parameter or check Runway API status."
+            ) from e
+
+    def generate_image(
+        self,
+        prompt: str,
+        ratio: str = "1280:720",
+        reference_image: Optional[torch.Tensor] = None,
+        timeout: int = 120,
+        unique_id: Optional[str] = None,
+        **kwargs
+    ) -> tuple[torch.Tensor]:
+        """
+        Generate an image from text prompt using Runway's Gen-4 model.
+
+        Args:
+            prompt: Text description of the image to generate
+            ratio: Aspect ratio for the image (default: "1280:720")
+            reference_image: Optional reference image tensor
+            timeout: Maximum wait time in seconds (default: 120)
+            unique_id: Node ID for progress tracking
+            **kwargs: Additional authentication parameters
+
+        Returns:
+            Tuple containing generated image tensor
+
+        Raises:
+            EnvironmentError: If RUNWAY_API_KEY is not set
+            ValueError: If prompt is empty or invalid
+            TimeoutError: If generation takes longer than timeout
+            RunwayApiError: If API request fails
+        """
+                # Validate environment and inputs
+        self.validate_environment()
+        validate_string(prompt, min_length=1)
+
+        # Prepare reference images if provided
+        reference_images = None
+        if reference_image is not None:
+            validate_input_image(reference_image)
+            download_urls = upload_images_to_comfyapi(
+                reference_image,
+                max_images=1,
+                mime_type="image/png",
+                auth_kwargs=kwargs,
+            )
+            if len(download_urls) != 1:
+                raise RunwayApiError("Failed to upload reference image to ComfyAPI.")
+
+            reference_images = [ReferenceImage(uri=str(download_urls[0]))]
+
+        # Create request
+        request = RunwayTextToImageRequest(
+            promptText=prompt.strip(),
+            model=Model4.gen4_image,
+            ratio=ratio,
+            referenceImages=reference_images,
+        )
+
+        # Execute initial request to start generation
+        initial_operation = SynchronousOperation(
+            endpoint=ApiEndpoint(
+                path=PATH_TEXT_TO_IMAGE,
+                method=HttpMethod.POST,
+                request_model=RunwayTextToImageRequest,
+                response_model=RunwayTextToImageResponse,
+            ),
+            request=request,
+            auth_kwargs=kwargs,
+        )
+
+        try:
+            initial_response = initial_operation.execute()
+            self.validate_task_created(initial_response)
+            task_id = initial_response.id
+
+            # Poll for completion with timeout
+            final_response = self.get_response(
+                task_id,
+                auth_kwargs=kwargs,
+                node_id=unique_id,
+                timeout=timeout
+            )
+            self.validate_response(final_response)
+
+            # Download and return image
+            image_url = get_image_url_from_task_status(final_response)
+            if not image_url:
+                raise RunwayApiError("No image URL found in successful response.")
+
+            return (download_url_to_image_tensor(image_url),)
+
+        except Exception as e:
+            if isinstance(e, (EnvironmentError, ValueError, TimeoutError, RunwayApiError)):
+                raise
+            else:
+                # Wrap unexpected errors with more context
+                raise RunwayApiError(f"Runway text-to-image generation failed: {str(e)}") from e
+
+
 NODE_CLASS_MAPPINGS = {
     "RunwayFirstLastFrameNode": RunwayFirstLastFrameNode,
     "RunwayImageToVideoNodeGen3a": RunwayImageToVideoNodeGen3a,
     "RunwayImageToVideoNodeGen4": RunwayImageToVideoNodeGen4,
     "RunwayTextToImageNode": RunwayTextToImageNode,
+    "RunwayText2ImgNode": RunwayText2ImgNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -632,4 +871,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "RunwayImageToVideoNodeGen3a": "Runway Image to Video (Gen3a Turbo)",
     "RunwayImageToVideoNodeGen4": "Runway Image to Video (Gen4 Turbo)",
     "RunwayTextToImageNode": "Runway Text to Image",
+    "RunwayText2ImgNode": "Runway Text to Image (Gen-4)",
 }
