@@ -1,0 +1,10 @@
+{
+  "outputDirectory": "/path/to/outputs",
+  "modelsDirectory": "/path/to/parent/of/models",
+  "controlNetModelsPath": "/path/to/models/ControlNet",
+  "upscalerModelsPath": "/path/to/models/ESRGAN",
+  "vaeModelsPath": "/path/to/models/VAE",
+  "loraEmbeddingsPath": "/path/to/models/Lora",
+  "filenameFormat": "paste the path if it is outside project root",
+  "saveMetadata": true
+}
