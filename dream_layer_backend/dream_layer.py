@@ -10,7 +10,9 @@ import requests
 import json
 import subprocess
 from dream_layer_backend_utils.random_prompt_generator import fetch_positive_prompt, fetch_negative_prompt
+from dream_layer_backend_utils.task_runner import MatrixRunner
 from dream_layer_backend_utils.fetch_advanced_models import get_lora_models, get_settings, is_valid_directory, get_upscaler_models, get_controlnet_models
+
 # Add ComfyUI directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -119,6 +121,10 @@ CORS(app, resources={
         "supports_credentials": True
     }
 })
+
+# Persist state next to backend code so it survives restarts/page refresh
+MATRIX_STATE_FILE = os.path.join(os.path.dirname(__file__), "matrix_runner_state.json")
+runner = MatrixRunner(state_file=MATRIX_STATE_FILE)
 
 COMFY_API_URL = "http://127.0.0.1:8188"
 
@@ -431,6 +437,55 @@ def send_to_img2img():
         return jsonify({"status": "success", "message": "Image sent to img2img"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/matrix-runner/start', methods=['POST'])
+def matrix_runner_start():
+    try:
+        data = request.json or {}
+        # accept lists/ranges for seeds, steps, samplers, etc.
+        # keep only list-valued keys for the sweep
+        param_dict = {k: v for k, v in data.items() if isinstance(v, list)}
+        runner.generate(param_dict)              # deterministic expansion
+        return jsonify({"status":"success","total_jobs": len(runner.jobs)})
+    except Exception as e:
+        return jsonify({"status":"error","message": str(e)}), 500
+
+@app.route('/api/matrix-runner/pause', methods=['POST'])
+def matrix_runner_pause():
+    runner.pause()
+    return jsonify({"status":"paused"})
+
+@app.route('/api/matrix-runner/resume', methods=['POST'])
+def matrix_runner_resume():
+    runner.resume()
+    return jsonify({"status":"resumed"})
+
+@app.route('/api/matrix-runner/status', methods=['GET'])
+def matrix_runner_status():
+    jobs = runner.jobs
+    return jsonify({
+        "status":"ok",
+        "total_jobs": len(jobs),
+        "pending": sum(j["status"]=="pending" for j in jobs),
+        "running": sum(j["status"]=="running" for j in jobs),
+        "done":    sum(j["status"]=="done"    for j in jobs),
+        "paused":  runner.paused
+    })
+
+@app.route('/api/matrix-runner/next', methods=['POST'])
+def matrix_runner_next():
+    """Return the next job (and mark it running) so the executor can process it."""
+    job = runner.next_job()
+    if not job:
+        return jsonify({"status":"empty"})
+    return jsonify({"status":"ok","job": job})
+
+@app.route('/api/matrix-runner/complete', methods=['POST'])
+def matrix_runner_complete():
+    data = request.json or {}
+    job_id = data.get("job_id")
+    runner.complete_job(job_id)
+    return jsonify({"status":"ok"})
 
 @app.route('/api/send-to-extras', methods=['POST', 'OPTIONS'])
 def send_to_extras():
