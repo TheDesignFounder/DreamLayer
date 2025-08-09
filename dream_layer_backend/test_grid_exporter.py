@@ -9,12 +9,17 @@ Date: August 2025
 import os
 import tempfile
 import shutil
+import logging
 from pathlib import Path
 import pytest
 from PIL import Image
 import numpy as np
 
 from grid_exporter import LabeledGridExporter
+
+# Configure logger for tests
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class TestLabeledGridExporter:
@@ -62,7 +67,7 @@ class TestLabeledGridExporter:
             filepath = os.path.join(self.test_images_dir, filename)
             img.save(filepath)
             self.test_image_paths.append(filepath)
-            print(f"Created test image: {filename} with color {color}")
+            logger.debug(f"Created test image: {filename} with color {color}")
     
     def test_initialization(self):
         """Test that the exporter initializes correctly"""
@@ -183,11 +188,11 @@ class TestLabeledGridExporter:
             file_size = os.path.getsize(output_path)
             assert 5000 < file_size < 100000  # Reasonable PNG size for small grid
             
-        print(f"✅ Snapshot test passed!")
-        print(f"   📄 Grid file: {output_path}")
-        print(f"   📐 Dimensions: {grid_img.width}x{grid_img.height}")
-        print(f"   📏 File size: {file_size:,} bytes")
-        print(f"   🎨 Color complexity: {unique_colors} unique colors")
+        logger.info(f"Snapshot test passed!")
+        logger.info(f"Grid file: {output_path}")
+        logger.info(f"Dimensions: {grid_img.width}x{grid_img.height}")
+        logger.info(f"File size: {file_size:,} bytes")
+        logger.info(f"Color complexity: {unique_colors} unique colors")
     
     def test_stable_ordering(self):
         """Test that grid export has stable, consistent ordering"""
@@ -230,29 +235,29 @@ if __name__ == "__main__":
     test.setup_method()
     
     try:
-        print("🧪 Running basic functionality tests...")
+        logger.info("Running basic functionality tests...")
         test.test_initialization()
-        print("✅ Initialization test passed")
+        logger.info("Initialization test passed")
         
         test.test_get_recent_images()
-        print("✅ Image discovery test passed")
+        logger.info("Image discovery test passed")
         
         test.test_metadata_extraction()
-        print("✅ Metadata extraction test passed")
+        logger.info("Metadata extraction test passed")
         
         test.test_create_labeled_grid_basic()
-        print("✅ Grid creation test passed")
+        logger.info("Grid creation test passed")
         
         test.test_snapshot_grid_output()
-        print("✅ Snapshot test passed")
+        logger.info("Snapshot test passed")
         
         test.test_stable_ordering()
-        print("✅ Stable ordering test passed")
+        logger.info("Stable ordering test passed")
         
-        print("\n🎉 All tests passed! Grid exporter is working correctly.")
+        logger.info("\nAll tests passed! Grid exporter is working correctly.")
         
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        logger.error(f"Test failed: {e}")
         import traceback
         traceback.print_exc()
     

@@ -8,6 +8,7 @@ from flask_cors import CORS
 import tempfile
 import shutil
 from dream_layer import get_directories
+from grid_exporter import LabeledGridExporter
 
 # Create Flask app
 app = Flask(__name__)
@@ -310,6 +311,101 @@ def upscale_image():
             "status": "error",
             "message": str(e)
         }), 500
+
+@app.route('/api/extras/grid-export', methods=['POST'])
+def create_grid():
+    """Handle grid export request"""
+    try:
+        # Get parameters from request
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "status": "error", 
+                "message": "No parameters provided"
+            }), 400
+
+        # Extract parameters
+        count = data.get('count', 4)
+        grid_size_str = data.get('grid_size', 'auto')
+        filename = data.get('filename', f'labeled_grid_{int(time.time())}.png')
+        show_labels = data.get('show_labels', True)
+        show_filenames = data.get('show_filenames', False)
+
+        # Parse grid size
+        if grid_size_str == 'auto':
+            grid_size = None
+        else:
+            try:
+                cols, rows = grid_size_str.split('x')
+                grid_size = (int(cols), int(rows))
+            except:
+                grid_size = None
+
+        print(f"[API] Grid export request:")
+        print(f"  Count: {count}")
+        print(f"  Grid size: {grid_size}")
+        print(f"  Filename: {filename}")
+        print(f"  Show labels: {show_labels}")
+        print(f"  Show filenames: {show_filenames}")
+
+        # Create grid exporter
+        exporter = LabeledGridExporter()
+        
+        # Create the grid
+        output_path = exporter.create_grid_from_recent(
+            count=count,
+            grid_size=grid_size,
+            filename=filename
+        )
+
+        # Copy to served images directory for frontend access
+        served_filename = f"grid_{int(time.time())}.png"
+        served_path = os.path.join(SERVED_IMAGES_DIR, served_filename)
+        shutil.copy2(output_path, served_path)
+
+        # Get file info
+        file_size = os.path.getsize(output_path)
+        
+        # Get grid info
+        from PIL import Image
+        with Image.open(output_path) as img:
+            width, height = img.size
+
+        print(f"[API] Grid created successfully:")
+        print(f"  Output path: {output_path}")
+        print(f"  Served path: {served_path}")
+        print(f"  Size: {file_size:,} bytes")
+        print(f"  Dimensions: {width}x{height}")
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "grid_url": f"{SERVER_URL}/images/{served_filename}",
+                "filename": filename,
+                "file_size": file_size,
+                "dimensions": {
+                    "width": width,
+                    "height": height
+                },
+                "images_processed": count
+            }
+        })
+
+    except Exception as e:
+        print(f"[API] Error creating grid: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/images/<filename>')
+def serve_image(filename):
+    """Serve images from the served_images directory"""
+    try:
+        return send_from_directory(SERVED_IMAGES_DIR, filename)
+    except Exception as e:
+        print(f"[API] Error serving image {filename}: {str(e)}")
+        return jsonify({"error": "Image not found"}), 404
 
 # This endpoint is now handled by dream_layer.py
 

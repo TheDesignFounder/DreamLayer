@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill:*)",
+      "Bash(rm:*)",
+      "Bash(true)",
+      "Bash(npm run build:*)",
+      "Bash(python test_grid_exporter.py)"
+    ],
+    "deny": []
+  }
+}
