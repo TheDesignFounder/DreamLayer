@@ -12,10 +12,8 @@ from DreamLayer and creates labeled grids showing generation parameters for each
 
 import os
 import time
-import json
 import re
 import logging
-from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
@@ -409,10 +407,7 @@ class LabeledGridExporter:
                 continue
         
         # Fallback to default font
-        try:
-            return ImageFont.load_default()
-        except:
-            return ImageFont.load_default()
+        return ImageFont.load_default()
     
     def get_recent_images(self, count: int = 8) -> List[Dict[str, Any]]:
         """
@@ -582,8 +577,8 @@ class LabeledGridExporter:
         if not images:
             raise ValueError("No images provided")
         
-        # Auto-calculate grid size if not provided (make it roughly square)
-        if grid_size is None:
+        # Determine grid size (auto-calc if not provided or invalid)
+        if grid_size is None or grid_size[0] < 1 or grid_size[1] < 1:
             num_images = len(images)
             cols = int(np.ceil(np.sqrt(num_images)))
             rows = int(np.ceil(num_images / cols))
@@ -598,10 +593,10 @@ class LabeledGridExporter:
         
         for img_info in images:
             try:
-                pil_img = Image.open(img_info['filepath'])
-                # Convert to RGB if necessary
-                if pil_img.mode != 'RGB':
-                    pil_img = pil_img.convert('RGB')
+                with Image.open(img_info['filepath']) as im:
+                    if im.mode != 'RGB':
+                        im = im.convert('RGB')
+                    pil_img = im.copy()  # detach from file handle (important on Windows)
                 loaded_images.append((pil_img, img_info))
                 max_width = max(max_width, pil_img.width)
                 max_height = max(max_height, pil_img.height)

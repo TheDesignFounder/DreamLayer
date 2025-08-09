@@ -7,7 +7,8 @@
       "Bash(rm:*)",
       "Bash(true)",
       "Bash(npm run build:*)",
-      "Bash(python test_grid_exporter.py)"
+      "Bash(python test_grid_exporter.py)",
+      "Bash(python -m ruff:*)"
     ],
     "deny": []
   }

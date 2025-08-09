@@ -10,7 +10,6 @@ import os
 import tempfile
 import shutil
 import logging
-from pathlib import Path
 import pytest
 from PIL import Image
 import numpy as np
@@ -188,7 +187,7 @@ class TestLabeledGridExporter:
             file_size = os.path.getsize(output_path)
             assert 5000 < file_size < 100000  # Reasonable PNG size for small grid
             
-        logger.info(f"Snapshot test passed!")
+        logger.info("Snapshot test passed!")
         logger.info(f"Grid file: {output_path}")
         logger.info(f"Dimensions: {grid_img.width}x{grid_img.height}")
         logger.info(f"File size: {file_size:,} bytes")
@@ -215,10 +214,10 @@ class TestLabeledGridExporter:
         with pytest.raises(ValueError, match="No images provided"):
             self.exporter.create_labeled_grid([])
         
-        # Test with invalid grid size
+        # Test with invalid grid size -> should be handled gracefully by auto-calculation
         images = self.exporter.get_recent_images(count=4)
         grid = self.exporter.create_labeled_grid(images, grid_size=(0, 1))
-        # Should handle gracefully and auto-calculate
+        assert isinstance(grid, Image.Image)
 
 
 def test_cli_interface():
