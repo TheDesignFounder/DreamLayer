@@ -129,9 +129,6 @@ cleanup() {
     kill_port 5002  # Flask (dream_layer)
     kill_port 5003  # Extras server
     kill_port 5004  # img2img server
-    kill_port 5005  # Run registry server
-    kill_port 5006  # Report bundle server
-    kill_port 5007  # img2txt server
     kill_port 8080  # Vite dev server
     
     print_success "Cleanup completed"
@@ -173,8 +170,16 @@ main() {
         print_success "settings.json removed"
     fi
     
-    # Clean up served_images directory
-    [ -d "dream_layer_backend/served_images" ] && rm -f dream_layer_backend/served_images/* && print_success "Cleaned up served_images directory"
+    # Clean up temporary images but preserve matrix grids
+    if [ -d "dream_layer_backend/served_images" ]; then
+        # Remove only non-matrix files from served_images
+        find dream_layer_backend/served_images -name "*.png" ! -name "matrix-grid-*" -delete 2>/dev/null || true
+        print_success "Cleaned up temporary images (matrix grids preserved)"
+    fi
+    
+    # Ensure matrix_grids directory exists
+    mkdir -p dream_layer_backend/matrix_grids
+    print_success "Matrix grids permanent storage ready"
     
     # Kill any existing processes on our ports
     print_status "Cleaning up existing processes..."
@@ -183,9 +188,6 @@ main() {
     kill_port 5002  # Flask (dream_layer)
     kill_port 5003  # Extras server
     kill_port 5004  # img2img server
-    kill_port 5005  # Run registry server
-    kill_port 5006  # Report bundle server
-    kill_port 5007  # img2txt server
     kill_port 8080  # Vite dev server
     
     # Wait for ports to be freed
@@ -205,15 +207,6 @@ main() {
     
     # Start extras.py
     start_python_server "extras" "extras.py" 5003
-    
-    # Start run_registry.py
-    start_python_server "run_registry" "run_registry.py" 5005
-    
-    # Start report_bundle.py
-    start_python_server "report_bundle" "report_bundle.py" 5006
-
-    # Start img2txt_server.py
-    start_python_server "img2txt_server" "img2txt_server.py" 5007
     
     # Start frontend
     print_status "Starting frontend development server..."
@@ -249,9 +242,6 @@ main() {
     print_status "  - txt2img server: http://localhost:5001"
     print_status "  - img2img server: http://localhost:5004"
     print_status "  - Extras server: http://localhost:5003"
-    print_status "  - Run registry server: http://localhost:5005"
-    print_status "  - Report bundle server: http://localhost:5006"
-    print_status "  - img2txt server: http://localhost:5007"
     print_status "  - Frontend: http://localhost:8080"
     print_status "  - ComfyUI: http://localhost:8188"
     

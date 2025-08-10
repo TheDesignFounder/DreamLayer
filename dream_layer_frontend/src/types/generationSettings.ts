@@ -129,6 +129,11 @@ export interface ImageResult {
   negativePrompt: string;
   timestamp: number;
   settings: Partial<CoreGenerationSettings>;
+  matrixInfo?: { // Optional property for matrix generation info
+    xValue: string | number | null;
+    yValue: string | number | null;
+    zValue: string | number | null;
+  };
 }
 
 // Type for txt2img specific settings
@@ -140,4 +145,65 @@ export interface Txt2ImgCoreSettings extends CoreGenerationSettings {
 export const defaultTxt2ImgSettings: Txt2ImgCoreSettings = {
   ...defaultCoreSettings,
   // Override any default values specific to txt2img here
+};
+
+// --- Matrix Generation Types ---
+
+// The parameters that can be used in the matrix
+export const MATRIX_PARAMETERS = [
+  'Nothing',
+  'Seed',
+  'Steps',
+  'CFG Scale',
+  'Sampler',
+  'Denoising',
+  'Clip skip',
+  'Hires steps',
+] as const;
+
+export type MatrixParameterName = typeof MATRIX_PARAMETERS[number];
+
+export interface MatrixParameter {
+  name: MatrixParameterName;
+  type: 'range' | 'list';
+  values: string; // Comma-separated or range (e.g., "1-5")
+  enabled: boolean;
+}
+
+export interface MatrixSettings {
+  xAxis: MatrixParameter;
+  yAxis: MatrixParameter;
+  zAxis: MatrixParameter;
+  drawLegend: boolean;
+  includeSubImages: boolean;
+  includeSubgrids: boolean;
+  keepSeedsForRows: boolean;
+}
+
+export interface MatrixJob {
+  id: string;
+  settings: CoreGenerationSettings;
+  xValue: string | number | null;
+  yValue: string | number | null;
+  zValue: string | number | null;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  result?: any;
+  error?: any;
+}
+
+export const defaultMatrixParameter: MatrixParameter = {
+  name: 'Nothing',
+  type: 'list',
+  values: '',
+  enabled: false,
+};
+
+export const defaultMatrixSettings: MatrixSettings = {
+  xAxis: { ...defaultMatrixParameter },
+  yAxis: { ...defaultMatrixParameter },
+  zAxis: { ...defaultMatrixParameter },
+  drawLegend: true,
+  includeSubImages: false,
+  includeSubgrids: false,
+  keepSeedsForRows: true,
 }; 

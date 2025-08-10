@@ -115,7 +115,6 @@ export const fetchControlNetModels = async () => {
     }
 };
 
-// Interface for model info across all types
 export interface ModelInfo {
     id: string;
     name: string;
@@ -135,7 +134,6 @@ export const fetchAllModelTypes = async (): Promise<ModelInfo[]> => {
 
         const allModels: ModelInfo[] = [];
 
-        // Process checkpoints
         if (checkpoints.status === 'fulfilled') {
             checkpoints.value.forEach((model: CheckpointModel) => {
                 allModels.push({
@@ -146,7 +144,6 @@ export const fetchAllModelTypes = async (): Promise<ModelInfo[]> => {
             });
         }
 
-        // Process LoRAs
         if (loras.status === 'fulfilled') {
             loras.value.forEach((model: any) => {
                 allModels.push({
@@ -159,7 +156,6 @@ export const fetchAllModelTypes = async (): Promise<ModelInfo[]> => {
             });
         }
 
-        // Process ControlNet models
         if (controlnets.status === 'fulfilled') {
             controlnets.value.forEach((model: any) => {
                 const filename = typeof model === 'string' ? model : model.filename;
@@ -173,7 +169,6 @@ export const fetchAllModelTypes = async (): Promise<ModelInfo[]> => {
             });
         }
 
-        // Process Upscaler models
         if (upscalers.status === 'fulfilled') {
             upscalers.value.forEach((model: any) => {
                 allModels.push({
@@ -193,7 +188,6 @@ export const fetchAllModelTypes = async (): Promise<ModelInfo[]> => {
     }
 };
 
-// WebSocket Model Refresh Listener Types
 export interface ModelRefreshEvent {
     model_type: string;
     filename: string;
@@ -206,21 +200,18 @@ export interface WebSocketMessage {
     data: ModelRefreshEvent;
 }
 
-// WebSocket connection management
 let wsConnection: WebSocket | null = null;
 let wsReconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_DELAY = 2000; // 2 seconds
+const RECONNECT_DELAY = 2000;
 const WS_URL = import.meta.env.VITE_COMFY_UI_WS_API_URL || 'ws://localhost:8188/ws';
 const API_BASE_URL = import.meta.env.VITE_BACKEND_API_BASE_URL || 'http://localhost:5002';
 const CONTROLNET_API_BASE_URL = import.meta.env.VITE_TXT_TO_IMG_API_BASE_URL || 'http://localhost:5001';
 
-// Generate a unique client ID for this session
 const generateClientId = (): string => {
     return 'dreamlayer_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
 };
 
-// Model refresh listeners with optional model type filtering
 interface ModelRefreshListener {
     callback: () => void;
     modelType?: string;
@@ -235,7 +226,6 @@ export const addModelRefreshListener = (
     const listener: ModelRefreshListener = { callback, modelType };
     modelRefreshListeners.add(listener);
 
-    // Return unsubscribe function
     return () => {
         modelRefreshListeners.delete(listener);
     };
@@ -244,9 +234,8 @@ export const addModelRefreshListener = (
 const notifyModelRefreshListeners = (event?: ModelRefreshEvent) => {
     modelRefreshListeners.forEach(listener => {
         try {
-            // If listener has a model type filter, only notify for matching types
             if (listener.modelType && event?.model_type && listener.modelType !== event.model_type) {
-                return; // Skip this listener
+                return;
             }
 
             listener.callback();
@@ -272,16 +261,17 @@ const connectWebSocket = (): Promise<WebSocket> => {
                 resolve(ws);
             };
 
-            ws.onmessage = (event) => {
-                try {
-                    const message: WebSocketMessage = JSON.parse(event.data);
+            const service = this;
 
-                    // Listen for our custom "models-refresh" events
-                    if (message.type === 'models-refresh') {
-                        notifyModelRefreshListeners(message.data);
-                    }
+            ws.onmessage = (event) => {
+                if (event.data instanceof Blob) {
+                    return;
+                }
+                try {
+                    const data = JSON.parse(event.data);
+                    service.handleWebSocketMessage(data);
                 } catch (error) {
-                    console.error('Error parsing WebSocket message:', error);
+                    console.error('Error parsing WebSocket message:', error, 'Data:', event.data);
                 }
             };
 
@@ -294,7 +284,6 @@ const connectWebSocket = (): Promise<WebSocket> => {
                 console.log('🔌 WebSocket connection closed:', event.code, event.reason);
                 wsConnection = null;
 
-                // Attempt to reconnect if not a clean close
                 if (event.code !== 1000 && wsReconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                     wsReconnectAttempts++;
                     console.log(`🔄 Attempting to reconnect WebSocket (${wsReconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
@@ -315,7 +304,6 @@ const connectWebSocket = (): Promise<WebSocket> => {
 };
 
 export const setupModelRefreshWebSocket = async (): Promise<void> => {
-    // Don't create multiple connections
     if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
         console.log('WebSocket already connected');
         return;
@@ -336,18 +324,16 @@ export const closeModelRefreshWebSocket = (): void => {
         wsConnection = null;
     }
 
-    // Clear all listeners
     modelRefreshListeners.clear();
 };
 
-// singleton to ensure we only have one connection promise at a time
 let webSocketConnectionPromise: Promise<void> | null = null;
 
 export const ensureWebSocketConnection = (): Promise<void> => {
     if (!webSocketConnectionPromise) {
         webSocketConnectionPromise = setupModelRefreshWebSocket().catch(error => {
             console.warn('Failed to setup WebSocket connection:', error);
-            webSocketConnectionPromise = null; // Reset so it can be retried
+            webSocketConnectionPromise = null;
             throw error;
         });
     }

@@ -245,10 +245,11 @@ const ExtrasPage = () => {
         <div className="my-6">
           <div className="text-sm font-medium text-foreground mb-2">b) Upscaling Model #1</div>
           <Select 
+            defaultValue={selectedUpscaler} 
             onValueChange={(value) => setSelectedUpscaler(value)}
           >
             <SelectTrigger className="w-full" id="upscaling-model">
-              <SelectValue placeholder="Select Model" />
+              <SelectValue placeholder="Select an upscaling model" />
             </SelectTrigger>
             <SelectContent>
               {availableUpscalers.map((model) => (
@@ -260,7 +261,7 @@ const ExtrasPage = () => {
           </Select>
           <div className="mt-4 mx-4 text-sm text-muted-foreground">
             <p className="mb-1">
-              <span className="font-medium">About The Upscaler:</span> {currentUpscaler.description} Speed: {currentUpscaler.speed}. Upload the Upscaling model you want to select.
+              <span className="font-medium">About The Upscaler:</span> {currentUpscaler.description} Speed: {currentUpscaler.speed}.
             </p>
           </div>
         </div>
@@ -268,10 +269,11 @@ const ExtrasPage = () => {
         <div className="my-6">
           <div className="text-sm font-medium text-foreground mb-2">c) Upscaling Model #2</div>
           <Select 
+            defaultValue={selectedUpscaler2} 
             onValueChange={(value) => setSelectedUpscaler2(value)}
           >
             <SelectTrigger className="w-full" id="upscaling-model-2">
-              <SelectValue placeholder="Select Model" />
+              <SelectValue placeholder="Select an upscaling model" />
             </SelectTrigger>
             <SelectContent>
               {availableUpscalers.map((model) => (
@@ -283,7 +285,7 @@ const ExtrasPage = () => {
           </Select>
           <div className="mt-4 mx-4 text-sm text-muted-foreground">
             <p className="mb-1">
-              <span className="font-medium">About The Upscaler:</span> {currentUpscaler2.description} Speed: {currentUpscaler2.speed}. Upload the Upscaling model you want to select.
+              <span className="font-medium">About The Upscaler:</span> {currentUpscaler2.description} Speed: {currentUpscaler2.speed}.
             </p>
           </div>
         </div>

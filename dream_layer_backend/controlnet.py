@@ -1,6 +1,8 @@
 import os
+import base64
+import traceback
+import time
 from PIL import Image, ImageDraw
-
 
 def save_controlnet_image(image_data, unit_index):
     """
@@ -27,10 +29,6 @@ def save_controlnet_image(image_data, unit_index):
         # Create input directory if it doesn't exist
         os.makedirs(input_dir, exist_ok=True)
         print(f"✅ Directory exists: {os.path.exists(input_dir)}")
-        
-        # Generate unique filename
-        import base64
-        import time
         
         # Create a unique filename based on timestamp and unit index
         timestamp = int(time.time() * 1000)
@@ -65,7 +63,6 @@ def save_controlnet_image(image_data, unit_index):
                 
             except Exception as decode_error:
                 print(f"❌ Error decoding base64 image: {decode_error}")
-                import traceback
                 traceback.print_exc()
                 return None
         else:
@@ -78,7 +75,6 @@ def save_controlnet_image(image_data, unit_index):
         
     except Exception as e:
         print(f"❌ Error saving ControlNet image: {str(e)}")
-        import traceback
         traceback.print_exc()
         return None
 
@@ -112,6 +108,5 @@ def create_test_controlnet_image():
         
     except Exception as e:
         print(f"❌ Error creating test ControlNet image: {str(e)}")
-        import traceback
         traceback.print_exc()
         return False

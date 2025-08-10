@@ -2,15 +2,20 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import os
-import requests
 from dream_layer import get_directories
 from dream_layer_backend_utils import interrupt_workflow
 from shared_utils import  send_to_comfyui
 from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
 from PIL import Image, ImageDraw
 from txt2img_workflow import transform_to_txt2img_workflow
-from run_registry import create_run_config_from_generation_data
-from dataclasses import asdict
+import base64
+import io
+import time
+import platform
+import subprocess
+import traceback
+from shared_utils import SERVED_IMAGES_DIR, serve_image, MATRIX_GRIDS_DIR
+from shared_utils import upload_controlnet_image as upload_cn_image
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -20,13 +25,6 @@ CORS(app, resources={
         "allow_headers": ["Content-Type"]
     }
 })
-
-# Get served images directory
-output_dir, _ = get_directories()
-SERVED_IMAGES_DIR = os.path.join(os.path.dirname(__file__), 'served_images')
-os.makedirs(SERVED_IMAGES_DIR, exist_ok=True)
-
-
 
 @app.route('/api/txt2img', methods=['POST', 'OPTIONS'])
 def handle_txt2img():
@@ -39,14 +37,12 @@ def handle_txt2img():
         if data:
             print("Data:", json.dumps(data, indent=2))
             
-            # Print specific fields of interest
             print("\nKey Parameters:")
             print("-"*20)
             print(f"Prompt: {data.get('prompt', 'Not provided')}")
             print(f"Negative Prompt: {data.get('negative_prompt', 'Not provided')}")
             print(f"Batch Size: {data.get('batch_size', 'Not provided')}")
             
-            # Check ControlNet data specifically
             controlnet_data = data.get('controlnet', {})
             print(f"\n🎮 ControlNet Data:")
             print("-"*20)
@@ -63,14 +59,11 @@ def handle_txt2img():
             else:
                 print("No ControlNet units found")
             
-            # Transform to ComfyUI workflow
-
             workflow = transform_to_txt2img_workflow(data)
             print("\nGenerated ComfyUI Workflow:")
             print("-"*20)
             print(json.dumps(workflow, indent=2))
             
-            # Send to ComfyUI server
             comfy_response = send_to_comfyui(workflow)
             
             if "error" in comfy_response:
@@ -79,41 +72,11 @@ def handle_txt2img():
                     "message": comfy_response["error"]
                 }), 500
             
-            # Extract generated image filenames
-            generated_images = []
-            if comfy_response.get("all_images"):
-                for img_data in comfy_response["all_images"]:
-                    if isinstance(img_data, dict) and "filename" in img_data:
-                        generated_images.append(img_data["filename"])
-            
-            print("Start register process")
-            # Register the completed run
-            try:
-                run_config = create_run_config_from_generation_data(
-                    data, generated_images, "txt2img"
-                )
-                
-                # Send to run registry
-                registry_response = requests.post(
-                    "http://localhost:5005/api/runs",
-                    json=asdict(run_config),
-                    timeout=5
-                )
-                
-                if registry_response.status_code == 200:
-                    print(f"✅ Run registered successfully: {run_config.run_id}")
-                else:
-                    print(f"⚠️ Failed to register run: {registry_response.text}")
-                    
-            except Exception as e:
-                print(f"⚠️ Error registering run: {str(e)}")
-            
             response = jsonify({
                 "status": "success",
                 "message": "Workflow sent to ComfyUI successfully",
                 "comfy_response": comfy_response,
-                "generated_images": comfy_response.get("all_images", []),
-                "run_id": run_config.run_id if 'run_config' in locals() else None
+                "generated_images": comfy_response.get("all_images", [])
             })
             
             return response
@@ -126,7 +89,6 @@ def handle_txt2img():
             
     except Exception as e:
         print(f"Error in handle_txt2img: {str(e)}")
-        import traceback
         traceback.print_exc()
         return jsonify({
             "status": "error",
@@ -147,8 +109,6 @@ def serve_image_endpoint(filename):
     This endpoint is needed here because the frontend expects it on this port
     """
     try:
-        # Use shared function
-        from shared_utils import serve_image
         return serve_image(filename)
             
     except Exception as e:
@@ -199,8 +159,6 @@ def upload_controlnet_image_endpoint():
         except ValueError:
             unit_index = 0
         
-        # Use shared function
-        from shared_utils import upload_controlnet_image as upload_cn_image
         result = upload_cn_image(file, unit_index)
         
         if isinstance(result, tuple):
@@ -210,7 +168,82 @@ def upload_controlnet_image_endpoint():
             
     except Exception as e:
         print(f"❌ Error uploading ControlNet image: {str(e)}")
-        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/save-matrix-grid', methods=['POST'])
+def save_matrix_grid():
+    """
+    Save Matrix grid image to server storage (permanent directory)
+    """
+    try:
+        print(f"🔄 Matrix grid save request received")
+        data = request.json
+        
+        if not data or 'imageData' not in data:
+            print("❌ No image data in request")
+            return jsonify({
+                "status": "error",
+                "message": "No image data provided"
+            }), 400
+        
+        image_data = data['imageData']
+        if image_data.startswith('data:'):
+            image_data = image_data.split(',')[1]
+        
+        print(f"📊 Received base64 data length: {len(image_data)}")
+        
+        # Decode base64 image
+        image_bytes = base64.b64decode(image_data)
+        print(f"📊 Decoded image bytes: {len(image_bytes)}")
+        
+        image = Image.open(io.BytesIO(image_bytes))
+        print(f"📊 Image dimensions: {image.size}")
+        
+        timestamp = int(time.time() * 1000)
+        matrix_id = data.get('matrixId', 'matrix')
+        filename = f"{matrix_id}_{timestamp}.png"
+        print(f"📁 Generated filename: {filename}")
+        
+        os.makedirs(MATRIX_GRIDS_DIR, exist_ok=True)
+        print(f"📁 MATRIX_GRIDS_DIR: {MATRIX_GRIDS_DIR}")
+        print(f"📁 Directory exists: {os.path.exists(MATRIX_GRIDS_DIR)}")
+        print(f"📁 Directory is writable: {os.access(MATRIX_GRIDS_DIR, os.W_OK)}")
+        
+        filepath = os.path.join(MATRIX_GRIDS_DIR, filename)
+        print(f"📁 Full save path: {filepath}")
+        
+        image.save(filepath, format='PNG')
+        print(f"💾 Matrix grid saved to permanent storage")
+        
+        if os.path.exists(filepath):
+            file_size = os.path.getsize(filepath)
+            print(f"✅ Successfully saved Matrix grid to permanent storage: {filename}")
+            print(f"📏 File size: {file_size} bytes")
+            print(f"📁 Full path: {filepath}")
+            
+            dir_contents = os.listdir(MATRIX_GRIDS_DIR)
+            print(f"📁 Matrix grids directory contents: {dir_contents}")
+            
+            return jsonify({
+                "status": "success",
+                "filename": filename,
+                "url": f"http://localhost:5001/api/images/{filename}",
+                "filesize": file_size,
+                "storage": "permanent"
+            })
+        else:
+            print(f"❌ File was not created: {filepath}")
+            return jsonify({
+                "status": "error",
+                "message": "Failed to save Matrix grid to permanent storage"
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ Error saving Matrix grid: {str(e)}")
         traceback.print_exc()
         return jsonify({
             "status": "error",

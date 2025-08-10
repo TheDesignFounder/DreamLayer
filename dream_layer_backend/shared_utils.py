@@ -4,20 +4,21 @@ import time
 import requests
 import copy
 import json
+import sys
+import traceback
+from flask import send_file, jsonify
 from typing import List, Dict, Any
 from pathlib import Path
-from dream_layer import get_directories
+from dream_layer_backend_utils.workflow_loader import analyze_workflow
 from dream_layer_backend_utils.update_custom_workflow import find_save_node
 from dream_layer_backend_utils.shared_workflow_parameters import increment_seed_in_workflow
 
-# Global constants
 COMFY_API_URL = "http://127.0.0.1:8188"
 SERVED_IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'served_images')
+MATRIX_GRIDS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'matrix_grids')
 
-# Model display name mapping file
 MODEL_DISPLAY_NAMES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model_display_names.json')
 
-# Display names are user-friendly names for models, stored in a JSON file
 def load_model_display_names() -> Dict[str, str]:
     """Load the mapping of actual filenames to display names"""
     try:
@@ -48,11 +49,9 @@ def get_model_display_name(filename: str) -> str:
     if filename in mapping:
         return mapping[filename]
 
-    # Fallback: process the filename to create a display name
     name = Path(filename).stem.replace('-', ' ').replace('_', ' ')
     return ' '.join(word.capitalize() for word in name.split())
 
-# Sampler name mapping from frontend to ComfyUI
 SAMPLER_NAME_MAP = {
     'Euler': 'euler',
     'Euler a': 'euler_ancestral',
@@ -74,38 +73,36 @@ SAMPLER_NAME_MAP = {
     'DDIM': 'ddim',
     'PLMS': 'plms'
 }
+
 os.makedirs(SERVED_IMAGES_DIR, exist_ok=True)
+os.makedirs(MATRIX_GRIDS_DIR, exist_ok=True)
 
 def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int = 300) -> List[Dict[str, Any]]:
     """
     Wait for image generation to complete and return the generated images
     This is a shared function used by both txt2img and img2img servers
     """
-    print("wait_for_image")
+    from dream_layer import get_directories
+    
     output_dir, _ = get_directories()
     start_time = time.time()
     
     while time.time() - start_time < max_wait_time:
         try:
-            # Check queue status
             response = requests.get(f"{COMFY_API_URL}/queue")
             if response.status_code == 200:
                 queue_data = response.json()
                 
-                # Check if our prompt is still in queue
                 running_queue = queue_data.get('queue_running', [])
                 pending_queue = queue_data.get('queue_pending', [])
                 
-                # Look for our prompt_id in running or pending queues
                 prompt_in_queue = any(item[1] == prompt_id for item in running_queue + pending_queue)
                 
                 if not prompt_in_queue:
-                    # Prompt is no longer in queue, check for results
                     history_response = requests.get(f"{COMFY_API_URL}/history/{prompt_id}")
                     if history_response.status_code == 200:
                         history_data = history_response.json()
                         if prompt_id in history_data:
-                            # Get outputs from the save node
                             outputs = history_data[prompt_id].get('outputs', {})
                             if save_node_id in outputs:
                                 images_data = outputs[save_node_id].get('images', [])
@@ -116,7 +113,6 @@ def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int =
                                         filename = img_info.get('filename')
                                         print(f"📄 Processing image: {filename}")
                                         if filename:
-                                            # Copy to served images directory
                                             src_path = os.path.join(output_dir, filename)
                                             dest_path = os.path.join(SERVED_IMAGES_DIR, filename)
                                             
@@ -129,7 +125,6 @@ def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int =
                                                 try:
                                                     shutil.copy2(src_path, dest_path)
                                                     print(f"✅ Successfully copied {filename} to served directory")
-                                                    # Create proper image object with URL
                                                     image_objects.append({
                                                         "filename": filename,
                                                         "url": f"http://localhost:5001/api/images/{filename}",
@@ -149,7 +144,7 @@ def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int =
                                 else:
                                     print("⚠️ No images found in save node")
             
-            time.sleep(2)  # Wait 2 seconds before checking again
+            time.sleep(2)
             
         except Exception as e:
             print(f"Error checking image status: {e}")
@@ -169,25 +164,21 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
         batch_size = workflow_info['batch_size']
         
         if workflow_info['is_api']:
-            # API workflows: remove batch_size, loop multiple times
             for node in workflow.get('prompt', {}).values():
                 if 'batch_size' in node.get('inputs', {}):
                     del node['inputs']['batch_size']
                     break
             iterations = batch_size
         else:
-            # Local workflows: keep batch_size, loop once
             iterations = 1
         
         all_images = []
         last_response_data = None
         
         for i in range(iterations):
-            # Increment seed for variation
 
             current_workflow = increment_seed_in_workflow(copy.deepcopy(workflow), i) if i > 0 else workflow
             
-            # Send to ComfyUI
             response = requests.post(f"{COMFY_API_URL}/prompt", json=current_workflow)
             
             if response.status_code == 200:
@@ -209,7 +200,6 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
                 return {"error": error_msg}
         
         if all_images:
-            # Return the last valid ComfyUI response but with all images
             if last_response_data:
                 last_response_data["all_images"] = all_images
                 last_response_data["generated_images"] = all_images
@@ -228,41 +218,62 @@ def serve_image(filename: str) -> Any:
     This is a shared function used by all servers
     """
     from flask import send_file, jsonify
-    
+
     try:
-        # First check in served_images directory (for generated images)
+        print(f"🔍 Attempting to serve image: {filename}")
+        
+        if filename.startswith('matrix-grid'):
+            matrix_filepath = os.path.join(MATRIX_GRIDS_DIR, filename)
+            print(f"📁 Checking matrix_grids: {matrix_filepath}")
+            print(f"📁 Matrix grids directory exists: {os.path.exists(MATRIX_GRIDS_DIR)}")
+            if os.path.exists(MATRIX_GRIDS_DIR):
+                print(f"📁 Matrix grids directory contents: {os.listdir(MATRIX_GRIDS_DIR)}")
+            
+            if os.path.exists(matrix_filepath):
+                print(f"✅ Found matrix grid: {matrix_filepath}")
+                print(f"📏 File size: {os.path.getsize(matrix_filepath)} bytes")
+                return send_file(matrix_filepath, mimetype='image/png')
+        
         served_filepath = os.path.join(SERVED_IMAGES_DIR, filename)
+        print(f"📁 Checking served_images: {served_filepath}")
+        print(f"📁 Served directory exists: {os.path.exists(SERVED_IMAGES_DIR)}")
+        print(f"📁 Served directory contents: {os.listdir(SERVED_IMAGES_DIR) if os.path.exists(SERVED_IMAGES_DIR) else 'Directory not found'}")
         
         if os.path.exists(served_filepath):
+            print(f"✅ Found in served_images: {served_filepath}")
+            print(f"📏 File size: {os.path.getsize(served_filepath)} bytes")
             return send_file(served_filepath, mimetype='image/png')
         
-        # If not found in served_images, check in ComfyUI input directory (for ControlNet images)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         parent_dir = os.path.dirname(current_dir)
         input_dir = os.path.join(parent_dir, "ComfyUI", "input")
         input_filepath = os.path.join(input_dir, filename)
+        print(f"📁 Checking ComfyUI input: {input_filepath}")
         
         if os.path.exists(input_filepath):
+            print(f"✅ Found in ComfyUI input: {input_filepath}")
             return send_file(input_filepath, mimetype='image/png')
         
-        # If not found in either location, check ComfyUI output directory
         output_dir, _ = get_directories()
         output_filepath = os.path.join(output_dir, filename)
+        print(f"📁 Checking ComfyUI output: {output_filepath}")
         
         if os.path.exists(output_filepath):
+            print(f"✅ Found in ComfyUI output: {output_filepath}")
             return send_file(output_filepath, mimetype='image/png')
         
-        # If still not found, return 404
-        print(f"❌ Image not found in any directory: {filename}")
-        print(f"   Checked: {served_filepath}")
-        print(f"   Checked: {input_filepath}")
-        print(f"   Checked: {output_filepath}")
+        if not filename.startswith('matrix-grid'):
+            matrix_filepath = os.path.join(MATRIX_GRIDS_DIR, filename)
+            if os.path.exists(matrix_filepath):
+                print(f"✅ Found in matrix_grids (fallback): {matrix_filepath}")
+                return send_file(matrix_filepath, mimetype='image/png')
         
+        print(f"❌ Image not found in any directory: {filename}")
         return jsonify({
             "status": "error",
-            "message": "Image not found"
+            "message": f"Image {filename} not found"
         }), 404
-            
+        
     except Exception as e:
         print(f"❌ Error serving image {filename}: {str(e)}")
         return jsonify({
@@ -322,7 +333,6 @@ def upload_controlnet_image(file, unit_index: int = 0) -> Dict[str, Any]:
             
     except Exception as e:
         print(f"❌ Error uploading ControlNet image: {str(e)}")
-        import traceback
         traceback.print_exc()
         return {
             "status": "error",
@@ -352,7 +362,6 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
                 "message": "No file provided or no file selected"
             }, 400
 
-        # Validate file extension - support common model formats
         allowed_extensions = {'.safetensors', '.ckpt', '.pth', '.pt', '.bin'}
         file_ext = Path(file.filename).suffix.lower()
 
@@ -366,12 +375,10 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
         print(f"📊 File content type: {file.content_type}")
         print(f"🏷️ Model type: {model_type}")
 
-        # Get ComfyUI models directory structure
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
         comfyui_models_dir = os.path.join(project_root, "ComfyUI", "models")
 
-        # Map model types to directories
         model_type_dirs = {
             "checkpoints": "checkpoints",
             "loras": "loras",
@@ -405,16 +412,13 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
                 "message": "Invalid target directory"
             }, 400
 
-        # Create target directory if it doesn't exist
         os.makedirs(target_dir, exist_ok=True)
         print(f"📁 Target directory: {target_dir}")
 
-        # Generate safe filename with timestamp for storage
         timestamp = int(time.time() * 1000)
         safe_filename = f"{Path(file.filename).stem}_{timestamp}{file_ext}"
         target_path = Path(target_dir) / safe_filename
 
-        # Create display name from original filename (without timestamp)
         original_display_name = Path(file.filename).stem.replace('-', ' ').replace('_', ' ')
         original_display_name = ' '.join(word.capitalize() for word in original_display_name.split())
 
@@ -433,7 +437,6 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
 
         print(f"📄 Saving to: {target_path}")
 
-        # 🔒 ATOMIC WRITE: Write to temporary file first
         temp_path = target_path.with_suffix(target_path.suffix + '.tmp')
 
         try:
@@ -443,34 +446,28 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
                 f.flush()
                 os.fsync(f.fileno())
 
-            # Atomic rename to final destination
             temp_path.rename(target_path)
 
             print(f"✅ Atomic write completed: {safe_filename}")
 
         except Exception as e:
-            # Clean up temp file if something went wrong
             if temp_path.exists():
                 temp_path.unlink()
             raise e
 
-        # Verify file was created successfully
         if target_path.exists():
             file_size = target_path.stat().st_size
             print(f"✅ Successfully saved model: {safe_filename}")
             print(f"📏 File size: {file_size} bytes")
 
-            # 💾 DISPLAY NAME: Save the display name mapping
             add_model_display_name(safe_filename, original_display_name)
             print(f"📝 Display name mapping saved: {safe_filename} -> {original_display_name}")
 
-            # 🔄 WEBSOCKET: Emit model refresh event
             try:
                 emit_model_refresh(model_type, safe_filename)
                 print(f"📡 WebSocket event emitted: models-refresh for {model_type}")
             except Exception as ws_error:
                 print(f"⚠️ Warning: Failed to emit WebSocket event: {ws_error}")
-                # Don't fail the upload if WebSocket fails
 
             return {
                 "status": "success",
@@ -491,7 +488,6 @@ def upload_model_file(file, model_type: str = "checkpoints") -> Dict[str, Any]:
 
     except Exception as e:
         print(f"❌ Error uploading model: {str(e)}")
-        import traceback
         traceback.print_exc()
         return {
             "status": "error",
@@ -507,11 +503,9 @@ def _setup_comfyui_websocket():
         PromptServer instance if available, None otherwise
     """
     try:
-        # Import ComfyUI server here to avoid circular imports
+        
         import sys
         import os
-
-        # Add ComfyUI to path if not already there
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
         comfyui_dir = os.path.join(project_root, "ComfyUI")
@@ -519,10 +513,8 @@ def _setup_comfyui_websocket():
         if comfyui_dir not in sys.path:
             sys.path.insert(0, comfyui_dir)
 
-        # Import PromptServer from ComfyUI
         from server import PromptServer
 
-        # Check if PromptServer instance exists
         if hasattr(PromptServer, 'instance') and PromptServer.instance is not None:
             return PromptServer.instance
 
@@ -545,7 +537,6 @@ def emit_model_refresh(model_type: str, filename: str) -> None:
         prompt_server = _setup_comfyui_websocket()
 
         if prompt_server is not None:
-            # Create the WebSocket event data
             event_data = {
                 "model_type": model_type,
                 "filename": filename,
@@ -556,7 +547,6 @@ def emit_model_refresh(model_type: str, filename: str) -> None:
             print("📡 Emitting WebSocket event: models-refresh")
             print(f"📊 Event data: {event_data}")
 
-            # Emit the event using ComfyUI's WebSocket infrastructure
             prompt_server.send_sync("models-refresh", event_data)
 
             print("✅ WebSocket event sent successfully")
@@ -568,6 +558,4 @@ def emit_model_refresh(model_type: str, filename: str) -> None:
         print(f"⚠️ Warning: Could not import ComfyUI server for WebSocket: {e}")
     except Exception as e:
         print(f"❌ Error emitting WebSocket event: {e}")
-        import traceback
         traceback.print_exc()
-        # Don't raise - we don't want WebSocket failures to break uploads
