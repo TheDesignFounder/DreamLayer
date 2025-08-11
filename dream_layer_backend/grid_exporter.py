@@ -38,17 +38,28 @@ class MetadataExtractor:
     like sampler, steps, CFG scale, preset, and seed from log files.
     """
     
-    def __init__(self, logs_dir: str):
+    def __init__(self, logs_dir: str, use_mock_metadata: Optional[bool] = None):
         """
         Initialize the metadata extractor.
         
         Args:
             logs_dir: Directory containing DreamLayer log files
+            use_mock_metadata: Whether to use mock data instead of parsing logs.
+                              If None, reads from DREAMLAYER_USE_MOCK_METADATA env var.
+                              Defaults to True if env var not set.
         """
         self.logs_dir = logs_dir
-        self.use_mock_metadata = True  # TODO: Set to False when real log parsing is implemented
         
-        logger.debug(f"MetadataExtractor initialized with logs_dir: {logs_dir}")
+        # Determine use_mock_metadata from parameter, env var, or default
+        if use_mock_metadata is not None:
+            self.use_mock_metadata = use_mock_metadata
+        else:
+            # Check environment variable
+            import os
+            env_value = os.getenv('DREAMLAYER_USE_MOCK_METADATA', 'true').lower()
+            self.use_mock_metadata = env_value in ('true', '1', 'yes', 'on')
+        
+        logger.debug(f"MetadataExtractor initialized with logs_dir: {logs_dir}, use_mock_metadata: {self.use_mock_metadata}")
     
     def extract_metadata(self, image_filename: str, image_timestamp: float) -> Dict[str, str]:
         """
@@ -338,13 +349,16 @@ class LabeledGridExporter:
     for DreamLayer's specific requirements and file structure.
     """
     
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: Optional[str] = None, use_mock_metadata: Optional[bool] = None):
         """
         Initialize the grid exporter with DreamLayer directory paths.
         
         Args:
             output_dir: Custom output directory for grid exports.
                        If None, uses DreamLayer's default output directory.
+            use_mock_metadata: Whether to use mock metadata instead of parsing logs.
+                              If None, reads from DREAMLAYER_USE_MOCK_METADATA env var.
+                              Defaults to True if env var not set.
         """
         # Get the current file's directory (dream_layer_backend)
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -366,7 +380,7 @@ class LabeledGridExporter:
         self.font = self._setup_font()
         
         # Initialize components
-        self.metadata_extractor = MetadataExtractor(self.logs_dir)
+        self.metadata_extractor = MetadataExtractor(self.logs_dir, use_mock_metadata)
         self.layout_manager = GridLayoutManager()
         self.renderer = GridRenderer(self.font)
         
@@ -462,107 +476,12 @@ class LabeledGridExporter:
         logger.info(f"Found {len(recent_images)} recent images")
         return recent_images
     
-    def extract_metadata_from_logs(self, image_filename: str, image_timestamp: float) -> Dict[str, str]:
-        """
-        Extract generation metadata from DreamLayer log files.
-        
-        Currently returns mock metadata. To implement actual log parsing:
-        1. Implement _parse_actual_logs() method
-        2. Set USE_MOCK_METADATA = False
-        3. Ensure log files exist in self.logs_dir
-        
-        Args:
-            image_filename: Name of the image file
-            image_timestamp: File modification timestamp for matching
-            
-        Returns:
-            Dictionary containing sampler, steps, cfg, preset, seed values
-        """
-        USE_MOCK_METADATA = True  # TODO: Set to False when real log parsing is implemented
-        
-        if USE_MOCK_METADATA:
-            logger.debug(f"Using mock metadata for {image_filename} (timestamp: {image_timestamp})")
-            return self._generate_mock_metadata(image_filename)
-        else:
-            return self._parse_actual_logs(image_filename, image_timestamp)
-    
-    def _generate_mock_metadata(self, image_filename: str) -> Dict[str, str]:
-        """
-        Generate mock metadata for testing and demonstration purposes.
-        
-        This is a placeholder implementation that should be replaced with
-        actual log parsing when the log file format is known.
-        
-        Args:
-            image_filename: Name of the image file
-            
-        Returns:
-            Dictionary with mock generation parameters
-        """
-        # Extract index from filename for variation (e.g., DreamLayer_00001_.png -> 1)
-        match = re.search(r'(\d+)', image_filename)
-        index = int(match.group(1)) if match else 0
-        
-        # Create varied but realistic metadata for demonstration
-        samplers = ["Euler", "Euler a", "DPM++ 2M", "DDIM", "LMS"]
-        steps = ["20", "25", "30", "35", "40"]
-        cfg_scales = ["7.0", "7.5", "8.0", "8.5", "9.0"]
-        presets = ["Default", "Creative", "Precise", "Artistic", "Photographic"]
-        seeds = ["42", "123456", "789012", "345678", "901234", "567890", "234567", "678901"]
-        
-        return {
-            'sampler': samplers[index % len(samplers)],
-            'steps': steps[index % len(steps)],
-            'cfg': cfg_scales[index % len(cfg_scales)],
-            'preset': presets[index % len(presets)],
-            'seed': seeds[index % len(seeds)]
-        }
-    
-    def _parse_actual_logs(self, image_filename: str, image_timestamp: float) -> Dict[str, str]:
-        """
-        Parse actual DreamLayer log files to extract generation metadata.
-        
-        This method should be implemented to parse txt2img_server.log and
-        img2img_server.log files to find generation parameters that match
-        the given image by timestamp.
-        
-        Args:
-            image_filename: Name of the image file
-            image_timestamp: File modification timestamp for matching
-            
-        Returns:
-            Dictionary containing actual generation parameters from logs
-            
-        Raises:
-            NotImplementedError: This method needs to be implemented for production use
-        """
-        # TODO: Implement actual log parsing logic
-        # 1. Read log files from self.logs_dir
-        # 2. Parse log entries around image_timestamp
-        # 3. Extract sampler, steps, cfg, preset, seed from log entries
-        # 4. Return actual metadata dictionary
-        
-        logger.warning(f"Actual log parsing not implemented for {image_filename}")
-        raise NotImplementedError(
-            "Actual log parsing not implemented. "
-            "Set USE_MOCK_METADATA = True or implement this method."
-        )
     
     def create_labeled_grid(self, 
                            images: List[Dict[str, Any]], 
                            grid_size: Optional[Tuple[int, int]] = None) -> Image.Image:
         """
-        Create a labeled grid from image data.
-        
-        This is the core function that assembles individual images into a grid
-        layout and burns generation parameter labels onto each cell.
-        
-        Algorithm:
-        1. Calculate optimal grid dimensions if not specified
-        2. Load and validate all images
-        3. Calculate canvas size including space for labels
-        4. Create blank canvas
-        5. Place each image and draw parameter labels
+        Create a labeled grid from image data using the component architecture.
         
         Args:
             images: List of image dictionaries with filepath and metadata
@@ -577,29 +496,19 @@ class LabeledGridExporter:
         if not images:
             raise ValueError("No images provided")
         
-        # Determine grid size (auto-calc if not provided or invalid)
-        if grid_size is None or grid_size[0] < 1 or grid_size[1] < 1:
-            num_images = len(images)
-            cols = int(np.ceil(np.sqrt(num_images)))
-            rows = int(np.ceil(num_images / cols))
-            grid_size = (cols, rows)
-        
-        cols, rows = grid_size
-        logger.info(f"Creating {cols}x{rows} grid for {len(images)} images")
-        
-        # Load all images and get dimensions
+        # Load all images and extract metadata
         loaded_images = []
-        max_width = max_height = 0
-        
         for img_info in images:
             try:
                 with Image.open(img_info['filepath']) as im:
                     if im.mode != 'RGB':
                         im = im.convert('RGB')
                     pil_img = im.copy()  # detach from file handle (important on Windows)
-                loaded_images.append((pil_img, img_info))
-                max_width = max(max_width, pil_img.width)
-                max_height = max(max_height, pil_img.height)
+                
+                # Extract metadata for this image
+                metadata = self.metadata_extractor.extract_metadata(img_info['filename'], img_info['mtime'])
+                
+                loaded_images.append((pil_img, metadata))
                 logger.debug(f"Loaded: {img_info['filename']} ({pil_img.width}x{pil_img.height})")
             except Exception as e:
                 logger.error(f"Could not load image {img_info['filepath']}: {e}")
@@ -607,67 +516,27 @@ class LabeledGridExporter:
         if not loaded_images:
             raise ValueError("No images could be loaded")
         
-        # Calculate label space needed
-        label_height = 120  # Space for 5 lines of labels (24px each)
-        cell_padding = 15
+        # Calculate grid layout using layout manager
+        actual_grid_size = self.layout_manager.calculate_grid_size(len(loaded_images), grid_size)
+        dimensions = self.layout_manager.calculate_dimensions(loaded_images, actual_grid_size)
         
-        # Calculate grid dimensions
-        cell_width = max_width + cell_padding * 2
-        cell_height = max_height + label_height + cell_padding * 3
+        logger.info(f"Creating {dimensions['cols']}x{dimensions['rows']} grid for {len(loaded_images)} images")
         
-        grid_width = cols * cell_width
-        grid_height = rows * cell_height
+        # Create canvas using renderer
+        canvas, draw = self.renderer.create_canvas(dimensions)
         
-        logger.debug(f"Grid canvas size: {grid_width}x{grid_height}")
-        logger.debug(f"Cell size: {cell_width}x{cell_height}")
-        
-        # Create grid canvas with light gray background
-        grid_canvas = Image.new("RGB", (grid_width, grid_height), color="#f8f8f8")
-        draw = ImageDraw.Draw(grid_canvas)
-        
-        # Place images in grid with labels
-        for idx, (img, img_info) in enumerate(loaded_images):
-            if idx >= cols * rows:
+        # Render each cell
+        for idx, (img, metadata) in enumerate(loaded_images):
+            if idx >= dimensions['cols'] * dimensions['rows']:
                 break
-                
-            row = idx // cols
-            col = idx % cols
             
-            # Calculate position
-            x = col * cell_width + cell_padding
-            y = row * cell_height + cell_padding
+            position = self.layout_manager.get_cell_position(idx, dimensions)
+            logger.debug(f"Placing image {idx} at position {position}")
             
-            logger.debug(f"Placing image {idx} at grid position ({col}, {row}) -> canvas ({x}, {y})")
-            
-            # Add white background for this cell
-            cell_bg = Image.new("RGB", (cell_width - cell_padding, cell_height - cell_padding), color="#ffffff")
-            grid_canvas.paste(cell_bg, (x - cell_padding//2, y - cell_padding//2))
-            
-            # Paste image
-            grid_canvas.paste(img, (x, y))
-            
-            # Extract metadata for this image
-            metadata = self.extract_metadata_from_logs(img_info['filename'], img_info['mtime'])
-            
-            # Draw labels below image
-            label_y = y + img.height + 8
-            labels = [
-                f"Sampler: {metadata.get('sampler', 'Unknown')}",
-                f"Steps: {metadata.get('steps', 'Unknown')}",
-                f"CFG: {metadata.get('cfg', 'Unknown')}",
-                f"Preset: {metadata.get('preset', 'Unknown')}",
-                f"Seed: {metadata.get('seed', 'Unknown')}"
-            ]
-            
-            # Draw each label line
-            line_height = 22
-            for i, label_text in enumerate(labels):
-                text_y = label_y + i * line_height
-                if text_y < grid_canvas.height - 25:  # Ensure we don't draw outside canvas
-                    draw.text((x, text_y), label_text, font=self.font, fill="#333333")
+            self.renderer.render_cell(canvas, draw, img, metadata, position, dimensions)
         
         logger.info("Grid assembly completed")
-        return grid_canvas
+        return canvas
     
     def export_grid(self, 
                    images: List[Dict[str, Any]], 

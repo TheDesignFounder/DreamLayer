@@ -92,14 +92,14 @@ class TestLabeledGridExporter:
     
     def test_metadata_extraction(self):
         """Test metadata extraction generates expected fields"""
-        metadata = self.exporter.extract_metadata_from_logs("test_image_001.png", 1234567890.0)
+        metadata = self.exporter.metadata_extractor.extract_metadata("test_image_001.png", 1234567890.0)
         
         required_fields = ['sampler', 'steps', 'cfg', 'preset', 'seed']
         assert all(field in metadata for field in required_fields)
         assert all(isinstance(metadata[field], str) for field in required_fields)
         
         # Test that different files generate different metadata
-        metadata2 = self.exporter.extract_metadata_from_logs("test_image_002.png", 1234567891.0)
+        metadata2 = self.exporter.metadata_extractor.extract_metadata("test_image_002.png", 1234567891.0)
         assert metadata != metadata2  # Should be different due to index variation
     
     def test_create_labeled_grid_basic(self):
