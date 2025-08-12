@@ -4,8 +4,11 @@ import {
   ImageIcon,
   Settings,
   GalleryHorizontal,
-  HardDrive
-} from "lucide-react";
+  HardDrive,
+  History,
+  Download,
+  MessageSquare,
+} from 'lucide-react';
 
 const tabs = [
   { id: "txt2img", label: "Txt2Img", icon: FileText },
