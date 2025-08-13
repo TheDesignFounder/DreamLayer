@@ -40,6 +40,10 @@ NODE_TO_API_KEY_MAPPING = {
     "StabilityUpscaleConservativeNode": "STABILITY_API_KEY",
     "StabilityUpscaleCreativeNode": "STABILITY_API_KEY",
     "StabilityUpscaleFastNode": "STABILITY_API_KEY",
+    
+    # Gemini Nodes
+    "GeminiNode": "GEMINI_API_KEY",
+    "GeminiInputFiles": "GEMINI_API_KEY",
 }
 
 # Mapping of environment variable names to ComfyUI extra_data keys
@@ -50,8 +54,8 @@ ENV_KEY_TO_EXTRA_DATA_MAPPING = {
     "STABILITY_API_KEY": "stability_api_key",  # Changed from COMFY_API_KEY
     "COMFY_API_KEY": "api_key_comfy_org",
     "COMFY_AUTH_TOKEN": "auth_token_comfy_org",
+    "GEMINI_API_KEY": "api_key_comfy_org",
     # Future additions:
-    # "GEMINI_API_KEY": "api_key_gemini",
     # "ANTHROPIC_API_KEY": "api_key_anthropic",
 }
 

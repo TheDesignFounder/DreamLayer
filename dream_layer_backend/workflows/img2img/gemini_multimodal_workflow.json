@@ -1,0 +1,119 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "example_image.png"
+      }
+    },
+    "2": {
+      "class_type": "GeminiNode",
+      "inputs": {
+        "prompt": "Analyze this image in detail. Describe the composition, colors, style, and any artistic elements. Then suggest how to improve it using digital art techniques.",
+        "model": "gemini-2.5-pro-preview-05-06",
+        "images": ["1", 0],
+        "seed": 42
+      }
+    },
+    "3": {
+      "class_type": "GeminiNode", 
+      "inputs": {
+        "prompt": "Based on this image analysis, create a detailed AI art prompt. Include: style, composition, lighting, colors, and quality terms. Format: 'A [style] [subject] with [details], [lighting], [colors], masterpiece, high quality'",
+        "model": "gemini-2.5-flash-preview-04-17",
+        "seed": 43
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode", 
+      "inputs": {
+        "clip": ["5", 1],
+        "text": ["3", 0]
+      }
+    },
+    "5": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "juggernautXL_v8Rundiffusion.safetensors"
+      }
+    },
+    "6": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "7": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": ["5", 0],
+        "positive": ["4", 0],
+        "negative": ["8", 0],
+        "latent_image": ["6", 0],
+        "seed": 0,
+        "steps": 25,
+        "cfg": 7.5,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0
+      }
+    },
+    "8": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": ["5", 1],
+        "text": "blurry, low quality, distorted, ugly, bad anatomy"
+      }
+    },
+    "9": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["7", 0],
+        "vae": ["5", 2]
+      }
+    },
+    "10": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["9", 0],
+        "filename_prefix": "DreamLayer_Gemini_Enhanced"
+      }
+    }
+  },
+  "meta": {
+    "description": "Gemini Multimodal Analysis → Enhanced Image Generation Workflow",
+    "workflow_type": "advanced_multimodal_chain",
+    "demonstrates": [
+      "Image loading and analysis",
+      "Gemini multimodal understanding",
+      "Text-to-text refinement chaining", 
+      "AI-generated prompt optimization",
+      "Integration with local Stable Diffusion",
+      "Full end-to-end creative workflow"
+    ],
+    "node_chain": "LoadImage → GeminiNode(analysis) → GeminiNode(prompt_generation) → CLIPTextEncode → KSampler → VAEDecode → SaveImage",
+    "core_settings": {
+      "input_image": "Source image for Gemini to analyze",
+      "analysis_prompt": "Instructions for Gemini to analyze the image",
+      "prompt_generation": "Instructions for Gemini to create enhanced prompts",
+      "model_1": "Primary Gemini model for detailed analysis",
+      "model_2": "Secondary Gemini model for prompt optimization",
+      "seed": "Random seed for deterministic output"
+    },
+    "gemini_capabilities_shown": [
+      "Visual understanding and analysis",
+      "Artistic critique and improvement suggestions", 
+      "Creative prompt generation",
+      "Multi-step reasoning",
+      "Integration with image generation pipeline"
+    ],
+    "technical_features": [
+      "Two-stage Gemini processing",
+      "Dynamic prompt generation from image analysis",
+      "Seamless integration with ComfyUI workflow",
+      "Multimodal AI → traditional AI pipeline",
+      "Professional creative workflow automation"
+    ]
+  }
+} 

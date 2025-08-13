@@ -81,6 +81,7 @@ def wait_for_image(prompt_id: str, save_node_id: str = "9", max_wait_time: int =
     Wait for image generation to complete and return the generated images
     This is a shared function used by both txt2img and img2img servers
     """
+    print("wait_for_image")
     output_dir, _ = get_directories()
     start_time = time.time()
     

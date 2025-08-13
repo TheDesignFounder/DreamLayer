@@ -37,7 +37,7 @@ SERVED_IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "se
 os.makedirs(SERVED_IMAGES_DIR, exist_ok=True)
 
 # Server URL for image serving
-SERVER_URL = "http://localhost:5003"
+SERVER_URL = "http://localhost:5002/api"
 
 def verify_input_directory():
     """Verify that the input directory exists and is writable"""

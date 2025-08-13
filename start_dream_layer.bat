@@ -123,7 +123,7 @@ echo %CYAN%================================================%NC%
 echo.
 
 :: Start Dream Layer backend (which also starts ComfyUI internally)
-echo %BLUE%[STEP 1/4]%NC% Starting Dream Layer backend...
+echo %BLUE%[STEP 1/6]%NC% Starting Dream Layer backend...
 start "Dream Layer Backend" /D "%CD%" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python dream_layer_backend\dream_layer.py > logs\dream_layer.log 2>&1"
 
 :: Wait for backend to start
@@ -131,23 +131,35 @@ echo %YELLOW%[INFO]%NC% Waiting for backend to initialize...
 timeout /t 5 /nobreak >nul
 
 :: Start txt2img_server.py
-echo %BLUE%[STEP 2/4]%NC% Starting txt2img_server.py...
+echo %BLUE%[STEP 2/6]%NC% Starting txt2img_server.py...
 start "Txt2Img Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python txt2img_server.py > ..\logs\txt2img_server.log 2>&1"
 
 :: Start img2img_server.py
-echo %BLUE%[STEP 3/4]%NC% Starting img2img_server.py...
+echo %BLUE%[STEP 3/6]%NC% Starting img2img_server.py...
 start "Img2Img Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python img2img_server.py > ..\logs\img2img_server.log 2>&1"
 
 :: Start extras.py
-echo %BLUE%[STEP 4/4]%NC% Starting extras.py...
+echo %BLUE%[STEP 4/8]%NC% Starting extras.py...
 start "Extras Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python extras.py > ..\logs\extras.log 2>&1"
+
+:: Start run registry server
+echo %BLUE%[STEP 5/8]%NC% Starting run registry server...
+start "Run Registry Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python run_registry.py > ..\logs\run_registry.log 2>&1"
+
+:: Start report bundle server
+echo %BLUE%[STEP 6/8]%NC% Starting report bundle server...
+start "Report Bundle Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python report_bundle.py > ..\logs\report_bundle.log 2>&1"
+
+:: Start img2txt_server.py
+echo %BLUE%[STEP 7/8]%NC% Starting img2txt_server.py...
+start "Img2Txt Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python img2txt_server.py > ..\logs\img2txt_server.log 2>&1"
 
 :: Wait for all backend services to start
 echo %YELLOW%[INFO]%NC% Waiting for all backend services to initialize...
 timeout /t 10 /nobreak >nul
 
 :: Start frontend development server
-echo %BLUE%[STEP 5/5]%NC% Starting frontend development server...
+echo %BLUE%[STEP 8/8]%NC% Starting frontend development server...
 start "Dream Layer Frontend" /D "%CD%\dream_layer_frontend" cmd /c "npm run dev > ..\logs\frontend.log 2>&1"
 
 :: Wait for frontend to start
@@ -164,6 +176,9 @@ echo.
 echo %GREEN%Frontend (Main UI):%NC%     http://localhost:8080
 echo %GREEN%ComfyUI Interface:%NC%      http://localhost:8188
 echo %GREEN%Backend API:%NC%            http://localhost:5002
+echo %GREEN%Run Registry API:%NC%       http://localhost:5005
+echo %GREEN%Report Bundle API:%NC%      http://localhost:5006
+echo %GREEN%Img2Txt API:%NC%            http://localhost:5007
 echo.
 echo %BLUE%[INFO]%NC% Device Mode: %DEVICE_MODE%
 echo %BLUE%[INFO]%NC% Check logs in the 'logs' directory if you encounter issues
@@ -184,6 +199,18 @@ if %errorlevel% neq 0 (
 python -c "import requests; print('Backend Status:', 'OK' if requests.get('http://localhost:5002', timeout=10).status_code == 200 else 'ERROR')" 2>nul
 if %errorlevel% neq 0 (
     echo %YELLOW%[WARNING]%NC% Backend may still be starting up - please wait a moment
+)
+
+:: Test Run Registry
+python -c "import requests; print('Run Registry Status:', 'OK' if requests.get('http://localhost:5005/api/runs', timeout=10).status_code == 200 else 'ERROR')" 2>nul
+if %errorlevel% neq 0 (
+    echo %YELLOW%[WARNING]%NC% Run Registry may still be starting up - please wait a moment
+)
+
+:: Test Report Bundle
+python -c "import requests; print('Report Bundle Status:', 'OK' if requests.get('http://localhost:5006/api/report-bundle/download', timeout=10).status_code == 200 else 'ERROR')" 2>nul
+if %errorlevel% neq 0 (
+    echo %YELLOW%[WARNING]%NC% Report Bundle may still be starting up - please wait a moment
 )
 
 echo.

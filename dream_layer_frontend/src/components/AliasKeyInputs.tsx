@@ -27,28 +27,25 @@ const fields = [
     placeholder: "Enter Stability AI API Key",
     docs: "https://platform.stability.ai/docs/getting-started/authentication",
   },
+  {
+    name: "Gemini - Google AI",
+    alias: "GEMINI_API_KEY",
+    placeholder: "Enter Gemini API Key",
+    docs: "https://ai.google.dev/gemini-api/docs/api-key",
+  },
 ];
 
 const ApiKeysForm: React.FC = () => {
-  const [keys, setKeys] = useState<string[]>(["", "", "", ""]);
-  const [submitted, setSubmitted] = useState<boolean[]>([
-    false,
-    false,
-    false,
-    false,
-  ]);
-  const [loading, setLoading] = useState<boolean[]>([
-    false,
-    false,
-    false,
-    false,
-  ]);
-  const [showText, setShowText] = useState<boolean[]>([
-    false,
-    false,
-    false,
-    false,
-  ]);
+  const [keys, setKeys] = useState<string[]>(Array(fields.length).fill(""));
+  const [submitted, setSubmitted] = useState<boolean[]>(
+    Array(fields.length).fill(false)
+  );
+  const [loading, setLoading] = useState<boolean[]>(
+    Array(fields.length).fill(false)
+  );
+  const [showText, setShowText] = useState<boolean[]>(
+    Array(fields.length).fill(false)
+  );
 
   const handleChange = (index: number, value: string) => {
     setKeys((prev) => {
