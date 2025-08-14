@@ -4,7 +4,7 @@ import Slider from '@/components/Slider';
 import SubTabNavigation from '@/components/SubTabNavigation';
 import SizingSettings from '@/components/SizingSettings';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -20,15 +20,17 @@ import { toast } from 'sonner';
 import ImageUploadButton from '@/components/ImageUploadButton';
 import { fetchUpscalerModels } from "@/services/modelService";
 import { useModelRefresh } from "@/hooks/useModelRefresh";
+import { useI18n } from '@/i18n/i18nContext';
 
 const ExtrasPage = () => {
+  const { t } = useI18n();
   const [activeSubTab, setActiveSubTab] = useState("upscale");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [availableUpscalers, setAvailableUpscalers] = useState([]);
-  
+
   // New state for advanced upscaling options
   const [upscaleMethod, setUpscaleMethod] = useState("upscale-by");
   const [upscaleFactor, setUpscaleFactor] = useState(2.5);
@@ -36,7 +38,7 @@ const ExtrasPage = () => {
   const [selectedUpscaler2, setSelectedUpscaler2] = useState("4x-ultrasharp");
   const [resizeWidth, setResizeWidth] = useState(1024);
   const [resizeHeight, setResizeHeight] = useState(1024);
-  
+
   // New state for the 4 sliders
   const [upscaler2Visibility, setUpscaler2Visibility] = useState(0.25);
   const [gfpganVisibility, setGfpganVisibility] = useState(0.8);
@@ -44,7 +46,7 @@ const ExtrasPage = () => {
   const [codeformerWeight, setCodeformerWeight] = useState(0.2);
 
   const subtabs = [
-    { id: "upscale", label: "Single Image", active: activeSubTab === "upscale" },
+    { id: "upscale", label: t('extras.singleImage'), active: activeSubTab === "upscale" },
   ];
 
   const handleSubTabChange = (tabId: string) => {
@@ -92,7 +94,7 @@ const ExtrasPage = () => {
   // Get current upscaler information
   const currentUpscaler: UpscalingModelData = upscalingModels[selectedUpscaler] || upscalingModels["4x-ultrasharp"];
   const currentUpscaler2: UpscalingModelData = upscalingModels[selectedUpscaler2] || upscalingModels["4x-ultrasharp"];
-  
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -123,7 +125,7 @@ const ExtrasPage = () => {
     try {
       const formData = new FormData();
       formData.append('image', selectedImage);
-      
+
       // Create request params without the File object
       const params = {
         upscaler_model: selectedUpscaler,
@@ -165,15 +167,15 @@ const ExtrasPage = () => {
           <div className="mb-4">
             {imagePreview ? (
               <div className="relative">
-                <img 
-                  src={imagePreview} 
-                  alt="Selected image" 
+                <img
+                  src={imagePreview}
+                  alt="Selected image"
                   className="rounded-md object-cover w-full aspect-square border border-border"
                 />
                 <div className="absolute bottom-2 right-2 flex gap-1">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="bg-background/80 backdrop-blur-sm border-border text-foreground hover:bg-accent"
                     onClick={() => {
                       setSelectedImage(null);
@@ -186,39 +188,39 @@ const ExtrasPage = () => {
               </div>
             ) : (
               <div className="p-4 border-2 border-dashed border-border rounded-md text-center flex flex-col items-center justify-center aspect-square bg-card">
-                <p className="text-muted-foreground mb-2">Drag & drop an image here or click to browse</p>
-                <p className="text-xs text-muted-foreground mb-4">PNG, JPG, WEBP or GIF up to 10MB</p>
+                <p className="text-muted-foreground mb-2">{t('extras.dragAndDropImageHere')}</p>
+                <p className="text-xs text-muted-foreground mb-4">{t('extras.fileTypesSupported')}</p>
                 <ImageUploadButton onFileChange={handleImageUpload}>
-                  Browse Files
+                  {t('extras.browseFiles')}
                 </ImageUploadButton>
               </div>
             )}
           </div>
         )}
-        
+
         <div className="mt-4 mb-3">
-          <div className="text-sm font-medium text-foreground mb-2">a) Set Upscale Size:</div>
-          <RadioGroup 
-            value={upscaleMethod} 
+          <div className="text-sm font-medium text-foreground mb-2">{t('extras.setUpscaleSize')}</div>
+          <RadioGroup
+            value={upscaleMethod}
             onValueChange={setUpscaleMethod}
             className="grid grid-cols-2 gap-3"
           >
             <div className="relative">
               <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${upscaleMethod === "upscale-by" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
                 <RadioGroupItem id="upscale-by" value="upscale-by" className="h-4 w-4" />
-                <label htmlFor="upscale-by" className="text-sm font-medium cursor-pointer w-full">Upscale by</label>
+                <label htmlFor="upscale-by" className="text-sm font-medium cursor-pointer w-full">{t('extras.upscaleBy')}</label>
               </Card>
             </div>
-            
+
             <div className="relative">
               <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${upscaleMethod === "resize-to" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
                 <RadioGroupItem id="resize-to" value="resize-to" className="h-4 w-4" />
-                <label htmlFor="resize-to" className="text-sm font-medium cursor-pointer w-full">Resize to</label>
+                <label htmlFor="resize-to" className="text-sm font-medium cursor-pointer w-full">{t('extras.resizeTo')}</label>
               </Card>
             </div>
           </RadioGroup>
         </div>
-        
+
         {upscaleMethod === "upscale-by" ? (
           <div className="mb-6">
             <Slider
@@ -226,26 +228,28 @@ const ExtrasPage = () => {
               max={10}
               step={0.1}
               defaultValue={upscaleFactor}
-              label="Upscale"
+              label={t('extras.upscale')}
               onChange={(value) => setUpscaleFactor(value)}
               inputWidth="w-16"
             />
           </div>
         ) : (
           <div className="my-6">
-            <SizingSettings 
-              widthValue={resizeWidth} 
-              heightValue={resizeHeight}
-              onWidthChange={setResizeWidth}
-              onHeightChange={setResizeHeight}
+            <SizingSettings
+              width={resizeWidth}
+              height={resizeHeight}
+              onChange={(width, height) => {
+                setResizeWidth(width);
+                setResizeHeight(height);
+              }}
             />
           </div>
         )}
-        
+
         <div className="my-6">
-          <div className="text-sm font-medium text-foreground mb-2">b) Upscaling Model #1</div>
-          <Select 
-            defaultValue={selectedUpscaler} 
+          <div className="text-sm font-medium text-foreground mb-2">{t('extras.upscalingModel1')}</div>
+          <Select
+            defaultValue={selectedUpscaler}
             onValueChange={(value) => setSelectedUpscaler(value)}
           >
             <SelectTrigger className="w-full" id="upscaling-model">
@@ -261,15 +265,15 @@ const ExtrasPage = () => {
           </Select>
           <div className="mt-4 mx-4 text-sm text-muted-foreground">
             <p className="mb-1">
-              <span className="font-medium">About The Upscaler:</span> {currentUpscaler.description} Speed: {currentUpscaler.speed}.
+              <span className="font-medium">{t('extras.aboutTheUpscaler')}</span> {currentUpscaler.description} Speed: {currentUpscaler.speed}.
             </p>
           </div>
         </div>
 
         <div className="my-6">
-          <div className="text-sm font-medium text-foreground mb-2">c) Upscaling Model #2</div>
-          <Select 
-            defaultValue={selectedUpscaler2} 
+          <div className="text-sm font-medium text-foreground mb-2">{t('extras.upscalingModel2')}</div>
+          <Select
+            defaultValue={selectedUpscaler2}
             onValueChange={(value) => setSelectedUpscaler2(value)}
           >
             <SelectTrigger className="w-full" id="upscaling-model-2">
@@ -285,54 +289,54 @@ const ExtrasPage = () => {
           </Select>
           <div className="mt-4 mx-4 text-sm text-muted-foreground">
             <p className="mb-1">
-              <span className="font-medium">About The Upscaler:</span> {currentUpscaler2.description} Speed: {currentUpscaler2.speed}.
+              <span className="font-medium">{t('extras.aboutTheUpscaler')}</span> {currentUpscaler2.description} Speed: {currentUpscaler2.speed}.
             </p>
           </div>
         </div>
-          
+
         <div className="mt-6">
           <Slider
             min={0}
             max={1}
             step={0.05}
             defaultValue={upscaler2Visibility}
-            label={`d) Upscaler 2 visibility | <span style='color: #64748B;'>Optimal Level: 0.25</span>`}
+            label={t('extras.upscaler2Visibility')}
             onChange={(value) => setUpscaler2Visibility(value)}
             inputWidth="w-16"
           />
         </div>
-        
+
         <div className="mt-6">
           <Slider
             min={0}
             max={1}
             step={0.05}
             defaultValue={gfpganVisibility}
-            label={`e) GFPGAN visibility | <span style='color: #64748B;'>Optimal Level: 0.8</span>`}
+            label={t('extras.gfpganVisibility')}
             onChange={(value) => setGfpganVisibility(value)}
             inputWidth="w-16"
           />
         </div>
-        
+
         <div className="mt-6">
           <Slider
             min={0}
             max={1}
             step={0.05}
             defaultValue={codeformerVisibility}
-            label={`f) CodeFormer visibility | <span style='color: #64748B;'>Optimal Level: 0.7</span>`}
+            label={t('extras.codeformerVisibility')}
             onChange={(value) => setCodeformerVisibility(value)}
             inputWidth="w-16"
           />
         </div>
-        
+
         <div className="mt-6">
           <Slider
             min={0}
             max={1}
             step={0.05}
             defaultValue={codeformerWeight}
-            label={`g) CodeFormer weight | <span style='color: #64748B;'>Optimal Level: 0.2</span>`}
+            label={t('extras.codeformerWeight')}
             onChange={(value) => setCodeformerWeight(value)}
             inputWidth="w-16"
           />
@@ -340,7 +344,7 @@ const ExtrasPage = () => {
       </div>
     );
   };
-  
+
   const renderSubTabContent = () => {
     switch (activeSubTab) {
       case "batch":
@@ -348,31 +352,31 @@ const ExtrasPage = () => {
           <div className="space-y-4 mb-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="font-medium text-sm">Input Directory - Batch image processing</div>
-                <Button 
-                  size="sm" 
+                <div className="font-medium text-sm">{t('extras.inputDirectory')}</div>
+                <Button
+                  size="sm"
                   className="text-xs"
                   style={{ height: '34px' }}
                 >
-                  Browse Batch Files
+                  {t('extras.browseBatchFiles')}
                 </Button>
               </div>
-              <Textarea 
-                placeholder="Specify a folder containing reference images"
+              <Textarea
+                placeholder={t('extras.specifyFolder')}
                 className="min-h-[100px]"
               />
             </div>
-            
+
             <div className="mb-4">
-              <label htmlFor="batchOperation" className="mb-1 block text-sm">Batch Operation:</label>
+              <label htmlFor="batchOperation" className="mb-1 block text-sm">{t('extras.batchOperation')}</label>
               <select id="batchOperation" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="resize">Resize All</option>
-                <option value="upscale">Upscale All</option>
-                <option value="convert">Convert Format</option>
-                <option value="enhance">Enhance All</option>
+                <option value="resize">{t('extras.resizeAll')}</option>
+                <option value="upscale">{t('extras.upscaleAll')}</option>
+                <option value="convert">{t('extras.convertFormat')}</option>
+                <option value="enhance">{t('extras.enhanceAll')}</option>
               </select>
             </div>
-            
+
             {renderUpscalingOptions()}
           </div>
         );
@@ -388,45 +392,45 @@ const ExtrasPage = () => {
       <div className="space-y-4">
         <div className="flex flex-col">
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <h3 className="text-base font-medium">Image Post-Processing</h3>
+            <h3 className="text-base font-medium">{t('extras.imagePostProcessing')}</h3>
             <div className="flex space-x-2">
-              <Button 
+              <Button
                 onClick={handleGenerate}
                 disabled={!selectedImage || isProcessing}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                {isProcessing ? 'Processing...' : 'Generate Image'}
+                {isProcessing ? t('extras.processing') : t('txt2img.generateImage')}
               </Button>
             </div>
           </div>
-          
-          <SubTabNavigation 
+
+          <SubTabNavigation
             className="mb-[18px]"
-            tabs={subtabs} 
+            tabs={subtabs}
             onTabChange={handleSubTabChange}
           />
-          
-          <Accordion title={activeSubTab === "upscale" ? "Upscaling Options" : "Batch Options"} 
-                     number={activeSubTab === "upscale" ? "1" : "1"} 
+
+          <Accordion title={activeSubTab === "upscale" ? t('extras.upscalingOptions') : t('extras.batchOptions')}
+                     number={activeSubTab === "upscale" ? "1" : "1"}
                      defaultOpen={true}>
             {renderSubTabContent()}
           </Accordion>
         </div>
       </div>
-      
+
       {/* Right Column - Preview */}
       <div>
         <div className="rounded-md border border-border p-4 h-[500px] flex items-center justify-center">
           {processedImage ? (
-            <img 
-              src={processedImage} 
-              alt="Processed" 
+            <img
+              src={processedImage}
+              alt="Processed"
               className="max-w-full max-h-full object-contain"
             />
           ) : (
             <div className="text-center">
               <p className="text-muted-foreground">
-                {selectedImage ? 'Click Generate to process the image' : 'Processed image will display here'}
+                {selectedImage ? t('extras.clickGenerateToProcess') : t('extras.processedImageWillDisplay')}
               </p>
             </div>
           )}

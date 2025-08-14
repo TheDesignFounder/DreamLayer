@@ -10,8 +10,10 @@ import { PNGInfoPage } from '@/features/PNGInfo';
 import { ConfigurationsPage } from '@/features/Configurations';
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
+import { useI18n } from '@/i18n/i18nContext';
 
 const Index = () => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("txt2img");
   const [selectedModel, setSelectedModel] = useState<string>("v1-5-pruned-emaonly-fp16.safetensors");
   const clearTxt2ImgImages = useTxt2ImgGalleryStore(state => state.clearImages);
@@ -52,7 +54,7 @@ const Index = () => {
       <NavBar />
       <div className="container mx-auto max-w-7xl px-4 py-6">
         <ModelSelector onModelSelect={handleModelSelect} />
-        <h2 className="mb-2 mt-6 text-lg font-medium text-foreground">Generation Modules</h2>
+        <h2 className="mb-2 mt-6 text-lg font-medium text-foreground">{t('generation.title')}</h2>
         <div className="bg-card rounded-lg shadow-[0px_4px_24px_rgba(51,51,51,0.15)] p-6 border border-border">
           <TabsNav activeTab={activeTab} onTabChange={handleTabChange} />
           {renderTabContent()}

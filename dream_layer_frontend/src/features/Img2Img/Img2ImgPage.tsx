@@ -16,6 +16,7 @@ import useLoraStore from '@/stores/useLoraStore';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
+import { useI18n } from '@/i18n/i18nContext';
 
 import {
   Accordion,
@@ -34,33 +35,34 @@ interface Img2ImgPageProps {
 }
 
 const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange }) => {
+  const { t } = useI18n();
   const [activeSubTab, setActiveSubTab] = useState("generation");
   const [activeImg2ImgTool, setActiveImg2ImgTool] = useState("img2img");
   const [batchCount, setBatchCount] = useState(1);
   const [batchSize, setBatchSize] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  
+
   // ControlNet configuration will be managed by useControlNetStore
-  
-  const { 
-    inputImage, 
-    setLoading, 
-    addImages, 
-    clearImages, 
-    coreSettings, 
+
+  const {
+    inputImage,
+    setLoading,
+    addImages,
+    clearImages,
+    coreSettings,
     customWorkflow,
     setCustomWorkflow,
-    handlePromptChange, 
-    handleSamplingSettingsChange, 
-    handleSizeSettingsChange, 
-    handleBatchSettingsChange, 
+    handlePromptChange,
+    handleSamplingSettingsChange,
+    handleSizeSettingsChange,
+    handleBatchSettingsChange,
     handleSeedChange,
     updateCoreSettings
   } = useImg2ImgGalleryStore();
   const selectedLora = useLoraStore(state => state.loraConfig);
   const { controlNetConfig, setControlNetConfig } = useControlNetStore();
-  
+
   useEffect(() => {
     setIsLoaded(true);
     console.log("Img2ImgPage component mounted");
@@ -84,7 +86,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const handleCopyPrompts = () => {
     const promptTextarea = document.querySelector('textarea[placeholder="Enter your prompt here"]') as HTMLTextAreaElement;
     const negativePromptTextarea = document.querySelector('textarea[placeholder="Enter negative prompt here"]') as HTMLTextAreaElement;
-    
+
     if (promptTextarea && negativePromptTextarea) {
       const combinedText = `Prompt: ${promptTextarea.value}\nNegative Prompt: ${negativePromptTextarea.value}`;
       navigator.clipboard.writeText(combinedText);
@@ -167,10 +169,10 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
 
       if (data.comfy_response?.generated_images) {
         console.log('Generated images from response:', data.comfy_response.generated_images);
-        
+
         const testImage = new Image();
         const firstImageUrl = data.comfy_response.generated_images[0].url;
-        
+
         testImage.onload = () => {
           console.log('Test image loaded successfully:', firstImageUrl);
           const images = data.comfy_response.generated_images.map((img: any) => ({
@@ -181,20 +183,20 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
             timestamp: Date.now(),
             settings: requestData
           }));
-          
+
           console.log('Adding images to store:', images);
           addImages(images);
           setLoading(false);
           setIsGenerating(false);
         };
-        
+
         testImage.onerror = (error) => {
           console.error('Failed to load test image:', error);
           setLoading(false);
           setIsGenerating(false);
           throw new Error('Failed to load generated image');
         };
-        
+
         testImage.src = firstImageUrl;
       } else {
         console.error('No generated_images in response:', data);
@@ -211,12 +213,12 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const getSectionTitle = () => {
     switch (activeSubTab) {
-      case "checkpoints":
-        return "Custom Workflow Management";
-      case "lora":
-        return "LoRA Browser";
-      default:
-        return "Core Generation Settings";
+              case "checkpoints":
+          return t('generation.customWorkflowManagement');
+        case "lora":
+          return t('generation.loraBrowser');
+        default:
+          return t('generation.coreGenerationSettings');
     }
   };
 
@@ -259,7 +261,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const renderSubTabContent = () => {
     switch (activeSubTab) {
       case "checkpoints":
-        return <CustomWorkflowBrowser 
+        return <CustomWorkflowBrowser
           onWorkflowChange={setCustomWorkflow}
           currentWorkflow={customWorkflow}
         />;
@@ -269,62 +271,62 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
         return (
           <>
             <ImageUploader activeImg2ImgTool={activeImg2ImgTool} />
-            
+
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-primary">1. Prompt Input</h4>
-              <Button 
+              <h4 className="text-sm font-bold text-primary">1. {t('txt2img.promptInput')}</h4>
+              <Button
                 onClick={handleCopyPrompts}
                 variant="outline"
                 size="sm"
                 className="text-xs px-2 py-1 h-auto flex items-center gap-1"
               >
                 <Copy className="h-3.5 w-3.5" />
-                Copy Prompts
+                                 {t('txt2img.copyPrompts')}
               </Button>
             </div>
-            <PromptInput 
-              label="a) Prompt"
-              maxLength={500}
-              placeholder="Enter your prompt here"
-              value={coreSettings.prompt}
-              onChange={(value) => handlePromptChange(value)}
-            />
-            <PromptInput 
-              label="b) Negative Prompt"
-              negative={true}
-              maxLength={500}
-              placeholder="Enter negative prompt here"
-              value={coreSettings.negative_prompt}
-              onChange={(value) => handlePromptChange(value, true)}
-            />
-            
+                         <PromptInput
+               label={t('txt2img.promptLabel')}
+               maxLength={500}
+               placeholder={t('txt2img.enterPromptHere')}
+               value={coreSettings.prompt}
+               onChange={(value) => handlePromptChange(value)}
+             />
+                         <PromptInput
+               label={t('txt2img.negativePromptLabel')}
+               negative={true}
+               maxLength={500}
+               placeholder={t('txt2img.enterNegativePromptHere')}
+               value={coreSettings.negative_prompt}
+               onChange={(value) => handlePromptChange(value, true)}
+             />
+
             {/* <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">2. Sampling Settings</h4> */}
-            <RenderSettings 
+            <RenderSettings
               sampler={coreSettings.sampler_name}
               scheduler={coreSettings.scheduler}
               steps={coreSettings.steps}
               cfg={coreSettings.cfg_scale}
               onChange={handleSamplingSettingsChange}
             />
-            
-            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">3. Sizing</h4>
-            <SizingSettings 
+
+                         <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">3. {t('txt2img.sizing')}</h4>
+            <SizingSettings
               width={coreSettings.width}
               height={coreSettings.height}
               onChange={handleSizeSettingsChange}
             />
-            
-            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
-              4. Output Quantity: {batchCount * batchSize}
-            </h4>
-            <OutputQuantity 
+
+                         <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
+               4. {t('txt2img.outputQuantity')}: {batchCount * batchSize}
+             </h4>
+            <OutputQuantity
               batchCount={batchCount}
               batchSize={batchSize}
               onChange={handleLocalBatchSettingsChange}
             />
-            
-            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">5. Seed Settings</h4>
-            <GenerationID 
+
+                         <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">5. {t('txt2img.seedSettings')}</h4>
+            <GenerationID
               seed={coreSettings.seed}
               random={coreSettings.random_seed}
               onChange={handleSeedChange}
@@ -337,15 +339,15 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const Img2ImgToolsNavigation = () => {
     const tools = [
       { id: "img2img", label: "Img2Img", active: activeImg2ImgTool === "img2img" },
-      { id: "inpaint", label: "Inpaint", active: activeImg2ImgTool === "inpaint" },
-      { id: "outpaint", label: "Inpaint Upload", active: activeImg2ImgTool === "outpaint" }
+                  { id: "inpaint", label: t('img2img.inpaint'), active: activeImg2ImgTool === "inpaint" },
+            { id: "outpaint", label: t('img2img.inpaintUpload'), active: activeImg2ImgTool === "outpaint" }
     ].filter(tool => tool.id !== 'inpaint' && tool.id !== 'outpaint');
 
     return (
       <div className="mb-4">
         <div data-orientation="horizontal" role="none" className="shrink-0 bg-border h-[1px] w-full mt-2 mb-4"></div>
         <div className="flex items-center gap-4 mb-4">
-          <span className="text-sm font-medium text-foreground">Img2Img Tools:</span>
+          <span className="text-sm font-medium text-foreground">{t('img2img.tools')}:</span>
           <div className="flex flex-wrap gap-2">
             {tools.map(tool => (
               <div
@@ -404,36 +406,36 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       <div className="flex-1 space-y-4">
         <div className="flex flex-col">
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <h3 className="text-base font-medium text-foreground">Image to Image Generation</h3>
+            <h3 className="text-base font-medium text-foreground">{t('img2img.title')}</h3>
             <div className="flex space-x-2">
-              <Button 
+              <Button
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 onClick={handleGenerateImage}
                 disabled={!inputImage}
               >
-                {isGenerating ? 'Interrupt' : 'Generate Image'}
+                {isGenerating ? t('common.interrupt') : t('txt2img.generateImage')}
               </Button>
               {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                Save Settings
+                {t('common.saveSettings')}
               </button>}
             </div>
           </div>
-          
+
           <div className="mb-[18px]">
-            <SubTabNavigation 
+            <SubTabNavigation
               tabs={[
-                { id: "generation", label: "Generation", active: activeSubTab === "generation" },
-                { id: "checkpoints", label: "Custom Workflow", active: activeSubTab === "checkpoints" },
-                { id: "lora", label: "LoRA", active: activeSubTab === "lora" }
+                { id: "generation", label: t('generation.generation'), active: activeSubTab === "generation" },
+                { id: "checkpoints", label: t('generation.customWorkflow'), active: activeSubTab === "checkpoints" },
+                { id: "lora", label: t('generation.lora'), active: activeSubTab === "lora" }
               ]}
               onTabChange={handleSubTabChange}
             />
           </div>
-          
+
           {activeSubTab !== "checkpoints" && activeSubTab !== "lora" && (
             <Img2ImgToolsNavigation />
           )}
-          
+
           <Accordion type="multiple" className="space-y-4">
             <AccordionItem value="section-1" className="border border-border rounded-md overflow-hidden bg-card">
               <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">
@@ -446,13 +448,13 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
                 {renderSubTabContent()}
               </AccordionContent>
             </AccordionItem>
-            
+
             {activeSubTab !== "checkpoints" && activeSubTab !== "lora" && (
               <AccordionItem value="section-2" className="border border-border rounded-md overflow-hidden bg-card">
                 <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">
                   <span className="flex items-center text-foreground">
                     <span className="mr-2 text-foreground">2.</span>
-                    Advanced Optional Settings
+                                         {t('txt2img.advancedOptionalSettings')}
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 py-3 bg-card">
@@ -483,17 +485,17 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
                 </AccordionContent>
               </AccordionItem>
             )}
-            
+
             {activeSubTab !== "checkpoints" && activeSubTab !== "lora" && (
               <AccordionItem value="section-3" className="border border-border rounded-md overflow-hidden bg-card">
                 <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">
                   <span className="flex items-center text-foreground">
                     <span className="mr-2 text-foreground">3.</span>
-                    External Extensions & Add-ons
+                                         {t('txt2img.externalExtensions')}
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 py-3 bg-card">
-                  <ExternalExtensions 
+                  <ExternalExtensions
                     isImg2ImgTab={true}
                     onControlNetChange={handleControlNetChange}
                   />

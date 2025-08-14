@@ -2,12 +2,14 @@ import React from 'react';
 import SingleImageUploader from './SingleImageUploader';
 import DualImageUploader from './DualImageUploader';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
+import { useI18n } from '@/i18n/i18nContext';
 
 interface ImageUploaderProps {
   activeImg2ImgTool?: string;
 }
 
 const ImageUploader = ({ activeImg2ImgTool = "img2img" }: ImageUploaderProps) => {
+  const { t } = useI18n();
   const { inputImage, setInputImage } = useImg2ImgGalleryStore();
 
   const handleImageChange = (file: File) => {
@@ -66,7 +68,7 @@ const ImageUploader = ({ activeImg2ImgTool = "img2img" }: ImageUploaderProps) =>
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-bold text-primary">0. Upload Image</h4>
+        <h4 className="text-sm font-bold text-primary">0. {t('img2img.uploadImage')}</h4>
         {false && shouldShowButton() && (
           <button className="text-xs rounded-md border border-input bg-background px-2 py-1 text-foreground hover:bg-accent hover:text-accent-foreground">
             {getButtonLabel()}

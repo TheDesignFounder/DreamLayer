@@ -17,12 +17,14 @@ import {
     ensureWebSocketConnection
 } from "@/services/modelService";
 import { toast } from "@/components/ui/sonner";
+import { useI18n } from "@/i18n/i18nContext";
 
 interface ModelSelectorProps {
   onModelSelect: (modelName: string) => void;
 }
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
+  const { t } = useI18n();
   const [models, setModels] = useState<CheckpointModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -104,7 +106,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
                 </PopupBox>
                 <div className="flex items-center justify-between mb-1">
                     <label htmlFor="model" className="text-sm font-medium">
-                        Select Stable Diffusion Checkpoint:
+                        {t('txt2img.selectCheckpoint')}
                     </label>
                     <div className="flex items-center space-x-2">
                         {/* WebSocket Connection Status */}
@@ -115,7 +117,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
                                 <WifiOff className="h-3 w-3 text-gray-400" title="Auto-refresh disabled" />
                             )}
                             <span className="text-xs text-muted-foreground">
-                                {isWebSocketConnected ? 'Auto' : 'Manual'}
+                                {isWebSocketConnected ? t('txt2img.auto') : t('common.manual')}
                             </span>
                         </div>
                     </div>
@@ -125,7 +127,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
                         id="model"
                         className="w-full bg-white dark:bg-[#0F172A] text-foreground dark:text-white border-input dark:border-slate-700"
                     >
-                        <SelectValue placeholder="Select a model" />
+                        <SelectValue placeholder={t('txt2img.selectModel')} />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-[#0F172A] border-input dark:border-slate-700">
                         {models.map((model) => (
@@ -137,9 +139,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
                 </Select>
                 {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
                 {models.length === 0 && !isLoading && !error && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                        No models found. Try uploading a new model file.
-                    </p>
+                                         <p className="text-sm text-muted-foreground mt-1">
+                         {t('txt2img.noModelsFound')}
+                     </p>
                 )}
             </div>
             <div className="flex flex-1 space-x-2 sm:justify-end">
@@ -150,7 +152,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
                     disabled={isLoading}
                 >
                     <CirclePlus className={`h-5 w-5`} />
-                    <span>Add API KEY</span>
+                                         <span>{t('txt2img.addApiKey')}</span>
                 </Button>
                 <Button
                     variant="outline"
@@ -160,7 +162,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
                     title={isWebSocketConnected ? "Manual refresh (auto-refresh is active)" : "Refresh models"}
                 >
                     <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    <span>{isLoading ? 'Loading...' : 'Refresh Models'}</span>
+                                         <span>{isLoading ? t('common.loading') : t('txt2img.refreshModels')}</span>
                 </Button>
                 {false && <Button variant="outline" className="dark:bg-[#0F172A] dark:border-slate-700 dark:text-white dark:hover:bg-slate-800">
                     <Save className="h-4 w-4 mr-2" />

@@ -3,6 +3,7 @@ import Slider from "./Slider";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { useI18n } from "@/i18n/i18nContext";
 
 interface GenerationIDProps {
   seed: number;
@@ -15,6 +16,7 @@ const GenerationID: React.FC<GenerationIDProps> = ({
   random,
   onChange
 }) => {
+  const { t } = useI18n();
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [widthValue, setWidthValue] = useState(2500);
   const [heightValue, setHeightValue] = useState(2500);
@@ -27,7 +29,7 @@ const GenerationID: React.FC<GenerationIDProps> = ({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">Generation Seed</label>
+        <label className="text-sm font-medium">{t('txt2img.generationSeed')}</label>
         <div className="flex items-center space-x-2">
           <input
             type="checkbox"
@@ -35,7 +37,7 @@ const GenerationID: React.FC<GenerationIDProps> = ({
             checked={random}
             onChange={(e) => onChange(seed, e.target.checked)}
           />
-          <span className="text-sm">Random</span>
+          <span className="text-sm">{t('txt2img.random')}</span>
         </div>
       </div>
       <input
@@ -45,7 +47,7 @@ const GenerationID: React.FC<GenerationIDProps> = ({
         onChange={(e) => onChange(parseInt(e.target.value), random)}
         disabled={random}
       />
-      
+
       {/* Advanced seed features collapsible */}
       <Collapsible
         open={isAdvancedOpen}
@@ -58,14 +60,14 @@ const GenerationID: React.FC<GenerationIDProps> = ({
             <span className="font-medium text-xs">Advanced Seed Features</span>
           </div>
         </CollapsibleTrigger>
-        
+
         <CollapsibleContent className="px-3 pb-3">
           <p className="mb-4 text-sm text-muted-foreground">
-            Generate subtle image variations while keeping the core idea intact. Blend in 
-            randomness with the alternative seed and strength, and use resize options to 
+            Generate subtle image variations while keeping the core idea intact. Blend in
+            randomness with the alternative seed and strength, and use resize options to
             stay consistent across different image sizes.
           </p>
-          
+
           {/* Variation Seed section */}
           <div className="space-y-4 mb-6">
             <div>
@@ -88,7 +90,7 @@ const GenerationID: React.FC<GenerationIDProps> = ({
                 className="w-full rounded-md border border-input bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
-            
+
             {/* Variation Strength slider - Updated to use the same format as Batch Size */}
             <Slider
               min={0}
@@ -99,11 +101,11 @@ const GenerationID: React.FC<GenerationIDProps> = ({
               onChange={setVariationStrength}
             />
           </div>
-          
+
           {/* Resize Seed section - Updated to use the Slider component */}
           <div className="space-y-4">
             <h5 className="font-medium text-sm mb-2 text-[#020817]">c) Resize Seed for:</h5>
-            
+
             {/* Width slider - Using the Slider component */}
             <Slider
               min={0}
@@ -113,7 +115,7 @@ const GenerationID: React.FC<GenerationIDProps> = ({
               onChange={setWidthValue}
               inputWidth="w-24"
             />
-            
+
             {/* Height slider - Using the Slider component */}
             <Slider
               min={0}

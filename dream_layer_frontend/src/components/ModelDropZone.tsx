@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Upload, FileText, CheckCircle, AlertCircle, X } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
+import { useI18n } from '@/i18n/i18nContext';
 
 // Model types supported by the backend
 export type ModelType = 'checkpoints' | 'loras' | 'controlnet' | 'upscale_models' | 'vae' | 'embeddings' | 'hypernetworks';
@@ -32,6 +33,7 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
   modelType = 'checkpoints',
   className = ""
 }) => {
+  const { t } = useI18n();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedModelType, setSelectedModelType] = useState<ModelType>(modelType);
@@ -137,7 +139,7 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
         setUploadedFile(null);
         setUploadProgress(0);
       }, 5000);
-      
+
     } catch (error) {
       console.error('Upload failed:', error);
       toast.error(error instanceof Error ? error.message : 'Upload failed');
@@ -150,7 +152,7 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
-    
+
     const file = e.dataTransfer.files?.[0];
     if (file) {
       handleFileUpload(file);
@@ -216,8 +218,8 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
         <Label htmlFor="model-type" className="text-sm font-medium">
           Model Type
         </Label>
-        <Select 
-          value={selectedModelType} 
+        <Select
+          value={selectedModelType}
           onValueChange={(value: ModelType) => setSelectedModelType(value)}
           disabled={isUploading}
         >
@@ -248,7 +250,7 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
               <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
               <div className="flex-1">
                 <h4 className="font-medium text-green-900 dark:text-green-100 text-sm">
-                  Upload Successful
+                  {t('modelManager.uploadSuccessful')}
                 </h4>
                 <p className="text-xs text-green-700 dark:text-green-300 mt-1">
                   {uploadedFile.originalFilename}
@@ -279,8 +281,8 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
       <div
           className={`
             relative p-8 border-2 border-dashed rounded-lg text-center transition-all duration-200
-            ${dragActive 
-              ? 'border-primary bg-primary/5 dark:bg-primary/10' 
+            ${dragActive
+              ? 'border-primary bg-primary/5 dark:bg-primary/10'
               : 'border-border bg-card hover:bg-accent/50'
             }
             ${isUploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}
@@ -295,7 +297,7 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
               <>
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                 <div className="space-y-2 w-full max-w-xs">
-                  <p className="text-sm text-muted-foreground">Uploading model...</p>
+                  <p className="text-sm text-muted-foreground">{t('modelManager.uploadingModel')}</p>
                   <Progress value={uploadProgress} className="w-full" />
                   <p className="text-xs text-muted-foreground">{uploadProgress}%</p>
                 </div>
@@ -305,23 +307,23 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
                 <Upload className="h-12 w-12 text-muted-foreground" />
                 <div className="space-y-2">
                   <p className="text-lg font-medium text-foreground">
-                    Drop your model file here
+                    {t('modelManager.dropModelFileHere')}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    or <span className="text-primary font-medium">browse files</span>
+                    {t('modelManager.orBrowseFiles')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Supports: {acceptedTypes.join(', ')}
+                    {t('modelManager.supports')} {acceptedTypes.join(', ')}
                   </p>
                 </div>
                 <Button variant="secondary" size="sm" className="mt-4">
                   <FileText className="h-4 w-4 mr-2" />
-                  Browse Files
+                  {t('modelManager.browseFiles')}
                 </Button>
               </>
             )}
           </div>
-          
+
           <input
             ref={fileInputRef}
             type="file"

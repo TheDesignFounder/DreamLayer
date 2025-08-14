@@ -5,6 +5,7 @@ import {
   AccordionItem,
   AccordionTrigger
 } from "@/components/ui/accordion";
+import { useI18n } from '@/i18n/i18nContext';
 import { Checkbox } from "@/components/ui/checkbox";
 import ImageUploader from '@/components/ImageUploader';
 import AdvancedSettings from '@/components/AdvancedSettings';
@@ -26,16 +27,19 @@ const SettingsAccordion: React.FC<SettingsAccordionProps> = ({
   batchSize,
   setBatchSize
 }) => {
+  const { t } = useI18n();
+
   const getSectionTitle = () => {
     switch (activeSubTab) {
       case "checkpoints":
-        return "Custom Workflow Management";
+        return t('generation.customWorkflowManagement');
       case "lora":
-        return "LoRA Browser";
+        return t('generation.loraBrowser');
       default:
-        return "Core Generation Settings";
+        return t('generation.coreGenerationSettings');
     }
   };
+
 
   const getSectionNumber = () => {
     if (activeSubTab === "checkpoints" || activeSubTab === "lora") {
@@ -61,7 +65,7 @@ const SettingsAccordion: React.FC<SettingsAccordionProps> = ({
           </AccordionContent>
         </AccordionItem>
       )}
-      
+
       <AccordionItem value="section-2" className="border border-border rounded-md overflow-hidden bg-card">
         <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">
           <span className="flex items-center text-foreground">
@@ -70,7 +74,7 @@ const SettingsAccordion: React.FC<SettingsAccordionProps> = ({
           </span>
         </AccordionTrigger>
         <AccordionContent className="px-4 py-3 bg-card">
-          <SubTabContent 
+          <SubTabContent
             activeSubTab={activeSubTab}
             batchCount={batchCount}
             setBatchCount={setBatchCount}
@@ -79,7 +83,7 @@ const SettingsAccordion: React.FC<SettingsAccordionProps> = ({
           />
         </AccordionContent>
       </AccordionItem>
-      
+
       {activeSubTab !== "checkpoints" && activeSubTab !== "lora" && (
         <AccordionItem value="section-3" className="border border-border rounded-md overflow-hidden bg-card">
           <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">
@@ -93,7 +97,7 @@ const SettingsAccordion: React.FC<SettingsAccordionProps> = ({
           </AccordionContent>
         </AccordionItem>
       )}
-      
+
       {activeSubTab !== "checkpoints" && activeSubTab !== "lora" && (
         <AccordionItem value="section-4" className="border border-border rounded-md overflow-hidden bg-card">
           <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">

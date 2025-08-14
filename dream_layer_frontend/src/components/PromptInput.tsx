@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fetchRandomPrompt } from "@/services/modelService";
+import { useI18n } from "@/i18n/i18nContext";
 
 interface PromptInputProps {
   label: string;
@@ -21,14 +22,15 @@ const PromptInput: React.FC<PromptInputProps> = ({
   value,
   onChange
 }) => {
+  const { t } = useI18n();
   const handleAddRandom = async () => {
     try {
       const promptType = negative ? 'negative' : 'positive';
       console.log(`🎲 Frontend: Add Random clicked for ${promptType} prompt`);
-      
+
       const randomPrompt = await fetchRandomPrompt(promptType);
       console.log(`📝 Frontend: Got prompt: ${randomPrompt}`);
-      
+
       // Replace existing value with random prompt
       onChange(randomPrompt);
     } catch (error) {
@@ -41,11 +43,11 @@ const PromptInput: React.FC<PromptInputProps> = ({
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-foreground">{label}</label>
         {showAddRandom && (
-          <button 
+          <button
             onClick={handleAddRandom}
             className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground"
           >
-            Add Random
+            {t('txt2img.addRandom')}
           </button>
         )}
       </div>

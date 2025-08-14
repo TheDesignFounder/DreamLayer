@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Slider from "./Slider";
+import { useI18n } from "@/i18n/i18nContext";
 
 interface OutputQuantityProps {
   batchSize: number;
@@ -12,6 +13,7 @@ const OutputQuantity: React.FC<OutputQuantityProps> = ({
   batchCount,
   onChange
 }) => {
+  const { t } = useI18n();
   const handleBatchSizeChange = (newSize: number) => {
     onChange(newSize, batchCount);
   };
@@ -21,11 +23,11 @@ const OutputQuantity: React.FC<OutputQuantityProps> = ({
   };
 
   const getBatchCountLabel = () => {
-    return `a) Batch Count | <span style='color: #64748B;'>Optimal Level: 1–3</span>`;
+    return `a) ${t('txt2img.batchCount')} | <span style='color: #64748B;'>${t('txt2img.optimalLevel')}: 1–3</span>`;
   };
 
   const getBatchSizeLabel = () => {
-    return `a) Batch Size | <span style='color: #64748B;'>Optimal Level: 4–7</span>`;
+    return `a) ${t('txt2img.batchSize')} | <span style='color: #64748B;'>${t('txt2img.optimalLevel')}: 4–7</span>`;
   };
 
   return (
@@ -37,7 +39,7 @@ const OutputQuantity: React.FC<OutputQuantityProps> = ({
         label={getBatchCountLabel()}
         onChange={handleBatchCountChange}
       /></div>
-      
+
       <Slider
         min={1}
         max={8}

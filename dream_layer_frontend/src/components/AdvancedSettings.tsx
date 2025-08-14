@@ -6,6 +6,7 @@ import {
   AccordionItem,
   AccordionTrigger
 } from "@/components/ui/accordion";
+import { useI18n } from "@/i18n/i18nContext";
 
 // Import component modules
 import FaceRestorationSettings from "@/components/advanced-settings/FaceRestorationSettings";
@@ -47,8 +48,8 @@ interface AdvancedSettingsProps {
   onRefinerSwitchAtChange?: (value: number) => void;
 }
 
-const AdvancedSettings = ({ 
-  showHiresFix = true, 
+const AdvancedSettings = ({
+  showHiresFix = true,
   showImg2ImgSpecific = false,
   activeImg2ImgTool = "img2img",
   // Face Restoration Props
@@ -76,6 +77,7 @@ const AdvancedSettings = ({
   refinerSwitchAt,
   onRefinerSwitchAtChange
 }: AdvancedSettingsProps) => {
+  const { t } = useI18n();
   // Hires.fix State
   const [upscaleMethod, setUpscaleMethod] = useState("upscale-by");
   const [upscaleFactor, setUpscaleFactor] = useState(2.5);
@@ -84,7 +86,7 @@ const AdvancedSettings = ({
   const [resizeWidth, setResizeWidth] = useState(4000);
   const [resizeHeight, setResizeHeight] = useState(4000);
   const [selectedUpscaler, setSelectedUpscaler] = useState("4x-ultrasharp");
-  
+
   // Image Refiner State
   const [selectedRefiner, setSelectedRefiner] = useState("none");
   const [refineSwitchAt, setRefineSwitchAt] = useState(0.8);
@@ -95,21 +97,21 @@ const AdvancedSettings = ({
         <AccordionItem value="fix-human-faces" className="border border-border rounded-md overflow-hidden">
           <div className="flex items-center py-3 px-3">
             <div className="flex items-center flex-1">
-              <Checkbox 
-                id="restore-faces" 
-                className="mr-3" 
+              <Checkbox
+                id="restore-faces"
+                className="mr-3"
                 checked={restoreFaces}
                 onCheckedChange={(checked) => onRestoreFacesChange?.(checked === true)}
               />
               <label htmlFor="restore-faces" className="text-[#2563EB] font-medium">
-                Restore Faces
+                {t('advanced.restoreFaces')}
               </label>
             </div>
             <AccordionTrigger className="p-0 flex-0">
             </AccordionTrigger>
           </div>
           <AccordionContent className="pt-0 px-3 pb-3">
-            <FaceRestorationSettings 
+            <FaceRestorationSettings
               faceRestorationModel={faceRestorationModel}
               setFaceRestorationModel={onFaceRestorationModelChange || (() => {})}
               codeformerWeight={codeformerWeight}
@@ -119,13 +121,13 @@ const AdvancedSettings = ({
             />
           </AccordionContent>
         </AccordionItem>
-        
+
         <AccordionItem value="pattern-mode" className="border border-border rounded-md overflow-hidden">
           <div className="flex items-center py-3 px-3">
             <div className="flex items-center flex-1">
-              <Checkbox 
-                id="pattern-mode" 
-                className="mr-3" 
+              <Checkbox
+                id="pattern-mode"
+                className="mr-3"
                 checked={tiling}
                 onCheckedChange={(checked) => onTilingChange?.(checked === true)}
               />
@@ -137,7 +139,7 @@ const AdvancedSettings = ({
             </AccordionTrigger>
           </div>
           <AccordionContent className="pt-0 px-3 pb-3">
-            <TilingSettings 
+            <TilingSettings
               tileSize={tileSize}
               setTileSize={onTileSizeChange}
               overlap={overlap}
@@ -145,7 +147,7 @@ const AdvancedSettings = ({
             />
           </AccordionContent>
         </AccordionItem>
-        
+
         {showHiresFix && (
           <AccordionItem value="hires-fix" className="border border-border rounded-md overflow-hidden">
             <div className="flex items-center py-3 px-3">
@@ -159,7 +161,7 @@ const AdvancedSettings = ({
               </AccordionTrigger>
             </div>
             <AccordionContent className="pt-0 px-3 pb-3">
-              <HiresFixSettings 
+              <HiresFixSettings
                 upscaleMethod={upscaleMethod}
                 setUpscaleMethod={setUpscaleMethod}
                 upscaleFactor={upscaleFactor}
@@ -178,7 +180,7 @@ const AdvancedSettings = ({
             </AccordionContent>
           </AccordionItem>
         )}
-        
+
         {showImg2ImgSpecific && (
           <AccordionItem value="sd-upscaler" className="border border-border rounded-md overflow-hidden">
             <div className="flex items-center py-3 px-3">
@@ -196,7 +198,7 @@ const AdvancedSettings = ({
             </AccordionContent>
           </AccordionItem>
         )}
-        
+
         {showImg2ImgSpecific && activeImg2ImgTool !== "img2img" && (
           <AccordionItem value="inpainting-mask" className="border border-border rounded-md overflow-hidden">
             <div className="flex items-center py-3 px-3">
@@ -214,7 +216,7 @@ const AdvancedSettings = ({
             </AccordionContent>
           </AccordionItem>
         )}
-        
+
         <AccordionItem value="image-refiner" className="border border-border rounded-md overflow-hidden">
           <div className="flex items-center py-3 px-3">
             <div className="flex items-center flex-1">
@@ -227,7 +229,7 @@ const AdvancedSettings = ({
             </AccordionTrigger>
           </div>
           <AccordionContent className="pt-0 px-3 pb-3">
-            <ImageRefinerSettings 
+            <ImageRefinerSettings
               selectedRefiner={refinerModel || 'none'}
               setSelectedRefiner={onRefinerModelChange || (() => {})}
               refineSwitchAt={refinerSwitchAt || 0.8}
@@ -235,7 +237,7 @@ const AdvancedSettings = ({
             />
           </AccordionContent>
         </AccordionItem>
-        
+
         <AccordionItem value="prompt-tester" className="border border-border rounded-md overflow-hidden hidden">
           <div className="flex items-center py-3 px-3">
             <div className="flex items-center flex-1">
@@ -251,7 +253,7 @@ const AdvancedSettings = ({
             <PromptTesterSettings />
           </AccordionContent>
         </AccordionItem>
-        
+
         <AccordionItem value="sdxl-style" className="border border-border rounded-md overflow-hidden hidden">
           <div className="flex items-center py-3 px-3">
             <div className="flex items-center flex-1">

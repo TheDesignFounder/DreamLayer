@@ -1,7 +1,7 @@
 
 import React from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -12,6 +12,7 @@ import Slider from "@/components/Slider";
 import SizingSettings from "@/components/SizingSettings";
 import upscalingModels, { UpscalingModelData } from "./models/upscalingModels";
 import { Card } from "@/components/ui/card";
+import { useI18n } from "@/i18n/i18nContext";
 
 interface HiresFixSettingsProps {
   upscaleMethod: string;
@@ -46,34 +47,35 @@ const HiresFixSettings: React.FC<HiresFixSettingsProps> = ({
   selectedUpscaler,
   setSelectedUpscaler,
 }) => {
+  const { t } = useI18n();
   // Get current upscaler information
   const currentUpscaler: UpscalingModelData = upscalingModels[selectedUpscaler] || upscalingModels["4x-ultrasharp"];
 
   return (
     <>
       <div className="mt-4 mb-3">
-        <div className="text-sm font-medium text-foreground mb-2">a) Set Upscale Size:</div>
-        <RadioGroup 
-          value={upscaleMethod} 
+        <div className="text-sm font-medium text-foreground mb-2">{t('advanced.setUpscaleSize')}</div>
+        <RadioGroup
+          value={upscaleMethod}
           onValueChange={setUpscaleMethod}
           className="grid grid-cols-2 gap-3"
         >
           <div className="relative">
             <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${upscaleMethod === "upscale-by" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
               <RadioGroupItem id="upscale-by" value="upscale-by" className="h-4 w-4" />
-              <label htmlFor="upscale-by" className="text-sm font-medium cursor-pointer w-full">Upscale by</label>
+              <label htmlFor="upscale-by" className="text-sm font-medium cursor-pointer w-full">{t('advanced.upscaleBy')}</label>
             </Card>
           </div>
-          
+
           <div className="relative">
             <Card className={`flex items-center gap-3 p-3 cursor-pointer border ${upscaleMethod === "resize-to" ? "border-blue-600 bg-blue-50/50" : "border-gray-200"}`}>
               <RadioGroupItem id="resize-to" value="resize-to" className="h-4 w-4" />
-              <label htmlFor="resize-to" className="text-sm font-medium cursor-pointer w-full">Resize to</label>
+              <label htmlFor="resize-to" className="text-sm font-medium cursor-pointer w-full">{t('advanced.resizeTo')}</label>
             </Card>
           </div>
         </RadioGroup>
       </div>
-      
+
       {upscaleMethod === "upscale-by" ? (
         <div className="mb-6">
           <Slider
@@ -81,27 +83,27 @@ const HiresFixSettings: React.FC<HiresFixSettingsProps> = ({
             max={10}
             step={0.1}
             defaultValue={upscaleFactor}
-            label="Upscale"
+            label={t('advanced.upscaleLabel')}
             onChange={(value) => setUpscaleFactor(value)}
             inputWidth="w-16"
           />
         </div>
       ) : (
         <div className="my-6">
-          <SizingSettings 
-            showSliders={true} 
-            widthValue={resizeWidth} 
+          <SizingSettings
+            showSliders={true}
+            widthValue={resizeWidth}
             heightValue={resizeHeight}
             onWidthChange={setResizeWidth}
             onHeightChange={setResizeHeight}
           />
         </div>
       )}
-      
+
       <div className="my-6">
         <div className="text-sm font-medium text-foreground mb-2">b) Upscaling Model</div>
-        <Select 
-          defaultValue={selectedUpscaler} 
+        <Select
+          defaultValue={selectedUpscaler}
           onValueChange={(value) => setSelectedUpscaler(value)}
         >
           <SelectTrigger className="w-full" id="upscaling-model">
@@ -121,7 +123,7 @@ const HiresFixSettings: React.FC<HiresFixSettingsProps> = ({
           </p>
         </div>
       </div>
-      
+
       <div className="mb-6">
         <Slider
           min={1}
@@ -133,7 +135,7 @@ const HiresFixSettings: React.FC<HiresFixSettingsProps> = ({
           inputWidth="w-16"
         />
       </div>
-      
+
       <div className="mb-4">
         <Slider
           min={0}

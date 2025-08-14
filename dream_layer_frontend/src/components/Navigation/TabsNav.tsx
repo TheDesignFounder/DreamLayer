@@ -6,22 +6,25 @@ import {
   GalleryHorizontal,
   HardDrive
 } from "lucide-react";
+import { useI18n } from "@/i18n/i18nContext";
 
-const tabs = [
-  { id: "txt2img", label: "Txt2Img", icon: FileText },
-  { id: "img2img", label: "Img2Img", icon: ImageIcon },
-  { id: "extras", label: "Extras", icon: GalleryHorizontal },
-  { id: "models", label: "Models", icon: HardDrive },
-  { id: "pnginfo", label: "PNG Info", icon: FileText },
-  { id: "configurations", label: "Configurations", icon: Settings }
-];
+const TabsNav = ({ activeTab, onTabChange }: TabsNavProps) => {
+  const { t } = useI18n();
+
+  const tabs = [
+    { id: "txt2img", label: t('nav.txt2img'), icon: FileText },
+    { id: "img2img", label: t('nav.img2img'), icon: ImageIcon },
+    { id: "extras", label: t('nav.extras'), icon: GalleryHorizontal },
+    { id: "models", label: t('nav.models'), icon: HardDrive },
+    { id: "pnginfo", label: t('nav.pnginfo'), icon: FileText },
+    { id: "configurations", label: t('nav.configurations'), icon: Settings }
+  ];
 
 interface TabsNavProps {
   activeTab: string;
   onTabChange: (tabId: string) => void;
 }
 
-const TabsNav = ({ activeTab, onTabChange }: TabsNavProps) => {
   return (
     <div className="mb-6 overflow-x-auto border-b border-border">
       <div className="flex min-w-max px-2">

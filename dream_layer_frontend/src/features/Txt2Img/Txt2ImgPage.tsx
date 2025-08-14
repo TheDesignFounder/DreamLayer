@@ -21,6 +21,7 @@ import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import useLoraStore from '@/stores/useLoraStore';
 import { LoraRequest } from '@/types/lora';
+import { useI18n } from '@/i18n/i18nContext';
 
 interface Txt2ImgPageProps {
   selectedModel: string;
@@ -28,6 +29,7 @@ interface Txt2ImgPageProps {
 }
 
 const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange }) => {
+  const { t } = useI18n();
   const [activeSubTab, setActiveSubTab] = useState("generation");
   const [coreSettings, setCoreSettings] = useState<Txt2ImgCoreSettings>({
     ...defaultTxt2ImgSettings,
@@ -133,7 +135,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const handleCopyPrompts = () => {
     const promptTextarea = document.querySelector('textarea[placeholder="Enter your prompt here"]') as HTMLTextAreaElement;
     const negativePromptTextarea = document.querySelector('textarea[placeholder="Enter negative prompt here"]') as HTMLTextAreaElement;
-    
+
     if (promptTextarea && negativePromptTextarea) {
       const combinedText = `Prompt: ${promptTextarea.value}\nNegative Prompt: ${negativePromptTextarea.value}`;
       navigator.clipboard.writeText(combinedText);
@@ -168,9 +170,9 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     try {
       setIsGenerating(true);
       setLoading(true);
-      
+
       console.log("ControlNetConfig at generate time:", JSON.stringify(controlNetConfig, null, 2));
-      
+
       // Prepare the request data
       const requestData = {
         ...coreSettings,
@@ -180,7 +182,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
         // Only include lora if it's enabled and configured
         ...(loraConfig?.enabled && { lora: loraConfig })
       };
-      
+
       if (controlNetConfig?.units) {
         console.log('📦 ControlNet Units Details:');
         controlNetConfig.units.forEach((unit, index) => {
@@ -214,16 +216,16 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
         const images = data.comfy_response.generated_images.map((img: any) => {
           // Use the URL directly from the response
           const imageUrl = img.url;
-          
+
           // Create a test image to verify the URL works
           const testImage = new Image();
           testImage.src = imageUrl;
-          
+
           // Log the URL and loading status
           console.log('Testing image URL:', imageUrl);
           testImage.onload = () => console.log('Image loaded successfully:', imageUrl);
           testImage.onerror = (e) => console.error('Image failed to load:', imageUrl, e);
-          
+
           return {
             id: `${Date.now()}-${Math.random()}`,
             url: imageUrl,
@@ -235,7 +237,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
             }
           };
         });
-        
+
         console.log('Adding images to gallery:', images);
         addImages(images);
       } else {
@@ -252,26 +254,26 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const getAccordionTitle = () => {
     switch (activeSubTab) {
-      case "checkpoints":
-        return "Custom Workflow Management";
-      case "lora":
-        return "LoRA Browser";
+              case "checkpoints":
+          return t('generation.customWorkflowManagement');
+        case "lora":
+          return t('generation.loraBrowser');
       default:
-        return "Core Generation Settings";
+        return t('txt2img.coreGenerationSettings');
     }
   };
 
   const ActionButtons = () => (
     <div className="flex space-x-2">
-      <Button 
+      <Button
         className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         onClick={handleGenerateImage}
         disabled={false}
       >
-        {isGenerating ? 'Interrupt' : 'Generate Image'}
+        {isGenerating ? t('common.interrupt') : t('txt2img.generateImage')}
       </Button>
       {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-        Save Settings
+        {t('common.saveSettings')}
       </button>}
     </div>
   );
@@ -284,9 +286,9 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
 
   const SubTabNavigation = () => {
     const tabs = [
-      { id: "generation", label: "Generation", active: activeSubTab === "generation" },
-      { id: "checkpoints", label: "Custom Workflow", active: activeSubTab === "checkpoints" },
-      { id: "lora", label: "Lora", active: activeSubTab === "lora" }
+      { id: "generation", label: t('generation.generation'), active: activeSubTab === "generation" },
+      { id: "checkpoints", label: t('generation.customWorkflow'), active: activeSubTab === "checkpoints" },
+      { id: "lora", label: t('generation.lora'), active: activeSubTab === "lora" }
     ];
 
     return (
@@ -312,7 +314,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const renderActiveSubTabContent = () => {
     switch (activeSubTab) {
       case "checkpoints":
-        return <CustomWorkflowBrowser 
+        return <CustomWorkflowBrowser
           onWorkflowChange={setCustomWorkflow}
           currentWorkflow={customWorkflow}
         />;
@@ -323,34 +325,34 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
         return (
           <>
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-bold text-[#2563EB]">1. Prompt Input</h4>
-              <Button 
+              <h4 className="text-sm font-bold text-[#2563EB]">1. {t('txt2img.promptInput')}</h4>
+              <Button
                 onClick={handleCopyPrompts}
                 variant="outline"
                 size="sm"
                 className="text-xs px-2 py-1 h-auto flex items-center gap-1"
               >
                 <Copy className="h-3.5 w-3.5" />
-                Copy Prompts
+                {t('txt2img.copyPrompts')}
               </Button>
             </div>
-            <PromptInput 
-              label="a) Prompt"
+            <PromptInput
+              label={t('txt2img.promptLabel')}
               maxLength={500}
-              placeholder="Enter your prompt here"
+              placeholder={t('txt2img.promptPlaceholder')}
               value={coreSettings.prompt}
               onChange={(value) => handlePromptChange(value)}
             />
-            <PromptInput 
-              label="b) Negative Prompt"
+            <PromptInput
+              label={t('txt2img.negativePromptLabel')}
               negative={true}
               maxLength={500}
-              placeholder="Enter negative prompt here"
+              placeholder={t('txt2img.negativePromptPlaceholder')}
               value={coreSettings.negative_prompt}
               onChange={(value) => handlePromptChange(value, true)}
             />
-            
-            <RenderSettings 
+
+            <RenderSettings
               showResizeMode={false}
               sampler={coreSettings.sampler_name}
               scheduler={coreSettings.scheduler}
@@ -358,41 +360,41 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
               cfg={coreSettings.cfg_scale}
               onChange={handleSamplingSettingsChange}
             />
-            
-            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">3. Sizing</h4>
-            <SizingSettings 
+
+            <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">3. {t('txt2img.sizing')}</h4>
+            <SizingSettings
               width={coreSettings.width}
               height={coreSettings.height}
               onChange={handleSizeSettingsChange}
             />
-            
+
             <h4 className="mb-2 mt-6 text-sm font-bold text-[#2563EB]">
-              4. Output Quantity: {coreSettings.batch_count * coreSettings.batch_size}
+              4. {t('txt2img.outputQuantity')}: {coreSettings.batch_count * coreSettings.batch_size}
             </h4>
-            <OutputQuantity 
+            <OutputQuantity
               batchCount={coreSettings.batch_count}
               batchSize={coreSettings.batch_size}
               onChange={handleBatchSettingsChange}
             />
-            
+
             <div className="flex items-center justify-between mt-6 mb-2">
-              <h4 className="text-sm font-bold text-[#2563EB]">5. Seed</h4>
+              <h4 className="text-sm font-bold text-[#2563EB]">5. {t('txt2img.seedSection')}</h4>
               <div className="flex space-x-2">
-                <button 
+                <button
                   className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground"
                   onClick={() => handleSeedChange(-1, true)}
                 >
-                  Randomize Seed
+                  {t('txt2img.randomizeSeed')}
                 </button>
-                <button 
+                <button
                   className="text-xs rounded-md border border-input bg-background px-2 py-1 hover:bg-accent hover:text-accent-foreground"
                   onClick={() => handleSeedChange(coreSettings.seed, false)}
                 >
-                  Reuse Past Seed
+                  {t('txt2img.reusePastSeed')}
                 </button>
               </div>
             </div>
-            <GenerationID 
+            <GenerationID
               seed={coreSettings.seed}
               random={coreSettings.random_seed}
               onChange={handleSeedChange}
@@ -408,24 +410,24 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
       <div className="space-y-4">
         <div className="flex flex-col">
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <h3 className="text-base font-medium">Generation Settings</h3>
+            <h3 className="text-base font-medium">{t('txt2img.generationSettings')}</h3>
             <ActionButtons />
           </div>
-          
+
           {isMobile && <MobileImagePreview />}
-          
+
           <div className="mb-[18px]">
             <SubTabNavigation />
           </div>
-          
-          <Accordion title={getAccordionTitle()} number="1" defaultOpen={true}>
+
+                    <Accordion title={getAccordionTitle()} number="1" defaultOpen={true}>
             {renderActiveSubTabContent()}
           </Accordion>
-          
+
           {activeSubTab === "generation" && (
             <>
-              <Accordion title="Advanced Optional Settings" number="2">
-                <AdvancedSettings 
+              <Accordion title={t('txt2img.advancedOptionalSettings')} number="2">
+                <AdvancedSettings
                   restoreFaces={coreSettings.restore_faces}
                   onRestoreFacesChange={handleRestoreFacesChange}
                   faceRestorationModel={coreSettings.face_restoration_model}
@@ -450,10 +452,10 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
                   onRefinerSwitchAtChange={handleRefinerSwitchAtChange}
                 />
               </Accordion>
-              
-              <Accordion title="External Extensions & Add-ons" number="3">
-                <ExternalExtensions 
-                  isImg2ImgTab={false} 
+
+              <Accordion title={t('txt2img.externalExtensions')} number="3">
+                <ExternalExtensions
+                  isImg2ImgTab={false}
                   onControlNetChange={handleControlNetChange}
                 />
               </Accordion>
@@ -461,7 +463,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
           )}
         </div>
       </div>
-      
+
       {/* Right Column - Preview */}
       {!isMobile && (
         <div>

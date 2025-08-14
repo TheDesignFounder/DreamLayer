@@ -37,8 +37,10 @@ import {
   ModelInfo
 } from '@/services/modelService';
 import { toast } from "@/components/ui/sonner";
+import { useI18n } from '@/i18n/i18nContext';
 
 const ModelManagerPage = () => {
+  const { t } = useI18n();
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [filteredModels, setFilteredModels] = useState<ModelInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,8 +53,8 @@ const ModelManagerPage = () => {
 
   // Model type options with user-friendly labels
   const modelTypes: { value: ModelType | 'all'; label: string; description: string }[] = [
-    { value: 'all', label: 'All Models', description: 'Show all model types' },
-    { value: 'checkpoints', label: 'Base Model (Checkpoint)', description: "The 'brain' that generates images" },
+    { value: 'all', label: t('modelManager.allModels'), description: 'Show all model types' },
+    { value: 'checkpoints', label: t('modelManager.baseModelCheckpoint'), description: t('modelManager.brainGeneratesImages') },
     { value: 'loras', label: 'Style Add-ons (LoRAs)', description: 'Modifies art style or subjects' },
     { value: 'vae', label: 'Image Enhancer (VAE)', description: 'Improves colors and quality' },
     { value: 'controlnet', label: 'Guided Generation (ControlNet)', description: 'Controls image composition' },
@@ -198,9 +200,9 @@ const ModelManagerPage = () => {
       {/* Header */}
       <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Model Manager</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('modelManager.title')}</h1>
           <p className="text-muted-foreground">
-            Upload, organize, and manage your AI models
+            {t('modelManager.uploadOrganizeManage')}
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -211,7 +213,7 @@ const ModelManagerPage = () => {
             className="flex items-center space-x-2"
           >
             {showUploadZone ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            <span>{showUploadZone ? 'Hide' : 'Show'} Upload</span>
+            <span>{showUploadZone ? t('modelManager.hideUpload') : t('modelManager.showUpload')}</span>
           </Button>
 
         </div>
@@ -223,7 +225,7 @@ const ModelManagerPage = () => {
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <Upload className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Upload New Model</h2>
+              <h2 className="text-lg font-semibold">{t('modelManager.uploadNewModel')}</h2>
             </div>
             <ModelDropZone onModelUploaded={handleModelUploaded} />
           </div>
@@ -239,7 +241,7 @@ const ModelManagerPage = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search models..."
+                placeholder={t('modelManager.searchModels')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 w-64"
@@ -256,7 +258,7 @@ const ModelManagerPage = () => {
               }}
             >
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by type" />
+                <SelectValue placeholder={t('modelManager.filterByType')} />
               </SelectTrigger>
               <SelectContent>
                 {modelTypes.map((type) => (
@@ -272,14 +274,14 @@ const ModelManagerPage = () => {
           <div className="flex items-center space-x-4">
             {/* Sort */}
             <div className="flex items-center space-x-2">
-              <Label htmlFor="sort" className="text-sm">Sort:</Label>
+              <Label htmlFor="sort" className="text-sm">{t('modelManager.sort')}</Label>
               <Select value={sortBy} onValueChange={(value: 'name' | 'type') => setSortBy(value)}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="type">Type</SelectItem>
+                  <SelectItem value="name">{t('modelManager.name')}</SelectItem>
+                  <SelectItem value="type">{t('modelManager.type')}</SelectItem>
                 </SelectContent>
               </Select>
               <Button
@@ -319,7 +321,7 @@ const ModelManagerPage = () => {
         {/* Stats */}
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {filteredModels.length} of {models.length} models
+            {t('modelManager.showingModels').replace('{count}', filteredModels.length.toString()).replace('{total}', models.length.toString())}
           </p>
 
         </div>
@@ -328,22 +330,22 @@ const ModelManagerPage = () => {
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-muted-foreground">Loading models...</span>
+            <span className="ml-2 text-muted-foreground">{t('modelManager.loadingModels')}</span>
           </div>
         ) : filteredModels.length === 0 ? (
           <Card className="p-12 text-center">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No models found</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('modelManager.noModelsFound')}</h3>
             <p className="text-muted-foreground mb-4">
               {models.length === 0
-                ? "Upload a checkpoint model to get started with image generation"
-                : "Try adjusting your search or filters"
+                ? t('modelManager.uploadCheckpointModel')
+                : t('modelManager.tryAdjustingSearch')
               }
             </p>
             {models.length === 0 && (
               <Button onClick={() => setShowUploadZone(true)}>
                 <Upload className="h-4 w-4 mr-2" />
-                Upload Model
+                {t('modelManager.uploadModel')}
               </Button>
             )}
           </Card>
