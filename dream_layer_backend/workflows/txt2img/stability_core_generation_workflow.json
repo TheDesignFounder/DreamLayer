@@ -1,0 +1,41 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "StabilityStableImageSD_3_5Node",
+      "inputs": {
+        "prompt": "beautiful",
+        "model": "sd3.5-large",
+        "aspect_ratio": "1:1",
+        "style_preset": "None",
+        "cfg_scale": 4.0,
+        "seed": 0,
+        "batch_size": 1
+      }
+    },
+    "2": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["1", 0],
+        "filename_prefix": "DreamLayer_Stability"
+      }
+    }
+  },
+  "meta": {
+    "description": "Stability SD3.5 Core Generation Workflow",
+    "model_options": {
+      "sd3_5_large": "sd3.5-large",
+      "sd3_5_medium": "sd3.5-medium",
+      "ultra": "stable-image-ultra"
+    },
+    "core_settings": {
+      "prompt": "Main generation prompt",
+      "model": "Stability model",
+      "aspect_ratio": "Aspect ratio",
+      "style_preset": "Style preset",
+      "cfg_scale": "CFG scale",
+      "seed": "Random seed (0 for random)",
+      "batch_size": "Number of images to generate (1-10)"
+    }
+  }
+}
+

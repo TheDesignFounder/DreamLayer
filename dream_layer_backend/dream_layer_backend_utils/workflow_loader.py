@@ -18,9 +18,13 @@ def _determine_workflow_path(workflow_request: Dict[str, Any]) -> str:
     model_name = workflow_request.get('model_name', '').lower()  # Convert to lowercase for case-insensitive comparison
     controlnet = workflow_request.get('controlnet', False)
     lora = workflow_request.get('lora', False)
-    
+
     # Determine workflow filename based on parameters
-    if 'bfl' in model_name or 'flux' in model_name:
+    if 'luma' in model_name or model_name in ['photon-1', 'photon-flash-1', 'ray-2', 'ray-flash-2', 'ray-1-6']:
+        filename = "luma_core_generation_workflow.json"
+    elif 'stability' in model_name or model_name in ['sd3.5-large', 'sd3.5-medium', 'stable-image-ultra']:
+        filename = "stability_core_generation_workflow.json"
+    elif 'bfl' in model_name or 'flux' in model_name:
         filename = "bfl_core_generation_workflow.json"
     elif 'dalle' in model_name:
         filename = "dalle_core_generation_workflow.json"
@@ -34,14 +38,14 @@ def _determine_workflow_path(workflow_request: Dict[str, Any]) -> str:
         filename = "local_lora.json"
     else:
         filename = "core_generation_workflow.json"
-    
+
     # Build full path
     current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     workflow_path = os.path.join(current_dir, 'workflows', generation_flow, filename)
-    
+
     if not os.path.exists(workflow_path):
         raise FileNotFoundError(f"Workflow file not found: {workflow_path}")
-    
+
     return workflow_path
 
 def _load_workflow_json(workflow_path: str) -> Dict[str, Any]:
@@ -52,14 +56,14 @@ def _load_workflow_json(workflow_path: str) -> Dict[str, Any]:
 def load_workflow(workflow_request: Dict[str, Any]) -> Dict[str, Any]:
     """
     Load and configure a workflow based on the request parameters.
-    
+
     Args:
         workflow_request: Dictionary containing:
             - generation_flow: txt2img/img2img
             - model_name: bfl/dalle/other
             - controlnet: true/false
             - lora: true/false
-    
+
     Returns:
         Dict: Loaded workflow configuration
     """

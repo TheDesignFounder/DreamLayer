@@ -36,30 +36,35 @@ API_KEY_TO_MODELS = {
         {"id": "ray-2", "name": "Luma Ray 2", "filename": "ray-2"},
         {"id": "ray-flash-2", "name": "Luma Ray Flash 2", "filename": "ray-flash-2"},
         {"id": "ray-1-6", "name": "Luma Ray 1.6", "filename": "ray-1-6"},
+    ],
+    "STABILITY_API_KEY": [
+        {"id": "sd3.5-large", "name": "Stability SD3.5 Large", "filename": "sd3.5-large"},
+        {"id": "sd3.5-medium", "name": "Stability SD3.5 Medium", "filename": "sd3.5-medium"},
+        {"id": "stable-image-ultra", "name": "Stability Stable Image Ultra", "filename": "stable-image-ultra"},
     ]
 }
 
 def get_directories() -> Tuple[str, Optional[str]]:
     """Get the absolute paths to the output and models directories from settings"""
     settings = get_settings()
-    
+
     # Handle output directory
     output_dir = settings.get('outputDirectory')
-    
+
     # Validate output directory
     if not is_valid_directory(output_dir):
         print("\nWarning: Invalid output directory (starts with '/path')")
         output_dir = os.path.join(parent_dir, 'Dream_Layer_Resources', 'output')
         print(f"Using default output directory: {output_dir}")
-    
+
     # If output directory is not an absolute path, make it relative to parent_dir
     if output_dir and not os.path.isabs(output_dir):
         output_dir = os.path.join(parent_dir, output_dir)
-    
+
     # If no output directory specified, use default
     if not output_dir:
         output_dir = os.path.join(parent_dir, 'Dream_Layer_Resources', 'output')
-    
+
     # Ensure output directory is absolute and exists
     output_dir = os.path.abspath(output_dir)
     os.makedirs(output_dir, exist_ok=True)
@@ -67,7 +72,7 @@ def get_directories() -> Tuple[str, Optional[str]]:
 
     # Handle models directory
     models_dir = settings.get('modelsDirectory')
-    
+
     # Validate models directory
     if not is_valid_directory(models_dir):
         print("\nWarning: Invalid models directory (starts with '/path')")
@@ -75,7 +80,7 @@ def get_directories() -> Tuple[str, Optional[str]]:
     elif models_dir:
         models_dir = os.path.abspath(models_dir)
         print(f"Using models directory: {models_dir}")
-    
+
     return output_dir, models_dir
 
 # Set directories before importing ComfyUI
@@ -98,7 +103,7 @@ def import_comfyui_main():
     """Import ComfyUI main module only when needed"""
     if comfyui_dir not in sys.path:
         sys.path.append(comfyui_dir)
-    
+
     try:
         import importlib.util
         spec = importlib.util.spec_from_file_location("comfyui_main", os.path.join(comfyui_dir, "main.py"))
@@ -135,7 +140,7 @@ def get_available_models():
     """
     from shared_utils import get_model_display_name
     formatted_models = []
-    
+
     # Get ComfyUI models
     try:
         response = requests.get(f"{COMFY_API_URL}/models/checkpoints")
@@ -153,21 +158,21 @@ def get_available_models():
             print(f"Error fetching ComfyUI models: {response.status_code}")
     except Exception as e:
         print(f"Error fetching ComfyUI models: {str(e)}")
-    
+
     # Get closed-source models based on available API keys
     try:
         from dream_layer_backend_utils import read_api_keys_from_env
         api_keys = read_api_keys_from_env()
-        
+
         # Append models for each available API key
         for api_key_name, api_key_value in api_keys.items():
             if api_key_name in API_KEY_TO_MODELS:
                 formatted_models.extend(API_KEY_TO_MODELS[api_key_name])
                 print(f"Added {len(API_KEY_TO_MODELS[api_key_name])} models for {api_key_name}")
-                
+
     except Exception as e:
         print(f"Error fetching closed-source models: {str(e)}")
-    
+
     return formatted_models
 
 @app.route('/api/models', methods=['GET'])
@@ -209,7 +214,7 @@ def handle_path_settings():
                 "status": "error",
                 "message": "No JSON data received"
             }), 400
-            
+
         print("\n=== Received Path Configuration Settings ===")
         print("Output Directory:", settings.get('outputDirectory'))
         print("Models Directory:", settings.get('modelsDirectory'))
@@ -247,19 +252,19 @@ def start_comfy_server():
         if start_comfyui is None:
             print("Error: Could not import ComfyUI start_comfyui function")
             return False
-        
+
         # Change to ComfyUI directory
         os.chdir(comfyui_dir)
-        
+
         # Start ComfyUI in a thread
         def run_comfyui():
             loop, server, start_func = start_comfyui()
             x = start_func()
             loop.run_until_complete(x)
-        
+
         comfy_thread = threading.Thread(target=run_comfyui, daemon=True)
         comfy_thread.start()
-        
+
         # Wait for server to be ready
         start_time = time.time()
         while time.time() - start_time < 60:  # 60 second timeout
@@ -270,10 +275,10 @@ def start_comfy_server():
                     return True
             except requests.exceptions.ConnectionError:
                 time.sleep(1)
-        
+
         print("Error: ComfyUI server failed to start within the timeout period")
         return False
-        
+
     except Exception as e:
         print(f"Error starting ComfyUI server: {e}")
         return False
@@ -289,10 +294,10 @@ def get_available_lora_models():
     """
     from shared_utils import get_model_display_name
     formatted_models = []
-    
+
     try:
         models = get_lora_models()
-        
+
         # Convert filenames to more user-friendly names (using display name mapping when available)
         for filename in models:
             name = get_model_display_name(filename)
@@ -303,7 +308,7 @@ def get_available_lora_models():
             })
     except Exception as e:
         print(f"Error fetching LoRA models: {str(e)}")
-    
+
     return formatted_models
 
 @app.route('/', methods=['GET'])
@@ -328,7 +333,7 @@ def handle_get_lora_models():
             "status": "error",
             "message": str(e)
         }), 500
-        
+
 @app.route('/api/add-api-key', methods=['POST'])
 def add_api_key():
     """
@@ -346,7 +351,7 @@ def add_api_key():
         env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
         lines = []
         found = False
-        
+
         if os.path.exists(env_path):
             with open(env_path, 'r') as f:
                 lines = f.readlines()
@@ -373,10 +378,10 @@ def fetch_prompt():
     """
     Endpoint to fetch random prompts
     """
-    
+
     prompt_type = request.args.get('type')
     print(f"🎯 FETCH PROMPT CALLED - Type: {prompt_type}")
-    
+
     prompt = fetch_positive_prompt() if prompt_type == 'positive' else fetch_negative_prompt()
     return jsonify({"status": "success", "prompt": prompt})
 
@@ -394,17 +399,17 @@ def show_in_folder():
         filename = request.json.get('filename')
         if not filename:
             return jsonify({"status": "error", "message": "No filename provided"}), 400
-        
+
         output_dir, _ = get_directories()
         print(f"DEBUG: output_dir='{output_dir}', filename='{filename}'")
         image_path = os.path.join(output_dir, filename)
-        
+
         if not os.path.exists(image_path):
             return jsonify({"status": "error", "message": "File not found"}), 404
-        
+
         # Detect operating system and use appropriate command
         system = platform.system()
-        
+
         if system == "Darwin":  # macOS
             subprocess.run(['open', '-R', image_path])
             return jsonify({"status": "success", "message": f"Opened {filename} in Finder"})
@@ -417,7 +422,7 @@ def show_in_folder():
             return jsonify({"status": "success", "message": f"Opened directory containing {filename}"})
         else:
             return jsonify({"status": "error", "message": f"Unsupported operating system: {system}"}), 400
-            
+
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -428,13 +433,13 @@ def send_to_img2img():
         filename = request.json.get('filename')
         if not filename:
             return jsonify({"status": "error", "message": "No filename provided"}), 400
-        
+
         output_dir, _ = get_directories()
         image_path = os.path.join(output_dir, filename)
-        
+
         if not os.path.exists(image_path):
             return jsonify({"status": "error", "message": "File not found"}), 404
-            
+
         return jsonify({"status": "success", "message": "Image sent to img2img"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -448,18 +453,18 @@ def send_to_extras():
         response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         return response
-        
+
     try:
         filename = request.json.get('filename')
         if not filename:
             return jsonify({"status": "error", "message": "No filename provided"}), 400
-        
+
         output_dir, _ = get_directories()
         image_path = os.path.join(output_dir, filename)
-        
+
         if not os.path.exists(image_path):
             return jsonify({"status": "error", "message": "File not found"}), 404
-            
+
         return jsonify({"status": "success", "message": "Image sent to extras"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -474,29 +479,29 @@ def upload_controlnet_image():
                 "status": "error",
                 "message": "No file provided"
             }), 400
-        
+
         file = request.files['file']
         if file.filename == '':
             return jsonify({
                 "status": "error",
                 "message": "No file selected"
             }), 400
-        
+
         unit_index = request.form.get('unit_index', '0')
         try:
             unit_index = int(unit_index)
         except ValueError:
             unit_index = 0
-        
+
         # Use shared function
         from shared_utils import upload_controlnet_image as upload_cn_image
         result = upload_cn_image(file, unit_index)
-        
+
         if isinstance(result, tuple):
             return jsonify(result[0]), result[1]
         else:
             return jsonify(result)
-            
+
     except Exception as e:
         print(f"❌ Error uploading ControlNet image: {str(e)}")
         import traceback
@@ -551,7 +556,7 @@ def serve_image(filename):
         # Use shared function
         from shared_utils import serve_image as serve_img
         return serve_img(filename)
-            
+
     except Exception as e:
         print(f"❌ Error serving image {filename}: {str(e)}")
         return jsonify({
@@ -580,4 +585,4 @@ if __name__ == "__main__":
         start_flask_server()
     else:
         print("Failed to start ComfyUI server. Exiting...")
-        sys.exit(1) 
+        sys.exit(1)
