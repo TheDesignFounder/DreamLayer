@@ -1,3 +1,15 @@
+exclude: |
+  (?x)(
+    ^runs/|
+    ^dist/|
+    ^build/|
+    ^\.venv/|
+    ^env/|
+    ^\.mypy_cache/|
+    ^\.pytest_cache/|
+    ^docs/_build/
+  )
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -5,35 +17,52 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-ast
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: debug-statements
       - id: name-tests-test
       - id: mixed-line-ending
-  - repo: https://github.com/psf/black
+        args: ["--fix=lf"]
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 24.4.2
     hooks:
       - id: black
+        language_version: python3
         args: [--line-length=120]
+
   - repo: https://github.com/PyCQA/isort
     rev: 5.13.2
     hooks:
       - id: isort
+        args: ["--profile", "black", "--line-length=120"]
+
   - repo: https://github.com/PyCQA/flake8
     rev: 7.0.0
     hooks:
       - id: flake8
         args: [--config=.flake8]
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.8
     hooks:
       - id: ruff
+        args: ["--line-length=120"]
+
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.19.1
     hooks:
       - id: pyupgrade
-        args: [--py310-plus]
+        args: [--py39-plus]
+
   - repo: https://github.com/codespell-project/codespell
     rev: v2.3.0
     hooks:
       - id: codespell
+        args:
+          - --skip=.git,*.lock,*.csv,*.tsv,*.ipynb,*.svg,*.png,*.jpg,*.jpeg,*.gif,*.pdf
+          - --ignore-words-list=nd,crate,fo,te
+          - --quiet-level=2
