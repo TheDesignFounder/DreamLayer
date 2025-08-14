@@ -1,0 +1,6 @@
+[flake8]
+max-line-length = 120
+extend-ignore = E203,W503
+per-file-ignores =
+    */dream_layer_backend_utils/update_custom_workflow.py:E501
+exclude = ComfyUI/*
