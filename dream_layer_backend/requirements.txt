@@ -2,6 +2,26 @@ flask>=3.0.0
 flask-cors>=4.0.0
 pillow>=10.0.0
 requests>=2.31.0
-python-dotenv>=1.0.0
+python-dotenv>=7.0.0
 pytest>=7.8.0
 pytest-mock>=3.12.0
+
+# Optional dependencies for quality metrics
+# Uncomment the lines below to enable additional features:
+
+# For SSIM (Structural Similarity Index)
+# scikit-image>=0.19.0
+
+# For LPIPS (Learned Perceptual Image Patch Similarity)
+# lpips>=0.1.4
+# torch>=1.9.0
+# torchvision>=0.10.0
+
+# For CLIP scoring
+# transformers>=4.20.0
+# ftfy>=6.1.0
+# regex>=2022.1.18
+
+# For tiling and image processing
+# numpy>=1.21.0
+# scipy>=1.7.0

@@ -1,0 +1,38 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt
+    
+    - name: Run tests (no heavy deps)
+      run: |
+        cd dream_layer_backend
+        python -m pytest tests/ -q --tb=short
+        # Heavy metric tests should auto-skip when torch/transformers/lpips not installed
+    
+    - name: Verify test coverage
+      run: |
+        cd dream_layer_backend
+        python -m pytest tests/ --collect-only -q | grep -E "(CLIP|LPIPS)" || echo "No heavy metric tests found (expected)"

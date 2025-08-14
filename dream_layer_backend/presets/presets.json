@@ -1,0 +1,70 @@
+{
+  "version": "1.0",
+  "created_at": "2025-08-13T18:23:12.128102",
+  "updated_at": "2025-08-13T18:23:12.128102",
+  "presets": [
+    {
+      "name": "default",
+      "version": 1,
+      "models": {
+        "checkpoint": "juggernautXL_v8Rundiffusion.safetensors",
+        "vae": "auto"
+      },
+      "params": {
+        "steps": 20,
+        "cfg": 7.0,
+        "sampler": "euler",
+        "scheduler": "normal",
+        "width": 512,
+        "height": 512,
+        "batch_size": 1
+      },
+      "preset_hash": "e8274633b8816637e37379177da285d302abb9d1b58100d6c7daeb86956ecf28",
+      "description": "Default generation settings",
+      "created_at": "2025-08-13T18:23:12.128102",
+      "updated_at": "2025-08-13T18:23:12.128102"
+    },
+    {
+      "name": "high_quality",
+      "version": 1,
+      "models": {
+        "checkpoint": "juggernautXL_v8Rundiffusion.safetensors",
+        "vae": "auto"
+      },
+      "params": {
+        "steps": 50,
+        "cfg": 7.0,
+        "sampler": "dpmpp_2m",
+        "scheduler": "karras",
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      },
+      "preset_hash": "033bb906290658a7aeed128265a0219b40293016b2cd8fc75f7a6ae39f17d3c5",
+      "description": "High quality generation with more steps",
+      "created_at": "2025-08-13T18:23:12.128102",
+      "updated_at": "2025-08-13T18:23:12.128102"
+    },
+    {
+      "name": "fast",
+      "version": 1,
+      "models": {
+        "checkpoint": "juggernautXL_v8Rundiffusion.safetensors",
+        "vae": "auto"
+      },
+      "params": {
+        "steps": 10,
+        "cfg": 7.0,
+        "sampler": "euler",
+        "scheduler": "normal",
+        "width": 512,
+        "height": 512,
+        "batch_size": 4
+      },
+      "preset_hash": "6617fc7c9cc017f5f1e4f74ced2bf9bba7ea659523ae7bb94b424c79036e0255",
+      "description": "Fast generation with fewer steps",
+      "created_at": "2025-08-13T18:23:12.128102",
+      "updated_at": "2025-08-13T18:23:12.128102"
+    }
+  ]
+}
