@@ -2,10 +2,13 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import os
+import csv
+import time
+import pynvml
+from shared_utils import  send_to_comfyui
 import requests
 from dream_layer import get_directories
 from dream_layer_backend_utils import interrupt_workflow
-from shared_utils import  send_to_comfyui
 from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
 from PIL import Image, ImageDraw
 from txt2img_workflow import transform_to_txt2img_workflow
@@ -26,7 +29,48 @@ output_dir, _ = get_directories()
 SERVED_IMAGES_DIR = os.path.join(os.path.dirname(__file__), 'served_images')
 os.makedirs(SERVED_IMAGES_DIR, exist_ok=True)
 
+# Get inference CSV directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INFERENCE_TRACES_DIR = os.path.join(BASE_DIR, "inference_traces")
+os.makedirs(INFERENCE_TRACES_DIR, exist_ok=True)  # create folder if it doesn't exist
+TRACE_CSV = os.path.join(INFERENCE_TRACES_DIR, "inference_trace_txt2img.csv")
 
+# Trace headers
+TRACE_HEADERS = ["timestamp", "total_time_s", "images_generated", "time_per_image_s", "gpu_name", "driver_version","ckpt_name"]
+
+# Helper Function to Check CSV File Path
+def ensure_csv_exists():
+    """Ensure the inference trace CSV exists with headers."""
+    if not os.path.exists(TRACE_CSV):
+        with open(TRACE_CSV, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(TRACE_HEADERS)
+
+# Helper Function to Log Inference Trace
+def log_inference_trace(total_time, images_generated, gpu_name, driver_version,ckpt_name):
+    """Log inference details to CSV and console."""
+    # Checking to see if images were generated, finding the time per image
+    time_per_image = None if images_generated == 0 else total_time / images_generated
+    
+    # Converting to string format
+    time_per_image_str = "N/A" if time_per_image is None else f"{time_per_image:.2f}"
+
+    # Console logging 
+    print(f"⏱ {total_time:.2f}s total · {time_per_image_str}s/img · {gpu_name} · Driver {driver_version}")
+
+    # CSV logging
+    ensure_csv_exists()
+    with open(TRACE_CSV, "a", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            time.time(),
+            round(total_time, 4),
+            images_generated,
+            round(time_per_image, 4) if time_per_image is not None else "",
+            gpu_name,
+            driver_version,
+            ckpt_name
+        ])
 
 @app.route('/api/txt2img', methods=['POST', 'OPTIONS'])
 def handle_txt2img():
@@ -62,23 +106,92 @@ def handle_txt2img():
                         print(f"  Input image preview: {unit['input_image'][:50] if isinstance(unit['input_image'], str) else 'N/A'}...")
             else:
                 print("No ControlNet units found")
-            
-            # Transform to ComfyUI workflow
 
+            # Get the absolute path to the ComfyUI root directory 
+            COMFY_ROOT = os.path.dirname(os.path.abspath(__file__))
+            
+             # Get checkpoint 
+            ckpt_name = data.get("ckpt_name", "unknown")
+
+            # List of allowed checkpoints
+            CHECKPOINTS_DIR = os.path.join(COMFY_ROOT, "ComfyUI", "models", "checkpoints")
+
+            # Inline function to list allowed checkpoints dynamically
+            def get_allowed_checkpoints():
+                try:
+                    return [
+                        fname for fname in os.listdir(CHECKPOINTS_DIR)
+                        if fname.endswith(('.safetensors', '.ckpt'))
+                    ]
+                except Exception as e:
+                    print(f"Failed to list checkpoints: {e}")
+                    return []
+                
+            ALLOWED_CKPTS = get_allowed_checkpoints()
+
+            # Validate checkpoint 
+            if not ckpt_name or ckpt_name not in ALLOWED_CKPTS:
+                if ALLOWED_CKPTS:
+                    chosen_ckpt = ALLOWED_CKPTS[0]
+                    print(f"Checkpoint '{ckpt_name}' invalid or missing, falling back to '{chosen_ckpt}'")
+                    ckpt_name = chosen_ckpt
+            else:
+                return jsonify({"error": "No checkpoints available on server"}), 500
+            
+            # Insert ckpt_name into data
+            data['ckpt_name'] = ckpt_name
+
+            # Transform to ComfyUI workflow
             workflow = transform_to_txt2img_workflow(data)
+            #workflow = transform_to_txt2img_workflow(data, ckpt_name=ckpt_name)
             print("\nGenerated ComfyUI Workflow:")
             print("-"*20)
             print(json.dumps(workflow, indent=2))
             
+            # Init NVML once at startup
+            try:
+                pynvml.nvmlInit()
+                gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+                gpu_name = pynvml.nvmlDeviceGetName(gpu_handle).decode()
+                driver_version = pynvml.nvmlSystemGetDriverVersion().decode()
+            except Exception:
+                gpu_name = "CPU"
+                driver_version = "N/A"
+
+            # Start timing 
+            start = time.perf_counter()
+            
             # Send to ComfyUI server
             comfy_response = send_to_comfyui(workflow)
             
+            # Stop timing
+            elapsed = time.perf_counter() - start
+
+            # Determine number of images generated and time per image
+            images_generated = len(comfy_response.get("all_images", []))
+            time_per_image = None if images_generated == 0 else total_time / images_generated
+    
+            # Converting to string format
+            time_per_image_str = "N/A" if time_per_image is None else f"{time_per_image:.2f}"
+                    
+            # Log the result
+            log_inference_trace(elapsed, images_generated, gpu_name, driver_version,ckpt_name)
+
+            # Add metrics into API response
+            comfy_response["metrics"] = {
+                "elapsed_time_sec": elapsed,
+                "time_per_image_sec": time_per_image,
+                "gpu": gpu_name,
+                "driver_version": driver_version
+            }
+
             if "error" in comfy_response:
                 return jsonify({
                     "status": "error",
                     "message": comfy_response["error"]
                 }), 500
             
+            comfy_response["generated_images"] = comfy_response.get("all_images", [])
             # Extract generated image filenames
             generated_images = []
             if comfy_response.get("all_images"):

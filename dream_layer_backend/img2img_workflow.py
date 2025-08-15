@@ -18,18 +18,47 @@ import re
 import logging
 from dream_layer import get_directories
 from extras import COMFY_INPUT_DIR
+from pathlib import Path
 
-
+# Initialize logger
 logger = logging.getLogger(__name__)
-
+def get_available_checkpoints():
+    logger.info(f"Current __file__ path: {__file__}")
+    root_dir = Path(__file__).resolve().parent.parent
+    logger.info(f"Resolved root_dir: {root_dir}")
+    
+    checkpoints_dir = root_dir / "ComfyUI" / "models" / "checkpoints"
+    logger.info(f"Looking for checkpoints in: {checkpoints_dir}")
+    
+    if not checkpoints_dir.exists():
+        logger.error(f"Checkpoints directory does not exist: {checkpoints_dir}")
+        return []
+    
+    models = [f.name for f in checkpoints_dir.glob("*") if f.suffix in ['.safetensors', '.ckpt']]
+    logger.info(f"Found checkpoint files: {models}")
+    return models
 
 def transform_to_img2img_workflow(data):
     """
     Transform frontend request data into ComfyUI workflow format for img2img
     """
 
-    # Determine model type and features
-    model_name = data.get('model_name', 'v1-6-pruned-emaonly-fp16.safetensors')
+    # Dynamically determine the model name that's being used and validate
+    requested_model = data.get("model_name")
+    available_models = get_available_checkpoints()
+    if not available_models:
+        raise FileNotFoundError("No checkpoint models found in ComfyUI models/checkpoints directory")
+    
+    # Use requested model if valid, else fallback to detected
+    if requested_model and requested_model in available_models:
+        model_name = requested_model
+    else:
+        # fallback to first available checkpoint and log the fallback
+        model_name = available_models[0]
+        logger.warning(f"Requested model '{requested_model}' not found. Falling back to '{model_name}'.")
+    
+    #model_name = data.get('model_name', 'v1-6-pruned-emaonly-fp16.safetensors') # was hardcoded 
+    
     use_controlnet = bool(data.get('controlnet'))
     use_lora = bool(data.get('lora'))
 
@@ -80,7 +109,7 @@ def transform_to_img2img_workflow(data):
     denoising_strength = max(
         0.0, min(1.0, float(data.get('denoising_strength', 0.75))))
     input_image = data.get('input_image', '')
-    model_name = data.get('model_name', 'v1-6-pruned-emaonly-fp16.safetensors')
+    #model_name = data.get('model_name', 'v1-6-pruned-emaonly-fp16.safetensors')
     sampler_name = data.get('sampler_name', 'euler')
     scheduler = data.get('scheduler', 'normal')
 
@@ -226,7 +255,19 @@ def transform_to_img2img_workflow(data):
     if refiner_data['refiner_enabled']:
         logger.info("Injecting Refiner parameters...")
         workflow = inject_refiner_parameters(workflow, refiner_data)
+    
+    print(f"✅ Workflow transformation complete")
+     # Ensure dump directory exists
+    dump_dir = os.path.join(os.path.dirname(__file__), "workflow_dumps")
+    os.makedirs(dump_dir, exist_ok=True)
+    
+    # Save the workflow JSON
+    output_path = os.path.join(dump_dir, "last_workflow.json")
+    with open(output_path, "w") as f:
+        json.dump(workflow, f, indent=2)
 
+    print(f"📋 Generated workflow JSON: {json.dumps(workflow, indent=2)}")
+    print(f"🚀 Workflow JSON saved to {output_path}")
     return workflow
 
 

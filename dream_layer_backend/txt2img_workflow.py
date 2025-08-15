@@ -1,7 +1,9 @@
 import json
 import random
 import os
+import logging
 import json
+from pathlib import Path
 from dream_layer_backend_utils.workflow_loader import load_workflow
 from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow
 from dream_layer_backend_utils.update_custom_workflow import override_workflow
@@ -16,6 +18,19 @@ from dream_layer_backend_utils.shared_workflow_parameters import (
 )
 from shared_utils import SAMPLER_NAME_MAP
 
+
+# Initialize logger
+logger = logging.getLogger(__name__)
+
+def get_available_checkpoints():
+    root_dir = Path(__file__).resolve().parent.parent
+    checkpoints_dir = root_dir / "ComfyUI" /  "models" / "checkpoints"
+    try:
+        models = [f.name for f in checkpoints_dir.glob("*") if f.suffix in ['.safetensors', '.ckpt']]
+        return models
+    except Exception as e:
+        logger.error(f"Failed to list checkpoints: {e}")
+        return []
 
 def transform_to_txt2img_workflow(data):
     """
@@ -68,6 +83,26 @@ def transform_to_txt2img_workflow(data):
         closed_source_models = ['dall-e-3', 'dall-e-2', 'flux-pro',
                                 'flux-dev', 'ideogram-v3', 'stability-sdxl', 'stability-sd-turbo']
 
+        
+        # Dynamically determine the model name that's being used and validate
+        requested_model = data.get("model_name")
+        available_models = get_available_checkpoints()
+        if not available_models:
+            raise FileNotFoundError("No checkpoint models found in ComfyUI models/checkpoints directory")  # could be changed to juggernautXL_v8Rundiffusion.safetensors
+
+        # Use requested model if valid, else fallback to detected
+        if requested_model and requested_model in available_models:
+                model_name = requested_model
+        else:
+            # fallback to first available checkpoint and log the fallback
+            model_name = available_models[0]
+            logger.warning(f"Requested model '{requested_model}' not found. Falling back to '{model_name}'.")
+        
+        #model_name = data.get('model_name', 'juggernautXL_v8Rundiffusion.safetensors') # was hardcoded
+
+        # Check if it's a closed-source model (DALL-E, FLUX, Ideogram, etc.)
+        closed_source_models = ['dall-e-3', 'dall-e-2', 'flux-pro', 'flux-dev', 'ideogram-v3']
+        
         if model_name in closed_source_models:
             print(f"🎨 Using closed-source model: {model_name}")
 
@@ -225,7 +260,17 @@ def transform_to_txt2img_workflow(data):
             workflow = inject_refiner_parameters(workflow, refiner_data)
 
         print(f"✅ Workflow transformation complete")
-        print(f"📋 Generated workflow: {json.dumps(workflow, indent=2)}")
+        # Ensure dump directory exists
+        dump_dir = os.path.join(os.path.dirname(__file__), "workflow_dumps")
+        os.makedirs(dump_dir, exist_ok=True)
+
+        # Save the workflow JSON
+        output_path = os.path.join(dump_dir, "last_workflow.json")
+        with open(output_path, "w") as f:
+            json.dump(workflow, f, indent=2)
+
+        print(f"📋 Generated workflow JSON: {json.dumps(workflow, indent=2)}")
+        print(f"🚀 Workflow JSON saved to {output_path}")
         return workflow
 
     except Exception as e:

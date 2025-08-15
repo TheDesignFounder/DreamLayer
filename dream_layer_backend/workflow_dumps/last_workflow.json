@@ -1,0 +1,89 @@
+{
+  "prompt": {
+    "3": {
+      "class_type": "KSampler",
+      "inputs": {
+        "cfg": 7.0,
+        "denoise": 1.0,
+        "latent_image": [
+          "5",
+          0
+        ],
+        "model": [
+          "4",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "positive": [
+          "6",
+          0
+        ],
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "seed": 1022003460,
+        "steps": 20
+      }
+    },
+    "4": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "Realistic_Vision_V6.0_NV_B1.safetensors"
+      }
+    },
+    "5": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "batch_size": 4,
+        "height": 512,
+        "width": 512
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "4",
+          1
+        ],
+        "text": "red fox"
+      }
+    },
+    "7": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "4",
+          1
+        ],
+        "text": ""
+      }
+    },
+    "8": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "3",
+          0
+        ],
+        "vae": [
+          "4",
+          2
+        ]
+      }
+    },
+    "9": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "DreamLayer",
+        "images": [
+          "8",
+          0
+        ]
+      }
+    }
+  },
+  "extra_data": {}
+}
