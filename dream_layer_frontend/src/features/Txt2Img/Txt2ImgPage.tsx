@@ -41,6 +41,12 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const controlNetConfig = useControlNetStore(state => state.controlNetConfig);
   const { setControlNetConfig } = useControlNetStore();
   const loraConfig = useLoraStore(state => state.loraConfig);
+  const [metrics, setMetrics] = React.useState<{
+    elapsed_time_sec: number;
+    time_per_image_sec: number;
+    gpu: string;
+    driver_version: string;
+  } | null>(null);
 
   // Add effect to update model when selectedModel prop changes
   useEffect(() => {
@@ -214,7 +220,11 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
         const images = data.comfy_response.generated_images.map((img: any) => {
           // Use the URL directly from the response
           const imageUrl = img.url;
-          
+
+          // Set metrics from backend if available
+          if (data.comfy_response.metrics) {
+              setMetrics(data.comfy_response.metrics);
+            }
           // Create a test image to verify the URL works
           const testImage = new Image();
           testImage.src = imageUrl;
@@ -261,19 +271,84 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     }
   };
 
+  const MetricsBadge: React.FC<{
+    elapsedTimeSec: number;
+    gpu: string;
+    driver: string;
+  }> = ({ elapsedTimeSec, gpu, driver }) => {
+    const timePerImage = elapsedTimeSec.toFixed(2);
+    const shortGpu = gpu.length > 12 ? gpu.slice(0, 12) + "…" : gpu;
+  
+    return (
+      <div
+        className="ml-4 px-3 py-1 rounded bg-gray-200 text-gray-800 text-sm font-semibold select-none"
+        title={`GPU: ${gpu} · Driver: ${driver}`} // optional tooltip
+      >
+        {timePerImage} s per image · {shortGpu}
+      </div>
+    );
+  };
+
+  const exportTxt2ImgMetricsToCSV = () => {
+    if (!metrics) return;
+  
+    const headers = ['elapsed_time_sec', 'time_per_image_sec', 'gpu', 'driver_version'];
+    const values = [
+      metrics.elapsed_time_sec,
+      metrics.time_per_image_sec,
+      metrics.gpu,
+      metrics.driver_version
+    ];
+  
+    const csv = [headers.join(','), values.join(',')].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `inference_trace_txt2img.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+
   const ActionButtons = () => (
-    <div className="flex space-x-2">
-      <Button 
+    <div className="flex items-center space-x-3">
+      <Button
         className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         onClick={handleGenerateImage}
-        disabled={false}
       >
         {isGenerating ? 'Interrupt' : 'Generate Image'}
       </Button>
-      {false && <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-        Save Settings
-      </button>}
-    </div>
+  
+      {false && (
+        <button className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
+          Save Settings
+        </button>
+      )}
+  
+      {/* Metrics Badge */}
+      {metrics && (
+          <div className="flex items-center space-x-3 p-2 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col">
+              <span className="font-semibold text-gray-800 dark:text-gray-200">
+                {`${metrics.time_per_image_sec?.toFixed(2) ??
+                  (metrics.elapsed_time_sec / (coreSettings.batch_size * coreSettings.batch_count)).toFixed(2)
+                } s per image`}
+              </span>
+              <span className="text-gray-600 dark:text-gray-400">
+                {`${metrics.gpu} (Driver ${metrics.driver_version})`}
+              </span>
+            </div>
+            <button
+              onClick={exportTxt2ImgMetricsToCSV}
+              className="ml-auto rounded-md border border-input bg-white dark:bg-gray-700 px-3 py-1 text-xs font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-200 dark:hover:bg-gray-600"
+            >
+              Download CSV
+            </button>
+          </div>
+        )}
+        </div>
   );
 
   const MobileImagePreview = () => (

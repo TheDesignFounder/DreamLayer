@@ -40,7 +40,13 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   const [batchSize, setBatchSize] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  
+  const [metrics, setMetrics] = React.useState<{
+    elapsed_time_sec: number;
+    time_per_image_sec: number;
+    gpu: string;
+    driver_version: string;
+  } | null>(null);
+
   // ControlNet configuration will be managed by useControlNetStore
   
   const { 
@@ -167,7 +173,12 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
 
       if (data.comfy_response?.generated_images) {
         console.log('Generated images from response:', data.comfy_response.generated_images);
-        
+      
+        // Set metrics from backend if available
+        if (data.comfy_response.metrics) {
+          setMetrics(data.comfy_response.metrics);
+        }
+
         const testImage = new Image();
         const firstImageUrl = data.comfy_response.generated_images[0].url;
         
@@ -194,6 +205,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
           setIsGenerating(false);
           throw new Error('Failed to load generated image');
         };
+
         
         testImage.src = firstImageUrl;
       } else {
@@ -206,7 +218,9 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       console.error('Error in handleGenerateImage:', error);
       setLoading(false);
       setIsGenerating(false);
+      
     }
+    
   };
 
   const getSectionTitle = () => {
@@ -255,6 +269,45 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
     updateCoreSettings({ refiner_switch_at: value });
   };
 
+  const MetricsBadge: React.FC<{
+    elapsedTimeSec: number;
+    gpu: string;
+    driver: string;
+  }> = ({ elapsedTimeSec, gpu, driver }) => {
+    const timePerImage = elapsedTimeSec.toFixed(2);
+    const shortGpu = gpu.length > 12 ? gpu.slice(0, 12) + "…" : gpu;
+  
+    return (
+      <div
+        className="ml-4 px-3 py-1 rounded bg-gray-200 text-gray-800 text-sm font-semibold select-none"
+        title={`GPU: ${gpu} · Driver: ${driver}`} // optional tooltip
+      >
+        {timePerImage} s per image · {shortGpu}
+      </div>
+    );
+  };
+    
+  const exportImg2ImgMetricsToCSV = () => {
+    if (!metrics) return;
+  
+    const headers = ['elapsed_time_sec', 'time_per_image_sec', 'gpu', 'driver_version'];
+    const values = [
+      metrics.elapsed_time_sec,
+      metrics.time_per_image_sec,
+      metrics.gpu,
+      metrics.driver_version
+    ];
+  
+    const csv = [headers.join(','), values.join(',')].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `inference_trace_img2img.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const renderSubTabContent = () => {
     switch (activeSubTab) {
@@ -405,6 +458,21 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
         <div className="flex flex-col">
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <h3 className="text-base font-medium text-foreground">Image to Image Generation</h3>
+            {metrics && (
+              <>
+              <button
+                onClick={exportImg2ImgMetricsToCSV} 
+                className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                Download CSV
+              </button>
+              <MetricsBadge
+              elapsedTimeSec={metrics.time_per_image_sec ?? (metrics.elapsed_time_sec / (batchSize * batchCount))}
+              gpu={metrics.gpu}
+              driver={metrics.driver_version}
+            />
+            </>
+            )}
             <div className="flex space-x-2">
               <Button 
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"

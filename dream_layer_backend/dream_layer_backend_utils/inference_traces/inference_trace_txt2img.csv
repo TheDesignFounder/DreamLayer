@@ -1,0 +1,4 @@
+timestamp,total_time_s,images_generated,time_per_image_s,gpu_name,driver_version,ckpt_name
+1754671400.091321,0.0126,0,,CPU,N/A,
+1754683081.648606,301.4291,0,,CPU,N/A,
+1754683236.368768,301.5447,0,,CPU,N/A,
