@@ -13,17 +13,17 @@ from typing import Dict, Any
 NODE_TO_API_KEY_MAPPING = {
     # BFL Nodes (use direct API, but still need api_key_comfy_org for compatibility)
     "FluxProUltraImageNode": "BFL_API_KEY",
-    "FluxKontextProImageNode": "BFL_API_KEY",
+    "FluxKontextProImageNode": "BFL_API_KEY", 
     "FluxKontextMaxImageNode": "BFL_API_KEY",
     "FluxProImageNode": "BFL_API_KEY",
     "FluxProExpandNode": "BFL_API_KEY",
-    "FluxProFillNode": "BFL_API_KEY",
+    "FluxProFillNode": "BFL_API_KEY", 
     "FluxProCannyNode": "BFL_API_KEY",
     "FluxProDepthNode": "BFL_API_KEY",
-
+    
     # OpenAI Nodes (use ComfyUI proxy, need api_key_comfy_org)
     "OpenAIDalle2": "OPENAI_API_KEY",
-    "OpenAIDalle3": "OPENAI_API_KEY",
+    "OpenAIDalle3": "OPENAI_API_KEY", 
     "OpenAIGPTImage1": "OPENAI_API_KEY",
     "OpenAITextNode": "OPENAI_API_KEY",
     "OpenAIChatNode": "OPENAI_API_KEY",
@@ -61,20 +61,21 @@ ENV_KEY_TO_EXTRA_DATA_MAPPING = {
     "BFL_API_KEY": "api_key_comfy_org",
     "OPENAI_API_KEY": "api_key_comfy_org",
     "IDEOGRAM_API_KEY": "api_key_comfy_org",
+
     "STABILITY_API_KEY": "stability_api_key",  # Changed from COMFY_API_KEY
     "COMFY_API_KEY": "api_key_comfy_org",
     "COMFY_AUTH_TOKEN": "auth_token_comfy_org",
     "GEMINI_API_KEY": "api_key_comfy_org",
     "LUMA_API_KEY": "luma_api_key",  # Direct API key for Luma
     # Future additions:
+    # "GEMINI_API_KEY": "api_key_gemini",
     # "ANTHROPIC_API_KEY": "api_key_anthropic",
 }
-
 
 def read_api_keys_from_env() -> Dict[str, str]:
     """
     Read all API keys from environment variables.
-
+    
     Returns:
         Dict containing environment variable names mapped to their values.
         Example: {"BFL_API_KEY": "sk-bfl-...", "OPENAI_API_KEY": "sk-openai-..."}
@@ -82,27 +83,26 @@ def read_api_keys_from_env() -> Dict[str, str]:
     # Get the path to the project's root directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(current_dir))
-
+    
     # Construct the path to the .env file in the root directory
     dotenv_path = os.path.join(project_root, '.env')
-
+    
     # Load environment variables from the .env file in the project root
     load_dotenv(dotenv_path=dotenv_path)
-
+    
     api_keys = {}
-
+    
     # Read all API keys defined in the mapping
     for env_key in ENV_KEY_TO_EXTRA_DATA_MAPPING.keys():
         api_key = os.getenv(env_key)
         if api_key:
             api_keys[env_key] = api_key
             # Safely truncate for display without assuming length
-            display_key = api_key[:8] + "..." + \
-                api_key[-4:] if len(api_key) > 12 else api_key
+            display_key = api_key[:8] + "..." + api_key[-4:] if len(api_key) > 12 else api_key
             print(f"[DEBUG] Found {env_key}: {display_key}")
         else:
             print(f"[DEBUG] No {env_key} found in environment")
-
+    
     print(f"[DEBUG] Total API keys loaded: {len(api_keys)}")
     return api_keys
 
@@ -110,9 +110,16 @@ def read_api_keys_from_env() -> Dict[str, str]:
 def inject_api_keys_into_workflow(workflow: Dict[str, Any], all_api_keys: Dict[str, str] = None) -> Dict[str, Any]:
     """
     Inject API keys from environment variables into workflow extra_data based on nodes present.
-
+    
     Args:
         workflow: The workflow dictionary to inject keys into
+        
+    Returns:
+        Workflow with appropriate API keys added to extra_data
+    """
+    # Read all available API keys from environment
+    all_api_keys = read_api_keys_from_env()
+    
         all_api_keys: Optional dictionary of API keys. If None, reads from environment.
 
     Returns:
@@ -124,18 +131,18 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any], all_api_keys: Dict[s
 
     # Create a copy to avoid modifying the original
     workflow_with_keys = workflow.copy()
-
+    
     # Ensure extra_data exists
     if "extra_data" not in workflow_with_keys:
         workflow_with_keys["extra_data"] = {}
         print("[DEBUG] Created new extra_data section")
     else:
         print("[DEBUG] Using existing extra_data section")
-
+    
     # Scan workflow for node types and determine which API keys are needed
     needed_env_keys = set()
     workflow_prompt = workflow.get('prompt', {})
-
+    
     print("[DEBUG] Scanning workflow for API nodes...")
     for node_id, node_data in workflow_prompt.items():
         if isinstance(node_data, dict):
@@ -143,8 +150,7 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any], all_api_keys: Dict[s
             if class_type in NODE_TO_API_KEY_MAPPING:
                 required_env_key = NODE_TO_API_KEY_MAPPING[class_type]
                 needed_env_keys.add(required_env_key)
-                print(
-                    f"[DEBUG] Found {class_type} node - needs {required_env_key}")
+                print(f"[DEBUG] Found {class_type} node - needs {required_env_key}")
     # Decide which key to use for api_key_comfy_org
     api_key_comfy_org = None
     print(f"[DEBUG] needed_env_keys: {needed_env_keys}")
@@ -162,13 +168,15 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any], all_api_keys: Dict[s
             api_key_comfy_org = all_api_keys["IDEOGRAM_API_KEY"]
             print(f"[DEBUG] Using IDEOGRAM_API_KEY for api_key_comfy_org")
         else:
-            print(
-                f"[DEBUG] No available API keys for needed services: {needed_env_keys}")
-
+            print(f"[DEBUG] No available API keys for needed services: {needed_env_keys}")
+    
     # Add the chosen key to extra_data
     if api_key_comfy_org:
         workflow_with_keys["extra_data"]["api_key_comfy_org"] = api_key_comfy_org
         print(f"[DEBUG] Injected api_key_comfy_org into workflow")
+    else:
+        print("[DEBUG] No API keys needed for this workflow")
+    
 
     # Special handling for Stability AI nodes - inject stability_api_key directly
     has_stability_nodes = False
@@ -211,5 +219,5 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any], all_api_keys: Dict[s
         print("[DEBUG] No Luma nodes found in workflow")
 
     print(f"[DEBUG] Final extra_data: {workflow_with_keys['extra_data']}")
-
-    return workflow_with_keys
+    
+    return workflow_with_keys 

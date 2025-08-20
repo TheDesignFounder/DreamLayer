@@ -29,13 +29,11 @@ Learn how to use DreamLayer AI effectively with API examples, workflow managemen
 ### Core Endpoints
 
 #### Get Available Models
-
 ```bash
 curl -X GET http://localhost:5000/api/models
 ```
 
 **Response:**
-
 ```json
 {
   "status": "success",
@@ -55,31 +53,26 @@ curl -X GET http://localhost:5000/api/models
 ```
 
 #### Get LoRA Models
-
 ```bash
 curl -X GET http://localhost:5000/api/lora-models
 ```
 
 #### Get Upscaler Models
-
 ```bash
 curl -X GET http://localhost:5000/api/upscaler-models
 ```
 
 #### Get ControlNet Models
-
 ```bash
 curl -X GET http://localhost:5000/api/controlnet/models
 ```
 
 #### Fetch Random Prompts
-
 ```bash
 curl -X GET http://localhost:5000/api/fetch-prompt
 ```
 
 **Response:**
-
 ```json
 {
   "positive": "A majestic dragon soaring through clouds",
@@ -90,14 +83,12 @@ curl -X GET http://localhost:5000/api/fetch-prompt
 ### File Operations
 
 #### Upload ControlNet Image
-
 ```bash
 curl -X POST http://localhost:5000/api/upload-controlnet-image \
   -F "image=@path/to/your/image.png"
 ```
 
 **Response:**
-
 ```json
 {
   "status": "success",
@@ -106,7 +97,6 @@ curl -X POST http://localhost:5000/api/upload-controlnet-image \
 ```
 
 #### Send Image to img2img
-
 ```bash
 curl -X POST http://localhost:5000/api/send-to-img2img \
   -H "Content-Type: application/json" \
@@ -114,7 +104,6 @@ curl -X POST http://localhost:5000/api/send-to-img2img \
 ```
 
 #### Send Image to Extras
-
 ```bash
 curl -X POST http://localhost:5000/api/send-to-extras \
   -H "Content-Type: application/json" \
@@ -122,7 +111,6 @@ curl -X POST http://localhost:5000/api/send-to-extras \
 ```
 
 #### Show Image in Folder
-
 ```bash
 curl -X POST http://localhost:5000/api/show-in-folder \
   -H "Content-Type: application/json" \
@@ -132,7 +120,6 @@ curl -X POST http://localhost:5000/api/show-in-folder \
 ### Settings Management
 
 #### Configure Paths
-
 ```bash
 curl -X POST http://localhost:5000/api/settings/paths \
   -H "Content-Type: application/json" \
@@ -180,7 +167,7 @@ import requests
 
 # DALL-E 3 generation
 def generate_dalle3(prompt, api_key):
-    response = requests.post('https://api.openai.com/v1/images/generations',
+    response = requests.post('https://api.openai.com/v1/images/generations', 
         headers={'Authorization': f'Bearer {api_key}'},
         json={
             'model': 'dall-e-3',
@@ -226,7 +213,7 @@ response = requests.post('http://localhost:8188/prompt', json={
 # Upload ControlNet image
 with open('control_image.png', 'rb') as f:
     files = {'image': f}
-    response = requests.post('http://localhost:5000/api/upload-controlnet-image',
+    response = requests.post('http://localhost:5000/api/upload-controlnet-image', 
                            files=files)
 
 controlnet_image = response.json()['filename']
@@ -290,7 +277,6 @@ Set up API keys for cloud models:
 OPENAI_API_KEY=your_openai_api_key_here
 IDEOGRAM_API_KEY=your_ideogram_api_key_here
 BFL_API_KEY=your_bfl_api_key_here
-STABILITY_API_KEY=your_stability_api_key_here
 ```
 
 ### Directory Structure
@@ -407,4 +393,4 @@ except Exception as e:
 
 ---
 
-_For more advanced usage, see the [API Reference](api_reference.md) and [Architecture Guide](architecture.md)._
+*For more advanced usage, see the [API Reference](api_reference.md) and [Architecture Guide](architecture.md).* 

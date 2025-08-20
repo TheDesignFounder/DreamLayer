@@ -3,7 +3,7 @@ import datetime
 import json
 import logging
 import folder_paths
-
+from typing import Optional, Any
 # Get the logger instance
 logger = logging.getLogger(__name__)
 
@@ -40,13 +40,13 @@ def log_request_response(
     operation_id: str,
     request_method: str,
     request_url: str,
-    request_headers: dict | None = None,
-    request_params: dict | None = None,
-    request_data: any = None,
-    response_status_code: int | None = None,
-    response_headers: dict | None = None,
-    response_content: any = None,
-    error_message: str | None = None
+    request_headers: Optional[dict] = None,
+    request_params: Optional[dict] = None,
+    request_data: Any = None,
+    response_status_code: Optional[int] = None,
+    response_headers: Optional[dict] = None,
+    response_content: Any = None,
+    error_message: Optional[str] = None
 ):
     """
     Logs API request and response details to a file in the temp/api_logs directory.
