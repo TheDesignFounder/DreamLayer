@@ -4,7 +4,7 @@ import threading
 import time
 import platform
 from typing import Optional, Tuple
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import requests
 import importlib.util
@@ -37,6 +37,21 @@ API_KEY_TO_MODELS = {
     ],
     "IDEOGRAM_API_KEY": [
         {"id": "ideogram-v3", "name": "Ideogram V3", "filename": "ideogram-v3"},
+
+    ],
+    "STABILITY_API_KEY": [
+        {"id": "stability-sdxl", "name": "Stability SDXL",
+            "filename": "stability-sdxl"},
+        {"id": "stability-sd-turbo", "name": "Stability SD Turbo",
+            "filename": "stability-sd-turbo"}
+    ],
+    "GEMINI_API_KEY": [
+        {"id": "gemini-pro-vision", "name": "Gemini Pro Vision", "filename": "gemini-pro-vision"},
+        {"id": "gemini-pro", "name": "Gemini Pro", "filename": "gemini-pro"},
+    ],
+    "LUMA_API_KEY": [
+        {"id": "luma-photon", "name": "Luma Photon", "filename": "luma-photon"},
+        {"id": "luma-photon-flash", "name": "Luma Photon Flash", "filename": "luma-photon-flash"},
     ]
 }
 

@@ -6,6 +6,8 @@ import json
 from dream_layer_backend_utils.workflow_loader import load_workflow
 from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow
 from dream_layer_backend_utils.update_custom_workflow import override_workflow 
+from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow, read_api_keys_from_env
+from dream_layer_backend_utils.update_custom_workflow import override_workflow
 from dream_layer_backend_utils.update_custom_workflow import update_custom_workflow, validate_custom_workflow
 from dream_layer_backend_utils.shared_workflow_parameters import (
     inject_face_restoration_parameters,
@@ -55,6 +57,12 @@ def transform_to_txt2img_workflow(data):
         model_name = data.get('model_name', 'juggernautXL_v8Rundiffusion.safetensors')
         
         closed_source_models = ['dall-e-3', 'dall-e-2', 'flux-pro', 'flux-dev', 'ideogram-v3']
+
+        # Handle model name validation
+        model_name = data.get('model_name', 'juggernautXL_v8Rundiffusion.safetensors')
+        
+        # Check if it's a closed-source model (DALL-E, FLUX, Ideogram, Stability AI, Luma, etc.)
+        closed_source_models = ['dall-e-3', 'dall-e-2', 'flux-pro', 'flux-dev', 'ideogram-v3', 'stability-sdxl', 'stability-sd-turbo', 'photon-1', 'photon-flash-1']
         
         if model_name in closed_source_models:
             print(f"🎨 Using closed-source model: {model_name}")
@@ -130,6 +138,10 @@ def transform_to_txt2img_workflow(data):
             workflow_model_type = 'bfl'
         elif 'ideogram' in model_name.lower():
             workflow_model_type = 'ideogram'
+        elif 'stability' in model_name.lower():  # Added check for Stability AI models
+            workflow_model_type = 'stability'
+        elif 'photon' in model_name.lower():  # Added check for Luma models
+            workflow_model_type = 'photon'
         else:
             workflow_model_type = 'local'
         
@@ -146,6 +158,10 @@ def transform_to_txt2img_workflow(data):
         print(f"✅ Workflow loaded successfully")
         
         workflow = inject_api_keys_into_workflow(workflow)
+
+        # Inject API keys if needed (for DALL-E, FLUX, etc.)
+        all_api_keys = read_api_keys_from_env()
+        workflow = inject_api_keys_into_workflow(workflow, all_api_keys)
         print(f"✅ API keys injected")
         
         custom_workflow = data.get('custom_workflow')

@@ -141,6 +141,11 @@ install_nodejs() {
         print_step "Updating npm..."
         npm install -g npm@latest
     fi
+    
+    # Install localtunnel for Luma API image access
+    print_step "Installing localtunnel for external API access..."
+    npm install -g localtunnel
+    print_success "localtunnel installed successfully"
 }
 
 # Function to install system dependencies

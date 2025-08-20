@@ -142,6 +142,24 @@ start "Img2Img Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && 
 echo %BLUE%[STEP 4/4]%NC% Starting extras.py...
 start "Extras Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python extras.py > ..\logs\extras.log 2>&1"
 
+:: Start run registry server
+echo %BLUE%[STEP 5/8]%NC% Starting run registry server...
+start "Run Registry Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python run_registry.py > ..\logs\run_registry.log 2>&1"
+
+:: Start report bundle server
+echo %BLUE%[STEP 6/8]%NC% Starting report bundle server...
+start "Report Bundle Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python report_bundle.py > ..\logs\report_bundle.log 2>&1"
+
+:: Start img2txt_server.py
+echo %BLUE%[STEP 7/8]%NC% Starting img2txt_server.py...
+start "Img2Txt Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python img2txt_server.py > ..\logs\img2txt_server.log 2>&1"
+
+:: Start localtunnel for external API access
+where lt >nul 2>&1
+if %errorlevel% equ 0 (
+    start "LocalTunnel" cmd /c "lt --port 5002 > logs\tunnel.log 2>&1"
+)
+
 :: Wait for all backend services to start
 echo %YELLOW%[INFO]%NC% Waiting for all backend services to initialize...
 timeout /t 10 /nobreak >nul

@@ -273,6 +273,17 @@ function Install-NodeJS {
         catch {
             Write-Warning "Could not update npm, but it's available"
         }
+        
+        # Install localtunnel for Luma API image access
+        Write-Step "Installing localtunnel for external API access..."
+        try {
+            npm install -g localtunnel
+            Write-Success "localtunnel installed successfully"
+        }
+        catch {
+            Write-Warning "Could not install localtunnel, but npm is available"
+        }
+        
         return $true
     }
     

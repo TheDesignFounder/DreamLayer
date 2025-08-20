@@ -152,8 +152,44 @@ def handle_img2img():
                 'message': f'Invalid input image: {str(e)}'
             }), 400
 
-        # Transform data to ComfyUI workflow
-        workflow = transform_to_img2img_workflow(data)
+        # Check if this is a Luma model and route accordingly
+        model_name = data.get('model', '')
+        if model_name in ['luma-photon', 'luma-photon-flash']:
+            # Handle batch_size for Luma models by making multiple sequential calls
+            batch_size = data.get('batch_size', 1)
+            all_responses = []
+            
+            for i in range(batch_size):
+                logger.info(f"Processing Luma batch item {i+1}/{batch_size}")
+                
+                # Create single image request
+                single_data = data.copy()
+                single_data['batch_size'] = 1
+                
+                # Use Luma workflow for single image
+                from workflows.txt2img.luma_core_generation_workflow import get_luma_img2img_workflow
+                workflow = get_luma_img2img_workflow(single_data)
+                
+                # Send to ComfyUI and wait for completion
+                comfy_response = send_to_comfyui(workflow)
+                
+                # Wait for this generation to complete before starting next
+                if 'prompt_id' in comfy_response:
+                    # Poll ComfyUI until this prompt completes
+                    while True:
+                        status_response = requests.get(f"{COMFY_API_URL}/history/{comfy_response['prompt_id']}")
+                        if status_response.status_code == 200 and status_response.json():
+                            break
+                        time.sleep(2)
+                
+                all_responses.append(comfy_response)
+            
+            # Use the last response structure but indicate batch processing
+            comfy_response = all_responses[-1]
+            comfy_response['batch_responses'] = all_responses
+        else:
+            # Use regular img2img workflow for other models
+            workflow = transform_to_img2img_workflow(data)
         
         # Log the workflow for debugging
         logger.info("Generated workflow:")

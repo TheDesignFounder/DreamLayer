@@ -1,0 +1,40 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "LumaImageNode",
+      "inputs": {
+        "prompt": "beautiful",
+        "aspect_ratio": "3:4",
+        "model": "photon-1",
+        "seed": 0,
+        "style_image_weight": 1.0
+      }
+    },
+    "2": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["1", 0],
+        "filename_prefix": "DreamLayer_Luma"
+      }
+    }
+  },
+  "meta": {
+    "description": "Luma Photon Core Generation Workflow",
+    "model_options": {
+      "luma": "LumaImageNode"
+    },
+    "core_settings": {
+      "prompt": "Main generation prompt",
+      "aspect_ratio": "Image aspect ratio",
+      "model": "Luma model to use (photon-1, photon-flash-1)",
+      "seed": "Random seed (0 for random)",
+      "style_image_weight": "Weight of style image (if provided)"
+    },
+    "aspect_ratios": [
+      "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "9:21"
+    ],
+    "models": [
+      "photon-1", "photon-flash-1"
+    ]
+  }
+}

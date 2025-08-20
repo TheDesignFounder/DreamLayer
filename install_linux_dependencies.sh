@@ -182,6 +182,11 @@ install_nodejs() {
     fi
 
     print_success "Installed Node.js: $(node -v), npm: $(npm -v)"
+    
+    # Install localtunnel for Luma API image access
+    print_step "Installing localtunnel for external API access..."
+    npm install -g localtunnel
+    print_success "localtunnel installed successfully"
 }
 
 # Function to install system dependencies

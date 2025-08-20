@@ -21,6 +21,24 @@ const fields = [
     placeholder: "Enter Ideogram API Key",
     docs: "https://developer.ideogram.ai/ideogram-api/api-setup",
   },
+  {
+    name: "Stability AI",
+    alias: "STABILITY_API_KEY",
+    placeholder: "Enter Stability AI API Key",
+    docs: "https://platform.stability.ai/docs/getting-started/authentication",
+  },
+  {
+    name: "Gemini - Google AI",
+    alias: "GEMINI_API_KEY",
+    placeholder: "Enter Gemini API Key",
+    docs: "https://ai.google.dev/gemini-api/docs/api-key",
+  },
+  {
+    name: "Luma AI",
+    alias: "LUMA_API_KEY",
+    placeholder: "Enter Luma API Key",
+    docs: "https://lumalabs.ai/dream-machine/api",
+  },
 ];
 
 const ApiKeysForm: React.FC = () => {
