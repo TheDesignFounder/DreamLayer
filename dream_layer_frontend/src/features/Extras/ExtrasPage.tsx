@@ -43,12 +43,70 @@ const ExtrasPage = () => {
   const [codeformerVisibility, setCodeformerVisibility] = useState(0.7);
   const [codeformerWeight, setCodeformerWeight] = useState(0.2);
 
+  // Grid export state
+  const [isCreatingGrid, setIsCreatingGrid] = useState(false);
+  const [gridResult, setGridResult] = useState(null);
+  const [gridError, setGridError] = useState(null);
+  const [gridSettings, setGridSettings] = useState({
+    count: '4',
+    gridSize: '2x2',
+    showLabels: true,
+    showFilenames: false,
+    filename: 'labeled_grid_export.png'
+  });
+
   const subtabs = [
     { id: "upscale", label: "Single Image", active: activeSubTab === "upscale" },
+    { id: "grid", label: "Grid Export", active: activeSubTab === "grid" },
   ];
 
   const handleSubTabChange = (tabId: string) => {
     setActiveSubTab(tabId);
+  };
+
+  const handleCreateGrid = async () => {
+    setIsCreatingGrid(true);
+    setGridError(null);
+    setGridResult(null);
+
+    try {
+      const response = await fetch('http://localhost:5003/api/extras/grid-export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          count: parseInt(gridSettings.count),
+          grid_size: gridSettings.gridSize === 'auto' ? 'auto' : gridSettings.gridSize,
+          filename: gridSettings.filename,
+          show_labels: gridSettings.showLabels,
+          show_filenames: gridSettings.showFilenames
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        setGridResult(result.data);
+        toast.success("Grid created successfully!");
+      } else {
+        setGridError(result.message || 'Failed to create grid');
+        toast.error(result.message || 'Failed to create grid');
+      }
+    } catch (error) {
+      setGridError('Network error: Unable to connect to backend service');
+      toast.error('Network error: Unable to connect to backend service');
+      console.error('Grid creation error:', error);
+    } finally {
+      setIsCreatingGrid(false);
+    }
+  };
+
+  const handleGridSettingChange = (key: string, value: any) => {
+    setGridSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
   const loadUpscalerModels = useCallback(async () => {
@@ -341,6 +399,95 @@ const ExtrasPage = () => {
   
   const renderSubTabContent = () => {
     switch (activeSubTab) {
+      case "grid":
+        return (
+          <div className="space-y-4 mb-4">
+            <div className="mb-4">
+              <label htmlFor="gridCount" className="mb-1 block text-sm">Number of Images:</label>
+              <Select 
+                value={gridSettings.count}
+                onValueChange={(value) => handleGridSettingChange('count', value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select number of images" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="4">4 Recent Images</SelectItem>
+                  <SelectItem value="6">6 Recent Images</SelectItem>
+                  <SelectItem value="8">8 Recent Images</SelectItem>
+                  <SelectItem value="9">9 Recent Images</SelectItem>
+                  <SelectItem value="12">12 Recent Images</SelectItem>
+                  <SelectItem value="16">16 Recent Images</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="gridSize" className="mb-1 block text-sm">Grid Layout:</label>
+              <Select 
+                value={gridSettings.gridSize}
+                onValueChange={(value) => handleGridSettingChange('gridSize', value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select grid layout" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2x2">2x2 Grid</SelectItem>
+                  <SelectItem value="2x3">2x3 Grid</SelectItem>
+                  <SelectItem value="3x3">3x3 Grid</SelectItem>
+                  <SelectItem value="4x2">4x2 Grid</SelectItem>
+                  <SelectItem value="4x3">4x3 Grid</SelectItem>
+                  <SelectItem value="4x4">4x4 Grid</SelectItem>
+                  <SelectItem value="auto">Auto Layout</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center space-x-2 mb-4">
+              <input 
+                type="checkbox" 
+                id="showLabels" 
+                checked={gridSettings.showLabels}
+                onChange={(e) => handleGridSettingChange('showLabels', e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <label htmlFor="showLabels" className="text-sm">Show Parameter Labels</label>
+            </div>
+            
+            <div className="flex items-center space-x-2 mb-4">
+              <input 
+                type="checkbox" 
+                id="showFilenames" 
+                checked={gridSettings.showFilenames}
+                onChange={(e) => handleGridSettingChange('showFilenames', e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <label htmlFor="showFilenames" className="text-sm">Include Filenames</label>
+            </div>
+            
+            <div className="mb-4">
+              <label htmlFor="gridFilename" className="mb-1 block text-sm">Output Filename:</label>
+              <input
+                id="gridFilename"
+                type="text"
+                value={gridSettings.filename}
+                onChange={(e) => handleGridSettingChange('filename', e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                placeholder="labeled_grid_export.png"
+              />
+            </div>
+
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <h5 className="font-medium text-blue-800 mb-2">How Grid Export Works:</h5>
+              <div className="text-sm text-blue-700 space-y-1">
+                <p>• Automatically selects your most recent generated images</p>
+                <p>• Extracts generation parameters from logs (sampler, steps, CFG, etc.)</p>
+                <p>• Creates labeled grid with parameter information</p>
+                <p>• Exports as high-quality PNG file</p>
+              </div>
+            </div>
+          </div>
+        );
       case "batch":
         return (
           <div className="space-y-4 mb-4">
@@ -386,14 +533,19 @@ const ExtrasPage = () => {
       <div className="space-y-4">
         <div className="flex flex-col">
           <div className="mb-[18px] flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <h3 className="text-base font-medium">Image Post-Processing</h3>
+            <h3 className="text-base font-medium">
+              {activeSubTab === "grid" ? "Grid Export" : "Image Post-Processing"}
+            </h3>
             <div className="flex space-x-2">
               <Button 
-                onClick={handleGenerate}
-                disabled={!selectedImage || isProcessing}
+                onClick={activeSubTab === "grid" ? handleCreateGrid : handleGenerate}
+                disabled={activeSubTab === "grid" ? isCreatingGrid : (!selectedImage || isProcessing)}
                 className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                {isProcessing ? 'Processing...' : 'Generate Image'}
+                {activeSubTab === "grid" 
+                  ? (isCreatingGrid ? 'Creating Grid...' : 'Create Grid')
+                  : (isProcessing ? 'Processing...' : 'Generate Image')
+                }
               </Button>
             </div>
           </div>
@@ -404,8 +556,11 @@ const ExtrasPage = () => {
             onTabChange={handleSubTabChange}
           />
           
-          <Accordion title={activeSubTab === "upscale" ? "Upscaling Options" : "Batch Options"} 
-                     number={activeSubTab === "upscale" ? "1" : "1"} 
+          <Accordion title={
+            activeSubTab === "upscale" ? "Upscaling Options" : 
+            activeSubTab === "grid" ? "Grid Options" : "Batch Options"
+          } 
+                     number="1"
                      defaultOpen={true}>
             {renderSubTabContent()}
           </Accordion>
@@ -414,18 +569,52 @@ const ExtrasPage = () => {
       
       {/* Right Column - Preview */}
       <div>
-        <div className="rounded-md border border-border p-4 h-[500px] flex items-center justify-center">
-          {processedImage ? (
-            <img 
-              src={processedImage} 
-              alt="Processed" 
-              className="max-w-full max-h-full object-contain"
-            />
+        <div className="rounded-md border border-border p-4 h-[500px] flex items-center justify-center overflow-hidden">
+          {activeSubTab === "grid" ? (
+            <div className="w-full h-full flex items-center justify-center">
+              {isCreatingGrid ? (
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-muted-foreground">Creating grid...</p>
+                </div>
+              ) : gridError ? (
+                <div className="text-center">
+                  <div className="text-red-500 mb-2 text-2xl">⚠️</div>
+                  <p className="text-red-600 text-sm">{gridError}</p>
+                </div>
+              ) : gridResult ? (
+                <div className="w-full h-full flex flex-col">
+                  <img 
+                    src={gridResult.grid_url} 
+                    alt="Generated Grid" 
+                    className="max-w-full max-h-full object-contain rounded"
+                  />
+                  <div className="mt-2 text-xs text-muted-foreground text-center">
+                    <p>{gridResult.dimensions.width}x{gridResult.dimensions.height} - {(gridResult.file_size / 1024 / 1024).toFixed(1)}MB</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-muted-foreground mb-2">Grid preview will display here</p>
+                  <p className="text-sm text-muted-foreground">Click "Create Grid" to generate labeled grid</p>
+                </div>
+              )}
+            </div>
           ) : (
-            <div className="text-center">
-              <p className="text-muted-foreground">
-                {selectedImage ? 'Click Generate to process the image' : 'Processed image will display here'}
-              </p>
+            <div>
+              {processedImage ? (
+                <img 
+                  src={processedImage} 
+                  alt="Processed" 
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <div className="text-center">
+                  <p className="text-muted-foreground">
+                    {selectedImage ? 'Click Generate to process the image' : 'Processed image will display here'}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DreamLayer - Grid Export UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-7xl mx-auto p-6">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">DreamLayer - Extras Tab</h1>
+            <p class="text-gray-600">Grid Export Feature Integration</p>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button class="text-gray-500 hover:text-gray-700 py-2 px-1 border-b-2 border-transparent">Upscale</button>
+                <button class="text-gray-500 hover:text-gray-700 py-2 px-1 border-b-2 border-transparent">Post-processing</button>
+                <button class="text-gray-500 hover:text-gray-700 py-2 px-1 border-b-2 border-transparent">Batch Process</button>
+                <button class="text-blue-600 py-2 px-1 border-b-2 border-blue-600 font-medium">Grid Export</button>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid gap-6 md:grid-cols-[2fr_1fr]">
+            <!-- Left Column - Controls -->
+            <div class="space-y-4">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-medium">Grid Export</h3>
+                    <div class="flex space-x-2">
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium">
+                            Create Grid
+                        </button>
+                        <button class="border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-md font-medium">
+                            Save Settings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent Images Section -->
+                <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-medium text-gray-900">1. Recent Images</h4>
+                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Active</span>
+                    </div>
+                    <div class="bg-gray-50 border border-gray-200 rounded-md p-4">
+                        <p class="text-gray-600 mb-2">Grid will be created from most recent generated images</p>
+                        <div class="text-sm text-gray-500 space-y-1">
+                            <p>• Images will be automatically selected based on creation time</p>
+                            <p>• Generation parameters will be extracted from logs</p>
+                            <p>• Grid layout will be optimized for the selected count</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid Options Section -->
+                <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-medium text-gray-900">2. Grid Options</h4>
+                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Active</span>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Number of Images:</label>
+                            <select class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+                                <option selected>4 Recent Images</option>
+                                <option>6 Recent Images</option>
+                                <option>8 Recent Images</option>
+                                <option>9 Recent Images</option>
+                                <option>12 Recent Images</option>
+                                <option>16 Recent Images</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Grid Layout:</label>
+                            <select class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+                                <option selected>2x2 Grid</option>
+                                <option>2x3 Grid</option>
+                                <option>3x3 Grid</option>
+                                <option>4x2 Grid</option>
+                                <option>4x3 Grid</option>
+                                <option>4x4 Grid</option>
+                                <option>Auto Layout</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <input type="checkbox" id="showLabels" class="mr-2" checked>
+                            <label for="showLabels" class="text-sm text-gray-700">Show Parameter Labels</label>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <input type="checkbox" id="showFilenames" class="mr-2">
+                            <label for="showFilenames" class="text-sm text-gray-700">Include Filenames</label>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Output Filename:</label>
+                            <input type="text" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="labeled_grid_export.png">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Settings Section -->
+                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-medium text-gray-900">3. Output Settings</h4>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Width (px)</label>
+                            <input type="number" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="1024">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Height (px)</label>
+                            <input type="number" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="1024">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Output Format:</label>
+                        <select class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+                            <option selected>PNG</option>
+                            <option>JPG</option>
+                            <option>WebP</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column - Preview -->
+            <div>
+                <div class="bg-white border border-gray-200 rounded-lg h-[500px] flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="mb-4">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <p class="text-gray-600 mb-2">Grid preview will display here</p>
+                        <p class="text-sm text-gray-500">Click "Create Grid" to generate labeled grid</p>
+                    </div>
+                </div>
+                
+                <!-- Status Panel -->
+                <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h5 class="font-medium text-green-800 mb-2">Grid Export Ready</h5>
+                    <div class="text-sm text-green-700 space-y-1">
+                        <p>✓ Backend grid exporter module loaded</p>
+                        <p>✓ Recent images available for processing</p>
+                        <p>✓ Parameter extraction from logs enabled</p>
+                        <p>✓ Output directory configured</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
