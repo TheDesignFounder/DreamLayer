@@ -27,10 +27,10 @@ export const useReportBundleStore = create<ReportBundleStore>((set, get) => ({
 
       const data = await response.json();
 
-      if (data.status === 'success') {
+      if (data.success === true) {
         set({ 
           generating: false,
-          downloadUrl: `${API_BASE_URL}/report-bundle/download`
+          downloadUrl: data.download_url
         });
       } else {
         set({ 
@@ -57,14 +57,31 @@ export const useReportBundleStore = create<ReportBundleStore>((set, get) => ({
       const response = await fetch(downloadUrl);
       if (response.ok) {
         const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        
+        // Ensure blob has correct MIME type
+        const zipBlob = new Blob([blob], { type: 'application/zip' });
+        
+        const url = window.URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'report.zip';
+        
+        // Extract filename from download URL or use default
+        const urlParts = downloadUrl.split('/');
+        const filename = urlParts[urlParts.length - 1] || 'dreamlayer_report.zip';
+        
+        // Ensure .zip extension
+        a.download = filename.endsWith('.zip') ? filename : filename + '.zip';
+        
+        // Force download on Mac Safari
+        a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        
+        // Clean up after a delay to ensure download starts
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }, 100);
       } else {
         set({ error: 'Failed to download report bundle' });
       }

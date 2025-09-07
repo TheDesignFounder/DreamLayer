@@ -1,367 +1,266 @@
+"""
+Report Bundle Generator with ClipScore Integration
+"""
+
 import os
 import csv
 import json
 import zipfile
-import shutil
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from dataclasses import asdict
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, make_response
 from flask_cors import CORS
-import requests
-from run_registry import RunRegistry, RunConfig
+
+# Import consolidated enhancement module
+try:
+    from dream_layer_backend_utils.run_enhancement import get_enhanced_runs
+    ENHANCEMENT_AVAILABLE = True
+except ImportError:
+    ENHANCEMENT_AVAILABLE = False
+
+# Import run registry
+try:
+    from run_registry import RunRegistry
+    REGISTRY_AVAILABLE = True
+except ImportError:
+    REGISTRY_AVAILABLE = False
 
 class ReportBundleGenerator:
-    """Generates report bundles with CSV, config, images, and README"""
+    """Report bundle generator reading exclusively from database"""
     
     def __init__(self, output_dir: str = "Dream_Layer_Resources/output"):
         self.output_dir = output_dir
-        self.registry = RunRegistry()
+        # Keep registry only for fallback, primary source is database
+        self.registry = RunRegistry() if REGISTRY_AVAILABLE else None
         
-    def generate_csv(self, runs: List[RunConfig]) -> str:
-        """Generate results.csv with required columns"""
-        csv_path = "temp_results.csv"
+    def get_enhanced_runs_data(self, limit: int = None, run_ids: List[str] = None) -> List[Dict[str, Any]]:
+        """Get runs data from database (not JSON registry)"""
+        try:
+            from dream_layer_backend_utils.unified_database_queries import get_all_runs_with_metrics
+            
+            # Primary: Read from database
+            enhanced_runs = get_all_runs_with_metrics()
+            
+            # Filter by run_ids if provided
+            if run_ids:
+                enhanced_runs = [run for run in enhanced_runs if run.get('run_id') in run_ids]
+            
+            if limit:
+                enhanced_runs = enhanced_runs[:limit]
+            
+            print(f"✅ Retrieved {len(enhanced_runs)} runs from database")
+            return enhanced_runs
+            
+        except Exception as e:
+            print(f"⚠️ Database read failed: {e}")
+            
+            # Fallback: Read from JSON registry only if database fails
+            if self.registry:
+                print("🔄 Falling back to JSON registry...")
+                runs = self.registry.get_all_runs()
+                if limit:
+                    runs = runs[:limit]
+                
+                fallback_runs = [asdict(run) for run in runs]
+                print(f"✅ Retrieved {len(fallback_runs)} runs from JSON fallback")
+                return fallback_runs
+            else:
+                print("❌ No fallback available")
+                return []
+    
+    def generate_csv(self, runs: List = None) -> str:
+        """Generate CSV with metrics data (ClipScore focused)"""
+        csv_path = "results.csv"
+        enhanced_runs = self.get_enhanced_runs_data(run_ids=runs)
         
-        # Define required CSV columns based on schema
-        required_columns = [
-            'run_id',
-            'timestamp', 
-            'model',
-            'vae',
-            'prompt',
-            'negative_prompt',
-            'seed',
-            'sampler',
-            'steps',
-            'cfg_scale',
-            'width',
-            'height',
-            'batch_size',
-            'batch_count',
-            'generation_type',
-            'image_paths',
-            'loras',
-            'controlnets',
-            'workflow_hash'
+        if not enhanced_runs:
+            # Create empty CSV
+            with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(['run_id', 'timestamp', 'model', 'prompt', 'clip_score_mean'])
+            return csv_path
+        
+        # Define CSV columns (metrics focused)
+        columns = [
+            'run_id', 'timestamp', 'model', 'prompt', 'negative_prompt',
+            'seed', 'steps', 'cfg_scale', 'width', 'height',
+            'image_count', 'filenames', 'clip_score_mean', 'fid_score', 'macro_precision', 'macro_recall', 'macro_f1'
         ]
         
+        # Write CSV
         with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=required_columns)
+            writer = csv.DictWriter(csvfile, fieldnames=columns)
             writer.writeheader()
             
-            for run in runs:
-                # Prepare loras and controlnets as JSON strings
-                loras_json = json.dumps(run.loras) if run.loras else "[]"
-                controlnets_json = json.dumps(run.controlnets) if run.controlnets else "[]"
+            for run in enhanced_runs:
+                csv_row = {}
+                for col in columns:
+                    if col == 'image_count':
+                        images = run.get('generated_images', [])
+                        csv_row[col] = len(images) if images else 0
+                    elif col == 'filenames':
+                        images = run.get('generated_images', [])
+                        csv_row[col] = '; '.join(images) if images else ''
+                    else:
+                        csv_row[col] = run.get(col, '')
                 
-                # Create workflow hash for identification
-                workflow_hash = str(hash(json.dumps(run.workflow, sort_keys=True)))
-                
-                # Join image paths
-                image_paths = ";".join(run.generated_images) if run.generated_images else ""
-                
-                row = {
-                    'run_id': run.run_id,
-                    'timestamp': run.timestamp,
-                    'model': run.model,
-                    'vae': run.vae or "",
-                    'prompt': run.prompt,
-                    'negative_prompt': run.negative_prompt,
-                    'seed': run.seed,
-                    'sampler': run.sampler,
-                    'steps': run.steps,
-                    'cfg_scale': run.cfg_scale,
-                    'width': run.width,
-                    'height': run.height,
-                    'batch_size': run.batch_size,
-                    'batch_count': run.batch_count,
-                    'generation_type': run.generation_type,
-                    'image_paths': image_paths,
-                    'loras': loras_json,
-                    'controlnets': controlnets_json,
-                    'workflow_hash': workflow_hash
-                }
-                writer.writerow(row)
+                writer.writerow(csv_row)
         
+        print(f"✅ Generated results.csv with {len(enhanced_runs)} runs")
         return csv_path
     
-    def validate_csv_schema(self, csv_path: str) -> bool:
-        """Validate that CSV has all required columns"""
-        try:
-            with open(csv_path, 'r', encoding='utf-8') as csvfile:
-                reader = csv.DictReader(csvfile)
-                fieldnames = reader.fieldnames
-                
-                required_columns = [
-                    'run_id', 'timestamp', 'model', 'vae', 'prompt', 
-                    'negative_prompt', 'seed', 'sampler', 'steps', 'cfg_scale',
-                    'width', 'height', 'batch_size', 'batch_count', 
-                    'generation_type', 'image_paths', 'loras', 'controlnets', 'workflow_hash'
-                ]
-                
-                missing_columns = [col for col in required_columns if col not in fieldnames]
-                if missing_columns:
-                    print(f"❌ Missing required columns: {missing_columns}")
-                    return False
-                
-                print(f"✅ CSV schema validation passed")
-                return True
-                
-        except Exception as e:
-            print(f"❌ CSV schema validation failed: {e}")
-            return False
-    
-    def copy_images_to_bundle(self, runs: List[RunConfig], bundle_dir: str) -> List[str]:
-        """Copy selected grid images to bundle directory"""
-        copied_images = []
+    def generate_config_json(self, runs: List = None) -> str:
+        """Generate config JSON with runs data"""
+        config_path = "config.json"
+        enhanced_runs = self.get_enhanced_runs_data(run_ids=runs)
         
-        for run in runs:
-            for image_filename in run.generated_images:
-                if image_filename:
-                    # Source path in output directory
-                    src_path = os.path.join(self.output_dir, image_filename)
-                    
-                    if os.path.exists(src_path):
-                        # Destination in bundle
-                        dest_path = os.path.join(bundle_dir, "images", image_filename)
-                        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                        
-                        try:
-                            shutil.copy2(src_path, dest_path)
-                            copied_images.append(image_filename)
-                            print(f"✅ Copied image: {image_filename}")
-                        except Exception as e:
-                            print(f"❌ Failed to copy {image_filename}: {e}")
-                    else:
-                        print(f"⚠️ Image not found: {src_path}")
-        
-        return copied_images
-    
-    def create_config_json(self, runs: List[RunConfig]) -> str:
-        """Create config.json with run configurations"""
+        # Create runs config (full run data)
         config_data = {
-            "report_metadata": {
-                "generated_at": datetime.now().isoformat(),
-                "total_runs": len(runs),
-                "generation_types": list(set(run.generation_type for run in runs)),
-                "models_used": list(set(run.model for run in runs))
-            },
-            "runs": [asdict(run) for run in runs]
+            "runs": [],
+            "metadata": {
+                "export_timestamp": datetime.now().isoformat(),
+                "total_runs": len(enhanced_runs),
+                "runs_with_clipscore": len([r for r in enhanced_runs if r.get('clip_score_mean') is not None])
+            }
         }
         
-        config_path = "temp_config.json"
+        for run in enhanced_runs:
+            run_config = {
+                key: run.get(key) for key in [
+                    'run_id', 'timestamp', 'model', 'vae', 'prompt', 'negative_prompt',
+                    'seed', 'sampler', 'steps', 'cfg_scale', 'width', 'height',
+                    'batch_size', 'batch_count', 'generation_type', 'loras', 'controlnets',
+                    'generated_images', 'workflow', 'version'
+                ]
+            }
+            config_data["runs"].append(run_config)
+        
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
         
+        print(f"✅ Generated config.json with {len(enhanced_runs)} runs")
         return config_path
     
-    def create_readme(self, runs: List[RunConfig], copied_images: List[str]) -> str:
-        """Create README.md for the report bundle"""
-        readme_content = f"""# Dream Layer Report Bundle
-
-Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-## Overview
-This report bundle contains {len(runs)} completed image generation runs with their configurations and results.
-
-## Contents
-- `results.csv` - Tabular data of all runs with metadata
-- `config.json` - Detailed configuration data for each run
-- `images/` - Generated images from all runs
-- `README.md` - This file
-
-## Statistics
-- Total runs: {len(runs)}
-- Generation types: {', '.join(set(run.generation_type for run in runs))}
-- Models used: {', '.join(set(run.model for run in runs))}
-- Images included: {len(copied_images)}
-
-## CSV Schema
-The results.csv file contains the following columns:
-- run_id: Unique identifier for each run
-- timestamp: When the run was executed
-- model: Model used for generation
-- vae: VAE model (if any)
-- prompt: Positive prompt
-- negative_prompt: Negative prompt
-- seed: Random seed used
-- sampler: Sampling method
-- steps: Number of sampling steps
-- cfg_scale: CFG scale value
-- width/height: Image dimensions
-- batch_size/batch_count: Batch settings
-- generation_type: txt2img or img2img
-- image_paths: Semicolon-separated list of generated image filenames
-- loras: JSON array of LoRA configurations
-- controlnets: JSON array of ControlNet configurations
-- workflow_hash: Hash of the workflow configuration
-
-## File Paths
-All image paths in the CSV resolve to files present in this zip bundle.
-"""
+    def generate_bundle(self, limit: int = None, include_images: bool = True, run_ids: List[str] = None) -> str:
+        """Generate complete report bundle"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        bundle_name = f"dreamlayer_report_{timestamp}"
         
-        readme_path = "temp_README.md"
-        with open(readme_path, 'w', encoding='utf-8') as f:
-            f.write(readme_content)
-        
-        return readme_path
-    
-    def create_report_bundle(self, run_ids: Optional[List[str]] = None) -> str:
-        """Create a complete report bundle"""
-        
-        # Get runs to include
-        if run_ids:
-            runs = [self.registry.get_run(run_id) for run_id in run_ids if self.registry.get_run(run_id)]
-        else:
-            runs = self.registry.get_all_runs()
-        
-        if not runs:
-            raise ValueError("No runs found to include in report")
-        
-        print(f"📊 Creating report bundle with {len(runs)} runs")
-        
-        # Create temporary directory for bundle
-        bundle_dir = f"temp_report_bundle_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        os.makedirs(bundle_dir, exist_ok=True)
-        
+        # Ensure all metrics are calculated before generating report
         try:
-            # Generate CSV
-            print("📝 Generating results.csv...")
-            csv_path = self.generate_csv(runs)
+            from database_integration import ensure_clip_scores_calculated, ensure_fid_scores_calculated, ensure_composition_metrics_calculated
             
-            # Validate CSV schema
-            if not self.validate_csv_schema(csv_path):
-                raise ValueError("CSV schema validation failed")
-            
-            # Copy CSV to bundle
-            shutil.copy2(csv_path, os.path.join(bundle_dir, "results.csv"))
-            
-            # Create config.json
-            print("⚙️ Creating config.json...")
-            config_path = self.create_config_json(runs)
-            shutil.copy2(config_path, os.path.join(bundle_dir, "config.json"))
-            
-            # Copy images
-            print("🖼️ Copying images...")
-            copied_images = self.copy_images_to_bundle(runs, bundle_dir)
-            
-            # Create README
-            print("📖 Creating README.md...")
-            readme_path = self.create_readme(runs, copied_images)
-            shutil.copy2(readme_path, os.path.join(bundle_dir, "README.md"))
-            
-            # Create zip file
-            print("📦 Creating report.zip...")
-            zip_path = "report.zip"
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for root, dirs, files in os.walk(bundle_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        arcname = os.path.relpath(file_path, bundle_dir)
-                        zipf.write(file_path, arcname)
-            
-            # Cleanup temp files
-            for temp_file in [csv_path, config_path, readme_path]:
-                if os.path.exists(temp_file):
-                    os.remove(temp_file)
-            
-            # Cleanup temp directory
-            shutil.rmtree(bundle_dir)
-            
-            print(f"✅ Report bundle created: {zip_path}")
-            return zip_path
-            
+            print("🔄 Calculating missing metrics for report...")
+            ensure_clip_scores_calculated()
+            ensure_fid_scores_calculated()
+            ensure_composition_metrics_calculated()
+            print("✅ Metrics calculation complete")
         except Exception as e:
-            # Cleanup on error
-            if os.path.exists(bundle_dir):
-                shutil.rmtree(bundle_dir)
-            raise e
+            print(f"⚠️ Metrics calculation error: {e}")
+        
+        # Generate files
+        csv_path = self.generate_csv(run_ids)
+        config_path = self.generate_config_json(run_ids)
+        
+        # Create ZIP bundle with Mac compatibility
+        zip_path = f"{bundle_name}.zip"
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
+            zipf.write(csv_path, "results.csv")
+            zipf.write(config_path, "config.json")
+            
+            if include_images:
+                self.add_images_to_zip(zipf, run_ids)
+        
+        # Cleanup temp files
+        for temp_file in [csv_path, config_path]:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+        
+        print(f"✅ Generated bundle: {zip_path}")
+        return zip_path
+    
+    def add_images_to_zip(self, zipf: zipfile.ZipFile, run_ids: List[str] = None):
+        """Add image files to ZIP bundle"""
+        enhanced_runs = self.get_enhanced_runs_data(run_ids=run_ids)
+        added_images = set()
+        
+        for run in enhanced_runs:
+            for filename in run.get('generated_images', []):
+                full_path = os.path.join(self.output_dir, filename)
+                if os.path.exists(full_path) and filename not in added_images:
+                    zipf.write(full_path, f"images/{filename}")
+                    added_images.add(filename)
 
-# Flask app for report bundle API
+# Flask API
 app = Flask(__name__)
-CORS(app, resources={
-    r"/*": {
-        "origins": ["http://localhost:*", "http://127.0.0.1:*"],
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
-    }
-})
-
-generator = ReportBundleGenerator()
+CORS(app)
 
 @app.route('/api/report-bundle', methods=['POST'])
-def create_report_bundle():
-    """Create a report bundle with selected runs"""
+def generate_report_bundle_api():
+    """Generate report bundle"""
     try:
-        data = request.json or {}
-        run_ids = data.get('run_ids', [])  # Empty list means all runs
+        data = request.get_json() or {}
+        run_ids = data.get('run_ids', [])
+        include_images = data.get('include_images', True)
         
-        zip_path = generator.create_report_bundle(run_ids)
+        generator = ReportBundleGenerator()
+        bundle_path = generator.generate_bundle(include_images=include_images, run_ids=run_ids)
         
         return jsonify({
-            "status": "success",
-            "message": "Report bundle created successfully",
-            "file_path": zip_path
+            'success': True,
+            'download_url': f'http://localhost:5006/api/report-bundle/download/{os.path.basename(bundle_path)}',
+            'bundle_path': bundle_path,
+            'enhancement_available': ENHANCEMENT_AVAILABLE
         })
         
     except Exception as e:
         return jsonify({
-            "status": "error",
-            "message": str(e)
+            'success': False,
+            'error': str(e)
         }), 500
 
-@app.route('/api/report-bundle/download', methods=['GET'])
-def download_report_bundle():
-    """Download the generated report.zip file"""
+@app.route('/api/report-bundle/download/<filename>', methods=['GET'])
+def download_report_bundle(filename):
+    """Download report bundle with Mac compatibility"""
     try:
-        zip_path = "report.zip"
-        if not os.path.exists(zip_path):
-            return jsonify({
-                "status": "error",
-                "message": "Report bundle not found. Please generate one first."
-            }), 404
+        if not filename.endswith('.zip'):
+            return jsonify({'error': 'Invalid file type'}), 400
         
-        return send_file(
-            zip_path,
-            as_attachment=True,
-            download_name="report.zip",
-            mimetype="application/zip"
-        )
+        file_path = os.path.join('.', filename)
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Read file and create response with explicit headers for Mac
+        with open(file_path, 'rb') as f:
+            file_data = f.read()
+        
+        response = make_response(file_data)
+        response.headers['Content-Type'] = 'application/zip'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Length'] = len(file_data)
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+        return response
         
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/report-bundle/validate', methods=['POST'])
-def validate_report_bundle():
-    """Validate a report bundle schema"""
-    try:
-        data = request.json or {}
-        csv_content = data.get('csv_content', '')
-        
-        # Write CSV content to temp file for validation
-        temp_csv = "temp_validation.csv"
-        with open(temp_csv, 'w', encoding='utf-8') as f:
-            f.write(csv_content)
-        
-        is_valid = generator.validate_csv_schema(temp_csv)
-        
-        # Cleanup
-        if os.path.exists(temp_csv):
-            os.remove(temp_csv)
-        
-        return jsonify({
-            "status": "success",
-            "valid": is_valid
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+@app.route('/api/report-status', methods=['GET'])
+def report_status_api():
+    """Report system status"""
+    return jsonify({
+        'success': True,
+        'status': {
+            'enhancement_available': ENHANCEMENT_AVAILABLE,
+            'registry_available': REGISTRY_AVAILABLE,
+            'data_source': 'enhanced' if ENHANCEMENT_AVAILABLE else 'basic'
+        }
+    })
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5006, debug=True) 
+if __name__ == "__main__":
+    print("🚀 Starting Report Bundle Generator")
+    print(f"📊 Enhancement available: {ENHANCEMENT_AVAILABLE}")
+    app.run(host='0.0.0.0', port=5006, debug=True)

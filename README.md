@@ -225,3 +225,73 @@ All trademarks and closed-source models referenced belong to their respective ow
 ---
 
 <p align="center">### Made with ❤️ by builders, for builders • See you in July 2025!</p>
+
+---
+
+## 🧪 Testing
+
+DreamLayer AI includes a comprehensive test suite covering all functionality including ClipScore integration, database operations, and API endpoints.
+
+### Quick Start Testing
+
+```bash
+# Install test dependencies
+pip install -r tests/requirements.txt
+
+# Run all tests
+python tests/run_all_tests.py
+
+# Run specific test categories
+python tests/run_all_tests.py unit          # Unit tests only
+python tests/run_all_tests.py integration  # Integration tests only
+python tests/run_all_tests.py api          # API endpoint tests
+python tests/run_all_tests.py clipscore    # ClipScore functionality tests
+
+# Run with verbose output
+python tests/run_all_tests.py all -v
+```
+
+### Test Categories
+
+| Test File | Coverage | Description |
+|-----------|----------|-------------|
+| `test_txt2img_server.py` | Text-to-Image API | Tests txt2img generation and database integration |
+| `test_img2img_server.py` | Image-to-Image API | Tests img2img generation and database integration |
+| `test_run_registry.py` | Run Registry API | Tests database-first API with ClipScore retrieval |
+| `test_report_bundle.py` | Report Generation | Tests Mac-compatible report bundle creation |
+| `test_clip_score.py` | ClipScore Integration | Tests CLIP model calculation and database storage |
+| `test_database_integration.py` | Database Operations | Tests 3-table schema and database operations |
+
+### Test Features
+
+- ✅ **Unit Tests** - Individual component testing
+- ✅ **Integration Tests** - End-to-end workflow testing  
+- ✅ **API Tests** - HTTP endpoint testing with Flask test client
+- ✅ **Database Tests** - SQLite operations with temporary test databases
+- ✅ **Mock Testing** - External dependency mocking (ComfyUI, CLIP model)
+- ✅ **Error Handling** - Edge cases and error condition testing
+- ✅ **Mac Compatibility** - ZIP file generation testing
+
+### Running Individual Tests
+
+```bash
+# Run specific test file
+python -m pytest tests/test_clip_score.py -v
+
+# Run specific test method
+python -m pytest tests/test_clip_score.py::TestClipScore::test_clip_score_calculation_with_mock -v
+
+# Run with coverage report
+python -m pytest tests/ --cov=dream_layer_backend --cov-report=html
+```
+
+### Test Requirements
+
+The test suite requires these additional dependencies:
+- `pytest` - Test framework
+- `pytest-cov` - Coverage reporting
+- `pytest-mock` - Mocking utilities
+- `requests-mock` - HTTP request mocking
+
+Install with: `pip install -r tests/requirements.txt`
+

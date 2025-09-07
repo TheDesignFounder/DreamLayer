@@ -154,6 +154,12 @@ start "Report Bundle Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >n
 echo %BLUE%[STEP 7/8]%NC% Starting img2txt_server.py...
 start "Img2Txt Server" /D "%CD%\dream_layer_backend" cmd /c "chcp 65001 >nul && set PYTHONIOENCODING=utf-8 && python img2txt_server.py > ..\logs\img2txt_server.log 2>&1"
 
+:: Start localtunnel for external API access
+where lt >nul 2>&1
+if %errorlevel% equ 0 (
+    start "LocalTunnel" cmd /c "lt --port 5002 > logs\tunnel.log 2>&1"
+)
+
 :: Wait for all backend services to start
 echo %YELLOW%[INFO]%NC% Waiting for all backend services to initialize...
 timeout /t 10 /nobreak >nul

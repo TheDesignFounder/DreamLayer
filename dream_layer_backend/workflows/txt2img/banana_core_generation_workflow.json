@@ -1,0 +1,42 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "ComfyUI_NanoBanana",
+      "inputs": {
+        "prompt": "beautiful",
+        "operation": "generate",
+        "batch_count": 1,
+        "temperature": 0.7,
+        "aspect_ratio": "1:1",
+        "quality": "high"
+      }
+    },
+    "2": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["1", 0],
+        "filename_prefix": "DreamLayer_Banana"
+      }
+    }
+  },
+  "meta": {
+    "description": "Banana (Gemini 2.5 Flash Image) Core Generation Workflow",
+    "model_options": {
+      "banana": "BananaImageNode"
+    },
+    "core_settings": {
+      "prompt": "Main generation prompt",
+      "operation": "Type of image operation",
+      "batch_count": "Number of images to generate",
+      "temperature": "Creativity level",
+      "aspect_ratio": "Output image aspect ratio",
+      "quality": "Image generation quality"
+    },
+    "aspect_ratios": [
+      "1:1", "16:9", "9:16", "4:3", "3:4"
+    ],
+    "operations": [
+      "generate", "edit", "style_transfer", "object_insertion"
+    ]
+  }
+}

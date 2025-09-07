@@ -1,27 +1,34 @@
-torch
-torchvision
-torchaudio
-numpy>=1.25.0
-einops
+# PyTorch - use any available version
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+# Core dependencies
+numpy>=1.25.0,<2.0.0
+einops>=0.6.0
 transformers>=4.28.1
 tokenizers>=0.13.3
 safetensors>=0.4.2
 aiohttp>=3.11.8
 yarl>=1.18.0
-pyyaml
-Pillow
-scipy
-tqdm
-psutil
-torchsde
+pyyaml>=6.0
+Pillow>=10.0.0
+scipy>=1.10.0
+tqdm>=4.64.0
+psutil>=5.9.0
+torchsde>=0.2.5
 comfyui-frontend-package
-opencv-python
+opencv-python>=4.8.0
+requests>=2.31.0
 
-#non essential dependencies:
+# Non-essential dependencies
 kornia>=0.7.1
-spandrel
-soundfile
+spandrel>=0.2.0
+soundfile>=0.12.1
 av>=14.2.0
 pydantic~=2.0
 comfyui-workflow-templates
 comfyui-embedded-docs
+
+# Missing essential dependencies for custom nodes
+lpips>=0.1.4
+google-generativeai>=0.8.0

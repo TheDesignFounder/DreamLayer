@@ -8,7 +8,6 @@ from typing import List, Dict, Any
 from pathlib import Path
 from dream_layer import get_directories
 from dream_layer_backend_utils.update_custom_workflow import find_save_node
-from dream_layer_backend_utils.shared_workflow_parameters import increment_seed_in_workflow
 
 # Global constants
 COMFY_API_URL = "http://127.0.0.1:8188"
@@ -183,18 +182,14 @@ def send_to_comfyui(workflow: Dict[str, Any]) -> Dict[str, Any]:
         last_response_data = None
         
         for i in range(iterations):
-            # Increment seed for variation
-
-            current_workflow = increment_seed_in_workflow(copy.deepcopy(workflow), i) if i > 0 else workflow
-            
             # Send to ComfyUI
-            response = requests.post(f"{COMFY_API_URL}/prompt", json=current_workflow)
+            response = requests.post(f"{COMFY_API_URL}/prompt", json=workflow)
             
             if response.status_code == 200:
                 response_data = response.json()
                 last_response_data = response_data
                 if "prompt_id" in response_data:
-                    save_node_id = find_save_node(current_workflow) or "9"
+                    save_node_id = find_save_node(workflow) or "9"
                     print(f"🔍 Found save node ID: {save_node_id}")
                     images = wait_for_image(response_data["prompt_id"], save_node_id)
                     if images:

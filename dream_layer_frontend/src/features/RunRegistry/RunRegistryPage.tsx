@@ -117,7 +117,7 @@ const RunRegistryPage: React.FC = () => {
                       {run.run_id.slice(0, 8)}...
                     </Badge>
                     <Badge className={getGenerationTypeColor(run.generation_type)}>
-                      {run.generation_type.toUpperCase()}
+                      {(run.generation_type || '').toUpperCase()}
                     </Badge>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -164,18 +164,18 @@ const RunRegistryPage: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <ImageIcon className="h-4 w-4" />
-                      <span>{run.generated_images.length} image(s)</span>
+                      <span>{run.generated_images?.length || 0} image(s)</span>
                     </div>
                   </div>
 
-                  {(run.loras.length > 0 || run.controlnets.length > 0) && (
+                  {((run.loras?.length || 0) > 0 || (run.controlnets?.length || 0) > 0) && (
                     <div className="flex flex-wrap gap-2">
-                      {run.loras.map((lora, index) => (
+                      {run.loras?.map((lora, index) => (
                         <Badge key={`lora-${index}`} variant="secondary" className="text-xs">
                           LoRA: {lora.name}
                         </Badge>
                       ))}
-                      {run.controlnets.map((controlnet, index) => (
+                      {run.controlnets?.map((controlnet, index) => (
                         <Badge key={`controlnet-${index}`} variant="secondary" className="text-xs">
                           ControlNet: {controlnet.model}
                         </Badge>

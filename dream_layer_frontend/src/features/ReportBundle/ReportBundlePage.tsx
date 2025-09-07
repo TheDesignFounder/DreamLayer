@@ -182,7 +182,7 @@ const ReportBundlePage: React.FC = () => {
                           {run.run_id.slice(0, 8)}...
                         </Badge>
                         <Badge className={getGenerationTypeColor(run.generation_type)}>
-                          {run.generation_type.toUpperCase()}
+                          {(run.generation_type || '').toUpperCase()}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
                           {formatTimestamp(run.timestamp)}
@@ -194,7 +194,22 @@ const ReportBundlePage: React.FC = () => {
                         <span>Seed: {run.seed}</span>
                         <span>Steps: {run.steps}</span>
                         <span>CFG: {run.cfg_scale}</span>
-                        <span>Images: {run.generated_images.length}</span>
+                        <span>Images: {run.generated_images?.length || 0}</span>
+                        {run.clip_score_mean !== null && (
+                          <span>ClipScore: {run.clip_score_mean?.toFixed(3) || "N/A"}</span>
+                        )}
+                        {run.fid_score !== null && (
+                          <span>FID: {run.fid_score?.toFixed(3) || "N/A"}</span>
+                        )}
+                        {run.macro_precision !== undefined && (
+                          <span>Precision: {run.macro_precision?.toFixed(3) ?? "N/A"}</span>
+                        )}
+                        {run.macro_recall !== undefined && (
+                          <span>Recall: {run.macro_recall?.toFixed(3) ?? "N/A"}</span>
+                        )}
+                        {run.macro_f1 !== undefined && (
+                          <span>F1: {run.macro_f1?.toFixed(3) ?? "N/A"}</span>
+                        )}
                       </div>
                     </div>
                   </div>

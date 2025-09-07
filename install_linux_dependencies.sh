@@ -182,6 +182,11 @@ install_nodejs() {
     fi
 
     print_success "Installed Node.js: $(node -v), npm: $(npm -v)"
+    
+    # Install localtunnel for Luma API image access
+    print_step "Installing localtunnel for external API access..."
+    npm install -g localtunnel
+    print_success "localtunnel installed successfully"
 }
 
 # Function to install system dependencies
@@ -266,6 +271,7 @@ install_python_dependencies() {
     # Install backend dependencies
     if [ -f "dream_layer_backend/requirements.txt" ]; then
         print_step "Installing Dream Layer backend dependencies..."
+        pip install --upgrade pip setuptools wheel
         python3 -m pip install -r dream_layer_backend/requirements.txt
         print_success "Backend dependencies installed"
     else
@@ -276,10 +282,6 @@ install_python_dependencies() {
     if [ -f "ComfyUI/requirements.txt" ]; then
         print_step "Installing ComfyUI dependencies..."
         python3 -m pip install -r ComfyUI/requirements.txt
-        
-        # Install missing dependency for custom nodes
-        pip install lpips
-        
         print_success "ComfyUI dependencies installed"
     else
         print_warning "ComfyUI/requirements.txt not found"

@@ -4,7 +4,7 @@ import threading
 import time
 import platform
 from typing import Optional, Tuple
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import requests
 import json
@@ -39,6 +39,14 @@ API_KEY_TO_MODELS = {
     "GEMINI_API_KEY": [
         {"id": "gemini-pro-vision", "name": "Gemini Pro Vision", "filename": "gemini-pro-vision"},
         {"id": "gemini-pro", "name": "Gemini Pro", "filename": "gemini-pro"},
+        {"id": "banana-gemini", "name": "Banana (Gemini 2.5 Flash Image)", "filename": "banana-gemini"},
+    ],
+    "LUMA_API_KEY": [
+        {"id": "luma-photon", "name": "Luma Photon", "filename": "luma-photon"},
+        {"id": "luma-photon-flash", "name": "Luma Photon Flash", "filename": "luma-photon-flash"},
+    ],
+    "RUNWAY_API_KEY": [
+        {"id": "runway-gen4", "name": "RunWay Gen-4", "filename": "runway-gen4"},
     ]
 }
 

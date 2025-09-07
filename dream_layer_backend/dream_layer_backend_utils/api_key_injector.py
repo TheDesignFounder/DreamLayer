@@ -34,6 +34,7 @@ NODE_TO_API_KEY_MAPPING = {
     "IdeogramV1": "IDEOGRAM_API_KEY",
     "IdeogramV2": "IDEOGRAM_API_KEY",
     "IdeogramV3": "IDEOGRAM_API_KEY",
+    
     # Stability AI Nodes - Use direct API key
     "StabilityStableImageUltraNode": "STABILITY_API_KEY",
     "StabilityStableImageSD_3_5Node": "STABILITY_API_KEY",
@@ -44,6 +45,16 @@ NODE_TO_API_KEY_MAPPING = {
     # Gemini Nodes
     "GeminiNode": "GEMINI_API_KEY",
     "GeminiInputFiles": "GEMINI_API_KEY",
+    "ComfyUI_NanoBanana": "GEMINI_API_KEY",
+    
+    # Luma Image Node (direct API)
+    "LumaImageNode": "LUMA_API_KEY",
+    
+    # Existing ComfyUI Luma Nodes (use ComfyUI proxy)
+    "LumaImageGenerationNode": "LUMA_API_KEY",
+    "LumaImageModifyNode": "LUMA_API_KEY",
+    "LumaTextToVideoGenerationNode": "LUMA_API_KEY",
+    "LumaImageToVideoGenerationNode": "LUMA_API_KEY",
 }
 
 # Mapping of environment variable names to ComfyUI extra_data keys
@@ -55,6 +66,8 @@ ENV_KEY_TO_EXTRA_DATA_MAPPING = {
     "COMFY_API_KEY": "api_key_comfy_org",
     "COMFY_AUTH_TOKEN": "auth_token_comfy_org",
     "GEMINI_API_KEY": "api_key_comfy_org",
+    "LUMA_API_KEY": "luma_api_key",  # Direct API key for Luma
+    "RUNWAY_API_KEY": "api_key_comfy_org",
     # Future additions:
     # "ANTHROPIC_API_KEY": "api_key_anthropic",
 }
@@ -96,18 +109,20 @@ def read_api_keys_from_env() -> Dict[str, str]:
     return api_keys
 
 
-def inject_api_keys_into_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
+def inject_api_keys_into_workflow(workflow: Dict[str, Any], all_api_keys: Dict[str, str] = None) -> Dict[str, Any]:
     """
     Inject API keys from environment variables into workflow extra_data based on nodes present.
 
     Args:
         workflow: The workflow dictionary to inject keys into
+        all_api_keys: Optional dictionary of API keys. If None, reads from environment.
 
     Returns:
         Workflow with appropriate API keys added to extra_data
     """
-    # Read all available API keys from environment
-    all_api_keys = read_api_keys_from_env()
+    # Use passed API keys or read from environment if not provided
+    if all_api_keys is None:
+        all_api_keys = read_api_keys_from_env()
 
     # Create a copy to avoid modifying the original
     workflow_with_keys = workflow.copy()
@@ -138,7 +153,7 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
     print(f"[DEBUG] all_api_keys keys: {all_api_keys.keys()}")
     if needed_env_keys:
         # If we have multiple keys that map to api_key_comfy_org, choose one
-        # Priority: BFL_API_KEY first, then OPENAI_API_KEY, then IDEOGRAM_API_KEY
+        # Priority: BFL_API_KEY first, then OPENAI_API_KEY, then IDEOGRAM_API_KEY, then GEMINI_API_KEY
         if "BFL_API_KEY" in needed_env_keys and "BFL_API_KEY" in all_api_keys:
             api_key_comfy_org = all_api_keys["BFL_API_KEY"]
             print(f"[DEBUG] Using BFL_API_KEY for api_key_comfy_org")
@@ -148,6 +163,9 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
         elif "IDEOGRAM_API_KEY" in needed_env_keys and "IDEOGRAM_API_KEY" in all_api_keys:
             api_key_comfy_org = all_api_keys["IDEOGRAM_API_KEY"]
             print(f"[DEBUG] Using IDEOGRAM_API_KEY for api_key_comfy_org")
+        elif "GEMINI_API_KEY" in needed_env_keys and "GEMINI_API_KEY" in all_api_keys:
+            api_key_comfy_org = all_api_keys["GEMINI_API_KEY"]
+            print(f"[DEBUG] Using GEMINI_API_KEY for api_key_comfy_org")
         else:
             print(
                 f"[DEBUG] No available API keys for needed services: {needed_env_keys}")
@@ -175,6 +193,27 @@ def inject_api_keys_into_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
 
     if not has_stability_nodes:
         print("[DEBUG] No Stability AI nodes found in workflow")
+
+    # Special handling for Luma nodes - inject luma_api_key as hidden input
+    has_luma_nodes = False
+    for node_id, node_data in workflow.get("prompt", {}).items():
+        class_type = node_data.get("class_type", "")
+        if class_type.startswith("Luma"):
+            has_luma_nodes = True
+            # For Luma nodes, inject the luma API key as hidden input
+            if "LUMA_API_KEY" in all_api_keys:
+                luma_key = all_api_keys["LUMA_API_KEY"]
+                # Ensure inputs section exists
+                if "inputs" not in workflow_with_keys["prompt"][node_id]:
+                    workflow_with_keys["prompt"][node_id]["inputs"] = {}
+                # Add luma_api_key as hidden input
+                workflow_with_keys["prompt"][node_id]["inputs"]["luma_api_key"] = luma_key
+                print(f"[DEBUG] Injected luma_api_key as hidden input for {class_type}")
+            else:
+                print(f"[DEBUG] LUMA_API_KEY not found for {class_type}")
+
+    if not has_luma_nodes:
+        print("[DEBUG] No Luma nodes found in workflow")
 
     print(f"[DEBUG] Final extra_data: {workflow_with_keys['extra_data']}")
 

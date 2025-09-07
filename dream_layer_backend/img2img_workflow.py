@@ -3,7 +3,7 @@ from dream_layer_backend_utils.update_custom_workflow import update_custom_workf
 from dream_layer_backend_utils.update_custom_workflow import update_image_paths_in_workflow
 from dream_layer_backend_utils.update_custom_workflow import validate_custom_workflow
 from dream_layer_backend_utils.img2img_controlnet_processor import process_controlnet_images, inject_controlnet_into_workflow, validate_controlnet_config
-from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow
+from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow, read_api_keys_from_env
 from dream_layer_backend_utils.workflow_loader import load_workflow
 from dream_layer_backend_utils.shared_workflow_parameters import (
     inject_face_restoration_parameters,
@@ -184,7 +184,8 @@ def transform_to_img2img_workflow(data):
             "No ControlNet data provided - skipping ControlNet injection")
 
     # Inject API keys from environment variables into the workflow
-    workflow = inject_api_keys_into_workflow(workflow)
+    all_api_keys = read_api_keys_from_env()
+    workflow = inject_api_keys_into_workflow(workflow, all_api_keys)
 
     # Extract advanced option data (mirroring txt2img)
     face_restoration_data = {
@@ -257,7 +258,11 @@ def get_img2img_workflow_template(model_name, use_controlnet=False, use_lora=Fal
     # Check for Stability AI models
     elif "stability" in model_name_lower:
         return "workflows/img2img/stability_core_generation_workflow.json"
-
+    
+    # Check for Luma models
+    elif "photon" in model_name_lower:
+        return "workflows/img2img/luma_core_generation_workflow.json"
+    
     # For all other models (SD1.5, SDXL, etc.), use the appropriate workflow based on features
     else:
         if use_controlnet and use_lora:

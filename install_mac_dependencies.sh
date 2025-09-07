@@ -85,35 +85,35 @@ install_homebrew() {
 
 # Function to install Python
 install_python() {
-    if command_exists python3; then
-        local python_version=$(python3 --version | cut -d' ' -f2)
-        print_status "Python is already installed: $python_version"
-        
-        # Check if version is 3.8 or newer
-        local major=$(echo "$python_version" | cut -d. -f1)
-        local minor=$(echo "$python_version" | cut -d. -f2)
-        
-        if [ "$major" -eq 3 ] && [ "$minor" -ge 8 ]; then
-            print_success "Python version is compatible (3.8+)"
-        else
-            print_warning "Python 3.8+ is recommended. Installing latest Python..."
-            brew install python@3.11
-        fi
+    # Always install Python 3.11 for ML/PyTorch compatibility
+    print_step "Installing Python 3.11 for ML/PyTorch compatibility..."
+    
+    if brew list python@3.11 &>/dev/null; then
+        print_success "Python 3.11 is already installed via Homebrew"
     else
-        print_step "Installing Python..."
         brew install python@3.11
-        print_success "Python installed successfully"
+        print_success "Python 3.11 installed successfully"
     fi
     
-    # Ensure pip is available
-    if ! command_exists pip3; then
-        print_step "Installing pip..."
-        python3 -m ensurepip --upgrade
+    # Create aliases for python3.11
+    if [ -f "/opt/homebrew/bin/python3.11" ]; then
+        # Apple Silicon Mac
+        PYTHON_PATH="/opt/homebrew/bin/python3.11"
+        PIP_PATH="/opt/homebrew/bin/pip3.11"
+    elif [ -f "/usr/local/bin/python3.11" ]; then
+        # Intel Mac
+        PYTHON_PATH="/usr/local/bin/python3.11"
+        PIP_PATH="/usr/local/bin/pip3.11"
+    else
+        print_error "Could not find Python 3.11 installation"
+        return 1
     fi
     
-    # Upgrade pip
-    print_step "Upgrading pip..."
-    python3 -m pip install --upgrade pip
+    print_status "Using Python 3.11: $PYTHON_PATH"
+    
+    # Upgrade pip for Python 3.11
+    print_step "Upgrading pip for Python 3.11..."
+    $PYTHON_PATH -m pip install --user --upgrade pip --break-system-packages || echo "Warning: Could not upgrade pip, continuing with existing version"
 }
 
 # Function to install Node.js
@@ -141,6 +141,11 @@ install_nodejs() {
         print_step "Updating npm..."
         npm install -g npm@latest
     fi
+    
+    # Install localtunnel for Luma API image access
+    print_step "Installing localtunnel for external API access..."
+    npm install -g localtunnel
+    print_success "localtunnel installed successfully"
 }
 
 # Function to install system dependencies
@@ -184,7 +189,8 @@ install_python_dependencies() {
     # Install backend dependencies
     if [ -f "dream_layer_backend/requirements.txt" ]; then
         print_step "Installing Dream Layer backend dependencies..."
-        python3 -m pip install -r dream_layer_backend/requirements.txt
+        $PYTHON_PATH -m pip install --user --upgrade pip setuptools wheel --break-system-packages
+        $PYTHON_PATH -m pip install --user -r dream_layer_backend/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu --break-system-packages
         print_success "Backend dependencies installed"
     else
         print_warning "dream_layer_backend/requirements.txt not found"
@@ -193,7 +199,7 @@ install_python_dependencies() {
     # Install ComfyUI dependencies
     if [ -f "ComfyUI/requirements.txt" ]; then
         print_step "Installing ComfyUI dependencies..."
-        python3 -m pip install -r ComfyUI/requirements.txt
+        $PYTHON_PATH -m pip install --user -r ComfyUI/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu --break-system-packages
         print_success "ComfyUI dependencies installed"
     else
         print_warning "ComfyUI/requirements.txt not found"
@@ -201,7 +207,7 @@ install_python_dependencies() {
     
     # Install additional ML/AI dependencies that might be needed
     print_step "Installing additional ML/AI dependencies..."
-    python3 -m pip install --upgrade torch torchvision torchaudio
+    $PYTHON_PATH -m pip install --user --upgrade torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu --break-system-packages
 }
 
 # Function to install frontend dependencies
@@ -276,7 +282,7 @@ run_tests() {
     print_step "Running post-installation tests..."
     
     # Test Python
-    if python3 -c "import flask, PIL, requests; print('Python dependencies OK')" 2>/dev/null; then
+    if $PYTHON_PATH -c "import flask, PIL, requests; print('Python dependencies OK')" 2>/dev/null; then
         print_success "Python dependencies test passed"
     else
         print_error "Python dependencies test failed"
@@ -318,7 +324,7 @@ display_final_instructions() {
     echo -e "${CYAN}Troubleshooting:${NC}"
     echo -e "• Check logs in the ${BLUE}logs/${NC} directory"
     echo -e "• Ensure all ports (8080, 5001-5004, 8188) are available"
-    echo -e "• Update Python packages: ${BLUE}python3 -m pip install --upgrade -r requirements.txt${NC}"
+    echo -e "• Update Python packages: ${BLUE}python3.11 -m pip install --upgrade -r requirements.txt${NC}"
     echo -e "• Update Node packages: ${BLUE}cd dream_layer_frontend && npm update${NC}"
     echo -e ""
     echo -e "${GREEN}Happy creating with Dream Layer! 🎨✨${NC}"

@@ -1,0 +1,31 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "RunwayText2ImgNode",
+      "inputs": {
+        "prompt": "beautiful",
+        "ratio": "1024:1024"
+      }
+    },
+    "2": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["1", 0],
+        "filename_prefix": "DreamLayer_RunWay"
+      }
+    }
+  },
+  "meta": {
+    "description": "RunWay Gen-4 Core Generation Workflow",
+    "model_options": {
+      "runway": "RunwayText2ImgNode"
+    },
+    "core_settings": {
+      "prompt": "Main generation prompt",
+      "ratio": "Image aspect ratio"
+    },
+    "aspect_ratios": [
+      "1024:1024", "1280:720", "720:1280", "1104:832", "832:1104", "960:960", "1584:672"
+    ]
+  }
+}

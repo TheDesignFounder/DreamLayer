@@ -30,18 +30,18 @@ const OutputQuantity: React.FC<OutputQuantityProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="hidden"><Slider
+      <Slider
         min={1}
         max={25}
-        defaultValue={25}
+        defaultValue={1}
         label={getBatchCountLabel()}
         onChange={handleBatchCountChange}
-      /></div>
+      />
       
       <Slider
         min={1}
         max={8}
-        defaultValue={4}
+        defaultValue={1}
         label={getBatchSizeLabel()}
         onChange={handleBatchSizeChange}
       />

@@ -211,3 +211,11 @@ model_display_names.json
 # DreamLayer logs and test logs
 logs
 test-logs
+# DreamLayer data files (added for ClipScore integration)
+dream_layer_backend/data/
+dream_layer_backend/run_registry.json
+dream_layer_backend/*.zip
+dream_layer_backend/*.csv
+dream_layer_backend/temp_*.json
+dream_layer_backend/datasets/*.npz
+dream_layer_backend/datasets/cifar-10-batches-py/
