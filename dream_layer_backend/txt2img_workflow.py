@@ -45,13 +45,14 @@ def transform_to_txt2img_workflow(data):
         width = max(64, min(2048, int(data.get('width', 512))))
         height = max(64, min(2048, int(data.get('height', 512))))
 
-        # Batch parameters with validation (from smallFeatures)
-        # Clamp between 1 and 8
-        batch_size = max(1, min(8, int(data.get('batch_size', 1))))
-        print(f"\nBatch size: {batch_size}")
+        
+        # Batch parameters with validation (from smallFeatures) - LIMITED TO 1 FOR PERFORMANCE
+        batch_size = 1  # Force batch_size to 1 for faster generation
+        print(f"\nBatch size: {batch_size} (forced to 1 for performance)")
+        
+        # Sampling parameters with validation - LIMITED STEPS FOR FASTER GENERATION
+        steps = min(15, max(1, int(data.get('steps', 15))))  # Max 15 steps for speed
 
-        # Sampling parameters with validation
-        steps = max(1, min(150, int(data.get('steps', 20))))
         cfg_scale = max(1.0, min(20.0, float(data.get('cfg_scale', 7.0))))
 
         # Get sampler name and map it to ComfyUI format (from smallFeatures)
@@ -71,14 +72,22 @@ def transform_to_txt2img_workflow(data):
         except (ValueError, TypeError):
             seed = random.randint(0, 2**31 - 1)
 
-        # Update the data with the actual seed used
-        data['seed'] = seed
+    # Update the data with the actual seed used
+    data['seed'] = seed
 
-        # Handle model name validation
+    # Handle model name validation
+    if data.get("force_fast_model", False):
+        model_name = "v15PrunedEmaonly_v15PrunedEmaonly.safetensors"  # Force fast model
+        print(f"Forcing model: {model_name} for faster generation")
+    else:
         model_name = data.get('model_name', 'juggernautXL_v8Rundiffusion.safetensors')
-        
-        # Check if it's a closed-source model (DALL-E, FLUX, Ideogram, Runway, Stability AI, Luma, Banana, etc.)
-        closed_source_models = ['dall-e-3', 'dall-e-2', 'flux-pro', 'flux-dev', 'ideogram-v3', 'runway-gen4', 'stability-sdxl', 'stability-sd-turbo', 'photon-1', 'photon-flash-1', 'banana-gemini']
+
+    # Check if it's a closed-source model (DALL-E, FLUX, Ideogram, Runway, Stability AI, Luma, Banana, etc.)
+    closed_source_models = [
+        'dall-e-3', 'dall-e-2', 'flux-pro', 'flux-dev', 'ideogram-v3',
+        'runway-gen4', 'stability-sdxl', 'stability-sd-turbo',
+        'photon-1', 'photon-flash-1', 'banana-gemini'
+    ]
         
         if model_name in closed_source_models:
             print(f"🎨 Using closed-source model: {model_name}")

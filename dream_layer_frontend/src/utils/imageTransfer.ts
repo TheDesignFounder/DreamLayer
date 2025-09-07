@@ -1,5 +1,5 @@
 
-import { ImageResult } from '@/types/imageResult';
+import { ImageResult } from '@/types/generationSettings';
 
 export const transferImages = (
   srcStore: { images: ImageResult[] },

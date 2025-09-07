@@ -1,14 +1,15 @@
-
 import {
   FileText,
   ImageIcon,
   Settings,
   GalleryHorizontal,
   HardDrive,
+  FolderArchive,
   History,
   Download,
   MessageSquare
 } from "lucide-react";
+
 
 const tabs = [
   { id: "txt2img", label: "Txt2Img", icon: FileText },
@@ -16,6 +17,7 @@ const tabs = [
   { id: "img2txt", label: "Img2Txt", icon: MessageSquare },
   { id: "extras", label: "Extras", icon: GalleryHorizontal },
   { id: "models", label: "Models", icon: HardDrive },
+  { id: "reports", label: "Reports", icon: FolderArchive },
   { id: "pnginfo", label: "PNG Info", icon: FileText },
   { id: "configurations", label: "Configurations", icon: Settings },
   { id: "runregistry", label: "Run Registry", icon: History },

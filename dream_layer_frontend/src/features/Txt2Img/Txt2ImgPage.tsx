@@ -17,7 +17,10 @@ import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
+import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
+import { useExtrasGalleryStore } from '@/stores/useExtrasGalleryStore';
 import { Txt2ImgCoreSettings, defaultTxt2ImgSettings } from '@/types/generationSettings';
+import { GallerySync } from '@/utils/gallerySync';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import useLoraStore from '@/stores/useLoraStore';
@@ -46,9 +49,22 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const { toast } = useToast();
   const addImages = useTxt2ImgGalleryStore(state => state.addImages);
   const setLoading = useTxt2ImgGalleryStore(state => state.setLoading);
+  const txt2imgImages = useTxt2ImgGalleryStore(state => state.images);
+  const img2imgImages = useImg2ImgGalleryStore(state => state.images);
+  const extrasImages = useExtrasGalleryStore(state => state.images);
   const controlNetConfig = useControlNetStore(state => state.controlNetConfig);
   const { setControlNetConfig } = useControlNetStore();
   const loraConfig = useLoraStore(state => state.loraConfig);
+
+  // Load existing data on component mount
+  useEffect(() => {
+    const loadExistingData = async () => {
+      console.log('📥 Txt2Img: Loading existing gallery data from backend...');
+      await GallerySync.syncFromBackend();
+    };
+    
+    loadExistingData();
+  }, []);
 
   // Add effect to update model when selectedModel prop changes
   useEffect(() => {
@@ -244,8 +260,10 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
           };
         });
         
-        console.log('Adding images to gallery:', images);
-        addImages(images);
+        console.log('🖼️ Adding images to gallery:', images);
+        
+        // Use centralized sync to add images and sync to backend
+        await GallerySync.addImageAndSync('txt2img', images);
       } else {
         console.error('No generated_images in response:', data);
         throw new Error('No images were generated');

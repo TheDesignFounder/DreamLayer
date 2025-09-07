@@ -619,6 +619,192 @@ def get_controlnet_models_endpoint():
         }), 500
 
 
+@app.route('/api/gallery-data', methods=['POST'])
+def update_gallery_data():
+    """Update gallery data for report generation"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No data provided"
+            }), 400
+        
+        # Store gallery data temporarily for report generation
+        # In a production system, this would be stored in a database
+        gallery_file = os.path.join(os.path.dirname(__file__), 'temp_gallery_data.json')
+        with open(gallery_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Gallery data updated successfully"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to update gallery data: {str(e)}"
+        }), 500
+
+@app.route('/api/gallery-data', methods=['GET'])
+def get_gallery_data():
+    """Get current gallery data"""
+    try:
+        # Import here to avoid circular imports
+        from report_generator import ReportGenerator
+        
+        generator = ReportGenerator()
+        gallery_data = generator.fetch_gallery_data()
+        
+        return jsonify(gallery_data)
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to get gallery data: {str(e)}",
+            "txt2img": [],
+            "img2img": [],
+            "extras": []
+        }), 500
+
+@app.route('/api/reports/status', methods=['GET'])
+def get_reports_status():
+    """Get current status of available reports data"""
+    try:
+        # Import here to avoid circular imports
+        from report_generator import ReportGenerator
+        
+        generator = ReportGenerator()
+        gallery_data = generator.fetch_gallery_data()
+        
+        txt2img_count = len(gallery_data.get('txt2img', []))
+        img2img_count = len(gallery_data.get('img2img', []))
+        extras_count = len(gallery_data.get('extras', []))
+        total_images = txt2img_count + img2img_count + extras_count
+        
+        generation_types = []
+        if txt2img_count > 0:
+            generation_types.append('txt2img')
+        if img2img_count > 0:
+            generation_types.append('img2img')
+        if extras_count > 0:
+            generation_types.append('extras')
+        
+        return jsonify({
+            "status": "success",
+            "total_images": total_images,
+            "txt2img_count": txt2img_count,
+            "img2img_count": img2img_count,
+            "extras_count": extras_count,
+            "generation_types": generation_types
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to get reports status: {str(e)}"
+        }), 500
+
+@app.route('/api/reports/generate', methods=['POST'])
+def generate_report():
+    """Generate comprehensive report bundle"""
+    try:
+        # Import here to avoid circular imports
+        from report_generator import ReportGenerator
+        
+        data = request.json or {}
+        output_filename = data.get('filename')
+        
+        
+        generator = ReportGenerator()
+        result = generator.create_report_bundle(output_filename)
+        
+        if result['status'] == 'success':
+            return jsonify({
+                "status": "success",
+                "message": "Report generated successfully",
+                "report_path": result['report_path'],
+                "report_filename": result['report_filename'],
+                "total_images": result['total_images'],
+                "csv_validation": result['csv_validation'],
+                "path_validation": result['path_validation'],
+                "bundle_size_bytes": result['bundle_size_bytes'],
+                "generation_types": result['generation_types']
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": result.get('error', 'Unknown error occurred')
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to generate report: {str(e)}"
+        }), 500
+
+@app.route('/api/reports/download/<filename>', methods=['GET'])
+def download_report(filename):
+    """Download generated report bundle"""
+    try:
+        from flask import send_file
+        
+        reports_dir = os.path.join(os.path.dirname(__file__), 'reports')
+        report_path = os.path.join(reports_dir, filename)
+        
+        if not os.path.exists(report_path):
+            return jsonify({
+                "status": "error",
+                "message": "Report file not found"
+            }), 404
+        
+        # Security check: ensure filename doesn't contain path traversal
+        if '..' in filename or '/' in filename or '\\' in filename:
+            return jsonify({
+                "status": "error",
+                "message": "Invalid filename"
+            }), 400
+        
+        return send_file(
+            report_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/zip'
+        )
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": f"Failed to download report: {str(e)}"
+        }), 500
+
+@app.route('/api/reports/validate-csv', methods=['POST'])
+def validate_csv_schema():
+    """Validate CSV schema for reports"""
+    try:
+        from report_generator import ImageRecord
+        
+        data = request.json
+        if not data or 'csv_path' not in data:
+            return jsonify({
+                "status": "error",
+                "message": "CSV path not provided"
+            }), 400
+        
+        csv_path = data['csv_path']
+        validation_result = ImageRecord.validate_csv_schema(csv_path)
+        
+        return jsonify({
+            "status": "success",
+            "validation": validation_result
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"CSV validation failed: {str(e)}"
+        }), 500
+
 if __name__ == "__main__":
     print("Starting Dream Layer backend services...")
     if start_comfy_server():

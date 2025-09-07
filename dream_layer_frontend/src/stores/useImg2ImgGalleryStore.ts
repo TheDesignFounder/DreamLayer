@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { ImageResult, CoreGenerationSettings, defaultCoreSettings } from '@/types/generationSettings';
 
 interface InputImage {
@@ -28,7 +29,9 @@ interface Img2ImgGalleryState {
   handleAdvancedSettingsChange: (settings: Partial<CoreGenerationSettings>) => void;
 }
 
-export const useImg2ImgGalleryStore = create<Img2ImgGalleryState>((set) => ({
+export const useImg2ImgGalleryStore = create<Img2ImgGalleryState>()(
+  persist(
+    (set) => ({
   images: [],
   isLoading: false,
   inputImage: null,
@@ -113,4 +116,13 @@ export const useImg2ImgGalleryStore = create<Img2ImgGalleryState>((set) => ({
       ...settings
     }
   }))
-}));
+    }),
+    {
+      name: 'img2img-gallery-storage',
+      partialize: (state) => ({ 
+        images: state.images,
+        coreSettings: state.coreSettings 
+      }), // Persist images and settings, not loading state or file objects
+    }
+  )
+);

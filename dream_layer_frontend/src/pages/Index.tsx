@@ -11,6 +11,7 @@ import { PNGInfoPage } from '@/features/PNGInfo';
 import { ConfigurationsPage } from '@/features/Configurations';
 import { RunRegistryPage } from '@/features/RunRegistry';
 import { ReportBundlePage } from '@/features/ReportBundle';
+import ReportGenerator from '@/components/ReportGenerator';
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 
@@ -43,6 +44,8 @@ const Index = () => {
         return <ExtrasPage />;
       case "models":
         return <ModelManagerPage />;
+      case "reports":
+        return <ReportGenerator />;
       case "pnginfo":
         return <PNGInfoPage />;
       case "configurations":

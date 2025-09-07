@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend State Debug</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        .section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .button { padding: 10px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <h1>DreamLayer Frontend State Debug</h1>
+    
+    <div class="section">
+        <h2>Test Gallery Data Sync</h2>
+        <button class="button" onclick="testGallerySync()">Test Gallery Sync</button>
+        <button class="button" onclick="testReportGeneration()">Test Report Generation</button>
+        <button class="button" onclick="checkBackendState()">Check Backend State</button>
+        <pre id="results"></pre>
+    </div>
+
+    <script>
+        const log = (message) => {
+            const results = document.getElementById('results');
+            results.textContent += new Date().toISOString() + ': ' + message + '\n';
+            console.log(message);
+        };
+
+        async function testGallerySync() {
+            log('🔄 Testing gallery data sync...');
+            
+            const testData = {
+                txt2img: [
+                    {
+                        id: `debug_test_${Date.now()}`,
+                        url: "http://localhost:5001/api/images/test.png",
+                        prompt: "debug test image",
+                        negativePrompt: "blurry",
+                        timestamp: Date.now(),
+                        settings: {
+                            model_name: "v15PrunedEmaonly_v15PrunedEmaonly.safetensors",
+                            sampler_name: "euler",
+                            steps: 15,
+                            cfg_scale: 7.0,
+                            width: 512,
+                            height: 512,
+                            seed: 123456,
+                            batch_size: 1
+                        }
+                    }
+                ],
+                img2img: []
+            };
+
+            try {
+                const response = await fetch('http://localhost:5002/api/gallery-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const result = await response.json();
+                log(`✅ Gallery sync result: ${JSON.stringify(result)}`);
+                return true;
+            } catch (error) {
+                log(`❌ Gallery sync failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function testReportGeneration() {
+            log('📋 Testing report generation...');
+            
+            try {
+                const response = await fetch('http://localhost:5002/api/reports/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: 'debug_test.zip' })
+                });
+                
+                const result = await response.json();
+                log(`📊 Report result: ${JSON.stringify(result, null, 2)}`);
+            } catch (error) {
+                log(`❌ Report generation failed: ${error.message}`);
+            }
+        }
+
+        async function checkBackendState() {
+            log('🔍 Checking backend state...');
+            
+            try {
+                // Check if temp_gallery_data.json exists via a test API call
+                const response = await fetch('http://localhost:5002/api/reports/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: 'state_check.zip' })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log(`📁 Backend has ${result.total_images} images`);
+                    log(`📋 Generation types: ${result.generation_types?.join(', ')}`);
+                } else {
+                    log(`❌ Backend check failed: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                log(`❌ Backend check error: ${error.message}`);
+            }
+        }
+
+        // Auto-run diagnostics
+        window.onload = () => {
+            log('🚀 Starting automatic diagnostics...');
+            setTimeout(checkBackendState, 1000);
+        };
+    </script>
+</body>
+</html>

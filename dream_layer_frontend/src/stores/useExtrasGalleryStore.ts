@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ImageResult } from '@/types/generationSettings';
 
-interface Txt2ImgGalleryState {
+interface ExtrasGalleryState {
   images: ImageResult[];
   isLoading: boolean;
   addImages: (newImages: ImageResult[]) => void;
@@ -11,7 +11,7 @@ interface Txt2ImgGalleryState {
   setLoading: (loading: boolean) => void;
 }
 
-export const useTxt2ImgGalleryStore = create<Txt2ImgGalleryState>()(
+export const useExtrasGalleryStore = create<ExtrasGalleryState>()(
   persist(
     (set) => ({
       images: [],
@@ -27,7 +27,7 @@ export const useTxt2ImgGalleryStore = create<Txt2ImgGalleryState>()(
       setLoading: (loading) => set({ isLoading: loading }),
     }),
     {
-      name: 'txt2img-gallery-storage',
+      name: 'extras-gallery-storage',
       partialize: (state) => ({ images: state.images }), // Only persist images, not loading state
     }
   )

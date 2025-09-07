@@ -12,7 +12,10 @@ import OutputQuantity from '@/components/OutputQuantity';
 import GenerationID from '@/components/GenerationID';
 import ImagePreview from '@/components/tabs/img2img/ImagePreview';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
+import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
+import { useExtrasGalleryStore } from '@/stores/useExtrasGalleryStore';
 import useLoraStore from '@/stores/useLoraStore';
+import { GallerySync } from '@/utils/gallerySync';
 import useControlNetStore from '@/stores/useControlNetStore';
 import { ControlNetRequest } from '@/types/controlnet';
 import { prepareControlNetForAPI, validateControlNetConfig } from '@/utils/controlnetUtils';
@@ -60,6 +63,19 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   } = useImg2ImgGalleryStore();
   const selectedLora = useLoraStore(state => state.loraConfig);
   const { controlNetConfig, setControlNetConfig } = useControlNetStore();
+  const txt2imgImages = useTxt2ImgGalleryStore(state => state.images);
+  const img2imgImages = useImg2ImgGalleryStore(state => state.images);
+  const extrasImages = useExtrasGalleryStore(state => state.images);
+
+  // Load existing data on component mount
+  useEffect(() => {
+    const loadExistingData = async () => {
+      console.log('📥 Img2Img: Loading existing gallery data from backend...');
+      await GallerySync.syncFromBackend();
+    };
+    
+    loadExistingData();
+  }, []);
   
   useEffect(() => {
     setIsLoaded(true);
@@ -171,7 +187,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
         const testImage = new Image();
         const firstImageUrl = data.generated_images[0].url;
         
-        testImage.onload = () => {
+        testImage.onload = async () => {
           console.log('Test image loaded successfully:', firstImageUrl);
           const images = data.generated_images.map((img: any) => ({
             id: `${Date.now()}-${Math.random()}`,
@@ -183,7 +199,10 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
           }));
           
           console.log('Adding images to store:', images);
-          addImages(images);
+          
+          // Use centralized sync to add images and sync to backend
+          await GallerySync.addImageAndSync('img2img', images);
+          
           setLoading(false);
           setIsGenerating(false);
         };

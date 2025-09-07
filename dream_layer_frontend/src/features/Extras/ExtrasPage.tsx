@@ -20,6 +20,11 @@ import { toast } from 'sonner';
 import ImageUploadButton from '@/components/ImageUploadButton';
 import { fetchUpscalerModels } from "@/services/modelService";
 import { useModelRefresh } from "@/hooks/useModelRefresh";
+import { useExtrasGalleryStore } from '@/stores/useExtrasGalleryStore';
+import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
+import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
+import { ImageResult } from '@/types/generationSettings';
+import { GallerySync } from '@/utils/gallerySync';
 
 const ExtrasPage = () => {
   const [activeSubTab, setActiveSubTab] = useState("upscale");
@@ -28,6 +33,21 @@ const ExtrasPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [availableUpscalers, setAvailableUpscalers] = useState([]);
+  
+  // Gallery stores for syncing data
+  const { addImages: addExtrasImages } = useExtrasGalleryStore();
+  const txt2imgImages = useTxt2ImgGalleryStore(state => state.images);
+  const img2imgImages = useImg2ImgGalleryStore(state => state.images);
+
+  // Load existing data on component mount
+  useEffect(() => {
+    const loadExistingData = async () => {
+      console.log('📥 Extras: Loading existing gallery data from backend...');
+      await GallerySync.syncFromBackend();
+    };
+    
+    loadExistingData();
+  }, []);
   
   // New state for advanced upscaling options
   const [upscaleMethod, setUpscaleMethod] = useState("upscale-by");
@@ -205,6 +225,33 @@ const ExtrasPage = () => {
 
       if (result.status === 'success' && result.data) {
         setProcessedImage(result.data.output_image);
+        
+        // Add to extras gallery store
+        const extrasImageResult: ImageResult = {
+          id: `extras_${Date.now()}`,
+          url: result.data.output_image,
+          prompt: `Upscaled with ${selectedUpscaler}`,
+          negativePrompt: '',
+          timestamp: Date.now(),
+          settings: {
+            model_name: selectedUpscaler,
+            sampler_name: 'extras',
+            steps: 1,
+            cfg_scale: 1.0,
+            width: upscaleMethod === 'upscale-to' ? resizeWidth : 512 * upscaleFactor,
+            height: upscaleMethod === 'upscale-to' ? resizeHeight : 512 * upscaleFactor,
+            seed: -1,
+            batch_size: 1,
+            upscale_factor: upscaleFactor,
+            upscale_method: upscaleMethod
+          }
+        };
+        
+        console.log('🖼️ Adding extras image to gallery:', extrasImageResult);
+        
+        // Use centralized sync to add images and sync to backend
+        await GallerySync.addImageAndSync('extras', [extrasImageResult]);
+        
         toast.success("Image processed successfully!");
       } else {
         throw new Error(result.message || 'Failed to process image');

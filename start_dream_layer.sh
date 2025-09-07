@@ -176,6 +176,9 @@ main() {
     # Clean up served_images directory
     [ -d "dream_layer_backend/served_images" ] && rm -f dream_layer_backend/served_images/* && print_success "Cleaned up served_images directory"
     
+    # Clear persistent gallery data for fresh start
+    echo '{"txt2img": [], "img2img": [], "extras": []}' > dream_layer_backend/temp_gallery_data.json && print_success "Cleared persistent gallery data"
+    
     # Kill any existing processes on our ports
     print_status "Cleaning up existing processes..."
     kill_port 8188  # ComfyUI

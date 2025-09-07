@@ -74,13 +74,14 @@ def transform_to_img2img_workflow(data):
     negative_prompt = data.get('negative_prompt', '')
     width = max(64, min(2048, int(data.get('width', 512))))
     height = max(64, min(2048, int(data.get('height', 512))))
-    batch_size = max(1, min(8, int(data.get('batch_size', 1))))
-    steps = max(1, min(150, int(data.get('steps', 20))))
+    batch_size = 1  # Force batch_size to 1 for faster generation
+    steps = min(15, max(1, int(data.get('steps', 15))))  # Max 15 steps for speed
     cfg_scale = max(1.0, min(20.0, float(data.get('cfg_scale', 7.0))))
     denoising_strength = max(
         0.0, min(1.0, float(data.get('denoising_strength', 0.75))))
     input_image = data.get('input_image', '')
-    model_name = data.get('model_name', 'v1-6-pruned-emaonly-fp16.safetensors')
+    model_name = "v15PrunedEmaonly_v15PrunedEmaonly.safetensors"  # Force fast model
+    print(f"Forcing model: {model_name} for faster generation")
     sampler_name = data.get('sampler_name', 'euler')
     scheduler = data.get('scheduler', 'normal')
 
