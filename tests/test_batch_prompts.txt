@@ -1,0 +1,8 @@
+# Test batch prompts for DreamLayer
+a beautiful sunset over mountains
+a steampunk flying machine
+# This line will be skipped
+
+a cyberpunk city at night
+a magical forest with glowing mushrooms
+a vintage car on a desert road

@@ -1,0 +1,43 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "Profile.jpeg"
+      }
+    },
+    "2": {
+      "class_type": "LumaImageModifyNode",
+      "inputs": {
+        "image": ["1", 0],
+        "prompt": "beautiful",
+        "model": "photon-1",
+        "image_weight": 0.1,
+        "seed": 0
+      }
+    },
+    "3": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["2", 0],
+        "filename_prefix": "DreamLayer_Luma_img2img"
+      }
+    }
+  },
+  "meta": {
+    "description": "Luma Photon Img2Img Core Generation Workflow",
+    "model_options": {
+      "luma": "LumaImageModifyNode"
+    },
+    "core_settings": {
+      "image": "Reference image for editing/transformation",
+      "prompt": "Main generation prompt for the edit",
+      "model": "Luma model to use (photon-1, photon-flash-1)",
+      "image_weight": "Weight of the input image (0.0-0.98)",
+      "seed": "Random seed (0 for random)"
+    },
+    "models": [
+      "photon-1", "photon-flash-1"
+    ]
+  }
+}

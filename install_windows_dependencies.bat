@@ -69,7 +69,7 @@ if %PS_EXIT_CODE% equ 0 (
     echo.
     echo %CYAN%Next steps:%NC%
     echo   1. %YELLOW%Configure your environment:%NC%
-    echo      • Create %BLUE%dream_layer_backend\.env%NC% with your API keys (optional)
+    echo      • Create %BLUE%.env%NC% with your API keys (optional)
     echo.
     echo   2. %YELLOW%Start the application:%NC%
     echo      • Run: %BLUE%start_dream_layer.bat%NC%

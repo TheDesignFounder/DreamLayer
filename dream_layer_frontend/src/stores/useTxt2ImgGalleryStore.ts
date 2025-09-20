@@ -14,7 +14,7 @@ export const useTxt2ImgGalleryStore = create<Txt2ImgGalleryState>((set) => ({
   images: [],
   isLoading: false,
   addImages: (newImages) => set((state) => ({
-    images: [...newImages, ...state.images],
+    images: [...newImages.filter(newImg => !state.images.some(img => img.url === newImg.url)), ...state.images],
     isLoading: false
   })),
   clearImages: () => set({ images: [], isLoading: false }),

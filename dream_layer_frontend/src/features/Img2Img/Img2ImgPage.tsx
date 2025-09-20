@@ -165,15 +165,15 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
       const data = await response.json();
       console.log('Img2img response:', data);
 
-      if (data.comfy_response?.generated_images) {
-        console.log('Generated images from response:', data.comfy_response.generated_images);
+      if (data.generated_images) {
+        console.log('Generated images from response:', data.generated_images);
         
         const testImage = new Image();
-        const firstImageUrl = data.comfy_response.generated_images[0].url;
+        const firstImageUrl = data.generated_images[0].url;
         
         testImage.onload = () => {
           console.log('Test image loaded successfully:', firstImageUrl);
-          const images = data.comfy_response.generated_images.map((img: any) => ({
+          const images = data.generated_images.map((img: any) => ({
             id: `${Date.now()}-${Math.random()}`,
             url: img.url,
             prompt: requestData.prompt,

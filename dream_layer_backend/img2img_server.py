@@ -4,6 +4,8 @@ import base64
 import json
 import logging
 import os
+import requests
+import random
 from PIL import Image
 import io
 import time
@@ -11,6 +13,9 @@ from shared_utils import send_to_comfyui
 from img2img_workflow import transform_to_img2img_workflow
 from shared_utils import COMFY_API_URL
 from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
+from run_registry import create_run_config_from_generation_data
+from dataclasses import asdict
+import requests
 
 # Configure logging
 logging.basicConfig(
@@ -151,25 +156,117 @@ def handle_img2img():
                 'message': f'Invalid input image: {str(e)}'
             }), 400
 
-        # Transform data to ComfyUI workflow
-        workflow = transform_to_img2img_workflow(data)
+        # Check if this is a Luma model and route accordingly
+        model_name = data.get('model', '')
+        if model_name in ['luma-photon', 'luma-photon-flash']:
+            # Handle batch_size for Luma models by making multiple sequential calls
+            batch_size = data.get('batch_size', 1)
+            all_responses = []
+            
+            for i in range(batch_size):
+                logger.info(f"Processing Luma batch item {i+1}/{batch_size}")
+                
+                # Create single image request
+                single_data = data.copy()
+                single_data['batch_size'] = 1
+                
+                # Use Luma workflow for single image
+                from workflows.txt2img.luma_core_generation_workflow import get_luma_img2img_workflow
+                workflow = get_luma_img2img_workflow(single_data)
+                
+                # Send to ComfyUI and wait for completion
+                comfy_response = send_to_comfyui(workflow)
+                
+                # Wait for this generation to complete before starting next
+                if 'prompt_id' in comfy_response:
+                    # Poll ComfyUI until this prompt completes
+                    while True:
+                        status_response = requests.get(f"{COMFY_API_URL}/history/{comfy_response['prompt_id']}")
+                        if status_response.status_code == 200 and status_response.json():
+                            break
+                        time.sleep(2)
+                
+                all_responses.append(comfy_response)
+            
+            # Use the last response structure but indicate batch processing
+            comfy_response = all_responses[-1]
+            comfy_response['batch_responses'] = all_responses
+        else:
+            # Extract batch_count and implement loop
+            batch_count = data.get('batch_count', 1)
+            all_generated_images = []
+            
+            for iteration in range(batch_count):
+                try:
+                    logger.info(f"Batch iteration {iteration + 1}/{batch_count}")
+                    
+                    # Generate new random seed for each iteration
+                    iteration_data = data.copy()
+                    iteration_data['seed'] = -1  # Force new random seed
+                    
+                    # Transform to ComfyUI workflow
+                    workflow = transform_to_img2img_workflow(iteration_data)
+                    logger.info(f"Generated ComfyUI Workflow for iteration {iteration + 1}")
+                    
+                    # Send to ComfyUI server
+                    comfy_response = send_to_comfyui(workflow)
+                    
+                    if "error" in comfy_response:
+                        logger.warning(f"Error in iteration {iteration + 1}: {comfy_response['error']}")
+                        continue  # Continue with next iteration
+                    
+                    # Extract generated image filenames
+                    generated_images = []
+                    if comfy_response.get("all_images"):
+                        for img_data in comfy_response["all_images"]:
+                            if isinstance(img_data, dict) and "filename" in img_data:
+                                generated_images.append(img_data["filename"])
+                        all_generated_images.extend(comfy_response["all_images"])
+                    
+                    logger.info(f"Registering run for iteration {iteration + 1}")
+                    # Register the completed run - each iteration gets unique run_id
+                    try:
+                        from run_registry import registry
+                        run_config = create_run_config_from_generation_data(
+                            iteration_data, generated_images, "img2img"
+                        )
+                        registry.add_run(run_config)
+                        logger.info(f"Run registered with unique run_id: {run_config.run_id}")
+                    except Exception as e:
+                        logger.warning(f"Error registering run for iteration {iteration + 1}: {str(e)}")
+                        
+                except Exception as e:
+                    logger.warning(f"Error in iteration {iteration + 1}: {str(e)}")
+                    continue  # Continue with next iteration
         
-        # Log the workflow for debugging
-        logger.info("Generated workflow:")
-        logger.info(json.dumps(workflow, indent=2))
-        
-        # Send to ComfyUI
-        comfy_response = send_to_comfyui(workflow)
-        
-        if "error" in comfy_response:
-            return jsonify({
-                "status": "error",
-                "message": comfy_response["error"]
-            }), 500
+        # Handle batch_count case vs single execution
+        if data.get('batch_count', 1) > 1:
+            # batch_count case - all_generated_images already collected in loop above
+            final_response = {
+                "all_images": all_generated_images
+            }
+        else:
+            # Single execution case - use regular img2img workflow
+            workflow = transform_to_img2img_workflow(data)
+            
+            # Log the workflow for debugging
+            logger.info("Generated workflow:")
+            logger.info(json.dumps(workflow, indent=2))
+            
+            # Send to ComfyUI
+            comfy_response = send_to_comfyui(workflow)
+            
+            if "error" in comfy_response:
+                return jsonify({
+                    "status": "error",
+                    "message": comfy_response["error"]
+                }), 500
+            
+            final_response = comfy_response
         
         # Log generated images if present
-        if "generated_images" in comfy_response:
-            images = comfy_response["generated_images"]
+        if "generated_images" in final_response:
+            images = final_response["generated_images"]
             logger.info("Generated Images Details:")
             for i, img in enumerate(images):
                 logger.info(f"Image {i + 1}:")
@@ -178,11 +275,32 @@ def handle_img2img():
                 logger.info(f"  Subfolder: {img.get('subfolder', 'None')}")
                 logger.info(f"  URL: {img.get('url')}")
         
+        # Extract generated image filenames for single execution registration
+        if data.get('batch_count', 1) == 1:
+            generated_images = []
+            if final_response.get("generated_images"):
+                for img_data in final_response["generated_images"]:
+                    if isinstance(img_data, dict) and "filename" in img_data:
+                        generated_images.append(img_data["filename"])
+            
+            # Register the completed run for single execution
+            try:
+                from run_registry import registry
+                run_config = create_run_config_from_generation_data(
+                    data, generated_images, "img2img"
+                )
+                registry.add_run(run_config)
+                logger.info(f"Run registered with run_id: {run_config.run_id}")
+            except Exception as e:
+                logger.warning(f"Error registering run: {str(e)}")
+        
         response = jsonify({
             "status": "success",
             "message": "Workflow sent to ComfyUI successfully",
-            "comfy_response": comfy_response,
-            "workflow": workflow
+            "comfy_response": {
+                "all_images": final_response.get("all_images", final_response.get("generated_images", []))
+            },
+            "generated_images": final_response.get("all_images", final_response.get("generated_images", []))
         })
         
         # Clean up the temporary image file

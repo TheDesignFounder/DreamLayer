@@ -8,6 +8,7 @@ import JSZip from 'jszip';
 
 interface ImagePreviewProps {
   onTabChange: (tabId: string) => void;
+  grids?: any[];
 }
 
 const LoadingAnimation = () => (
@@ -18,7 +19,7 @@ const LoadingAnimation = () => (
   </div>
 );
 
-const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
+const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange, grids = [] }) => {
   const { images, isLoading } = useTxt2ImgGalleryStore();
   const setInputImage = useImg2ImgGalleryStore(state => state.setInputImage);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -473,6 +474,29 @@ Time taken: 31.1 sec.`;
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Generated Grids Section */}
+      {grids.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-sm font-bold text-[#2563EB] mb-4">Generated Grids ({grids.length})</h3>
+          <div className="max-h-80 overflow-y-auto space-y-4 border rounded-md p-4 bg-card">
+            {grids.map((grid, index) => (
+              <div key={index} className="border rounded-md p-3 bg-background">
+                <img 
+                  src={grid.url} 
+                  alt={`Grid ${index + 1}`} 
+                  className="w-full rounded-md cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => window.open(grid.url, '_blank')}
+                />
+                <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
+                  <span>Batch {grid.batch_index} - {grid.grid_layout} grid</span>
+                  <span>{grid.batch_size} images</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
