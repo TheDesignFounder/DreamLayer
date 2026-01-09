@@ -106,6 +106,9 @@ const ApiKeysForm: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center space-y-4">
+      <p className="text-sm text-muted-foreground text-center -mt-1 mb-1">
+        Press the Refresh button to select the models in the dropdown
+      </p>
       {fields.map((field, idx) => (
         <div
           key={field.name}
@@ -166,10 +169,6 @@ const ApiKeysForm: React.FC = () => {
           )}
         </div>
       ))}
-      <div className="space-y-6">
-        * Please Click of Refresh Models After Adding the Keys to View the
-        Models
-      </div>
     </div>
   );
 };

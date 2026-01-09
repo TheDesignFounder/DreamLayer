@@ -36,7 +36,7 @@ const PopupBox: React.FC<PopupBoxProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <h2 className="text-lg font-semibold text-center mb-4">
+          <h2 className="text-base font-medium text-center mb-3">
             {title}
           </h2>
         )}

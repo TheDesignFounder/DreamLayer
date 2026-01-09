@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import NavBar from '@/components/NavBar';
 import ModelSelector from '@/components/ModelSelector';
 import TabsNav from '@/components/Navigation/TabsNav';
@@ -15,7 +15,15 @@ import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState("txt2img");
+  const [activeTab, setActiveTab] = useState(() => {
+    // Check if there's a saved tab from refresh
+    const savedTab = localStorage.getItem('activeTab');
+    if (savedTab) {
+      localStorage.removeItem('activeTab');
+      return savedTab;
+    }
+    return "txt2img";
+  });
   const [selectedModel, setSelectedModel] = useState<string>("v1-5-pruned-emaonly-fp16.safetensors");
   const clearTxt2ImgImages = useTxt2ImgGalleryStore(state => state.clearImages);
   const clearImg2ImgImages = useImg2ImgGalleryStore(state => state.clearImages);

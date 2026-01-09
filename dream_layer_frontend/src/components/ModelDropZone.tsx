@@ -212,12 +212,9 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Model Type Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="model-type" className="text-sm font-medium">
-          Model Type
-        </Label>
-        <Select 
-          value={selectedModelType} 
+      <div>
+        <Select
+          value={selectedModelType}
           onValueChange={(value: ModelType) => setSelectedModelType(value)}
           disabled={isUploading}
         >
@@ -225,12 +222,12 @@ const ModelDropZone: React.FC<ModelDropZoneProps> = ({
             id="model-type"
             className="w-full"
           >
-            <SelectValue placeholder="Select model type" />
+            <SelectValue placeholder="Select Model Type" />
           </SelectTrigger>
           <SelectContent>
             {modelTypeOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
-                <div className="flex flex-col">
+                <div className="flex flex-col text-left">
                   <span>{option.label}</span>
                   <span className="text-xs text-muted-foreground">{option.description}</span>
                 </div>

@@ -194,15 +194,10 @@ const ModelManagerPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Model Manager</h1>
-          <p className="text-muted-foreground">
-            Upload, organize, and manage your AI models
-          </p>
-        </div>
+        <h3 className="text-base font-medium">Model Manager</h3>
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
@@ -217,153 +212,133 @@ const ModelManagerPage = () => {
         </div>
       </div>
 
-      {/* Upload Zone */}
-      {showUploadZone && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Upload className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Upload New Model</h2>
+      {/* 2-Column Layout */}
+      <div className={showUploadZone ? "grid grid-cols-1 lg:grid-cols-2 gap-4" : ""}>
+        {/* Left Column - Upload Zone */}
+        {showUploadZone && (
+          <Card className="p-6">
+            <div className="space-y-4">
+              <h2 className="text-sm font-medium">Upload New Model</h2>
+              <ModelDropZone onModelUploaded={handleModelUploaded} />
             </div>
-            <ModelDropZone onModelUploaded={handleModelUploaded} />
+          </Card>
+        )}
+
+        {/* Right Column - Filters, Controls, and Models Display */}
+        <Card className="p-4">
+          <div className="space-y-4">
+            <h2 className="text-sm font-medium">Browse Models</h2>
+
+            {/* Filters and Controls */}
+            <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+              {/* Search and Filters */}
+              <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search models..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 w-64"
+                  />
+                </div>
+
+                {/* Model Type Filter */}
+                <Select
+                  value={selectedModelType}
+                  onValueChange={(value) => {
+                    if (value === 'all' || modelTypes.some(t => t.value === value)) {
+                      setSelectedModelType(value as ModelType | 'all');
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modelTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* View Controls */}
+              <div className="flex items-center space-x-4">
+                {/* View Mode */}
+                <div className="flex items-center space-x-1 border rounded-md">
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                    className="rounded-r-none"
+                  >
+                    <Grid3X3 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                    className="rounded-l-none"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {filteredModels.length} of {models.length} models
+              </p>
+            </div>
+
+            {/* Models Grid/List */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Loading models...</span>
+              </div>
+            ) : filteredModels.length === 0 ? (
+              <div className="p-12 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-sm font-medium mb-2">No models found</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {models.length === 0
+                    ? "Upload a checkpoint model to get started with image generation"
+                    : "Try adjusting your search or filters"
+                  }
+                </p>
+                {models.length === 0 && (
+                  <Button onClick={() => setShowUploadZone(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Model
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className={viewMode === 'grid'
+                ? "grid grid-cols-1 md:grid-cols-2 gap-4"
+                : "space-y-2"
+              }>
+                {filteredModels.map((model) => (
+                  <ModelCard
+                    key={model.id}
+                    model={model}
+                    viewMode={viewMode}
+                    getModelTypeColor={getModelTypeColor}
+                    getModelTypeIcon={getModelTypeIcon}
+                    getModelTypeLabel={getModelTypeLabel}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </Card>
-      )}
-
-      {/* Filters and Controls */}
-      <Card className="p-4">
-        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-          {/* Search and Filters */}
-          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search models..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-64"
-              />
-            </div>
-
-            {/* Model Type Filter */}
-            <Select
-              value={selectedModelType}
-              onValueChange={(value) => {
-                if (value === 'all' || modelTypes.some(t => t.value === value)) {
-                  setSelectedModelType(value as ModelType | 'all');
-                }
-              }}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                {modelTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* View Controls */}
-          <div className="flex items-center space-x-4">
-            {/* Sort */}
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="sort" className="text-sm">Sort:</Label>
-              <Select value={sortBy} onValueChange={(value: 'name' | 'type') => setSortBy(value)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="type">Type</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              >
-                {sortOrder === 'asc' ? '↑' : '↓'}
-              </Button>
-            </div>
-
-            {/* View Mode */}
-            <div className="flex items-center space-x-1 border rounded-md">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-                className="rounded-r-none"
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="rounded-l-none"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Models Display */}
-      <div className="space-y-4">
-        {/* Stats */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {filteredModels.length} of {models.length} models
-          </p>
-
-        </div>
-
-        {/* Models Grid/List */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-muted-foreground">Loading models...</span>
-          </div>
-        ) : filteredModels.length === 0 ? (
-          <Card className="p-12 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No models found</h3>
-            <p className="text-muted-foreground mb-4">
-              {models.length === 0
-                ? "Upload a checkpoint model to get started with image generation"
-                : "Try adjusting your search or filters"
-              }
-            </p>
-            {models.length === 0 && (
-              <Button onClick={() => setShowUploadZone(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Model
-              </Button>
-            )}
-          </Card>
-        ) : (
-          <div className={viewMode === 'grid'
-            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-            : "space-y-2"
-          }>
-            {filteredModels.map((model) => (
-              <ModelCard
-                key={model.id}
-                model={model}
-                viewMode={viewMode}
-                getModelTypeColor={getModelTypeColor}
-                getModelTypeIcon={getModelTypeIcon}
-                getModelTypeLabel={getModelTypeLabel}
-              />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

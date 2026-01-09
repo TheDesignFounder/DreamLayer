@@ -99,7 +99,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelSelect }) => {
     return (
         <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
             <div className="flex flex-col flex-1">
-                <PopupBox isOpen={open} onClose={() => setOpen(false)} title="API-Based Model">
+                <PopupBox isOpen={open} onClose={() => {
+                  setOpen(false);
+                  handleManualRefresh();
+                }} title="API-Based Model">
                     <ApiBasedModelForm></ApiBasedModelForm>
                 </PopupBox>
                 <div className="flex items-center justify-between mb-1">
