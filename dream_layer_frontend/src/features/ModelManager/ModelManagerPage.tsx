@@ -230,63 +230,57 @@ const ModelManagerPage = () => {
             <h2 className="text-sm font-medium">Browse Models</h2>
 
             {/* Filters and Controls */}
-            <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-              {/* Search and Filters */}
-              <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search models..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
-
-                {/* Model Type Filter */}
-                <Select
-                  value={selectedModelType}
-                  onValueChange={(value) => {
-                    if (value === 'all' || modelTypes.some(t => t.value === value)) {
-                      setSelectedModelType(value as ModelType | 'all');
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filter by type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modelTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search models..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={showUploadZone ? "pl-10 w-64" : "pl-10 w-96"}
+                />
               </div>
 
-              {/* View Controls */}
-              <div className="flex items-center space-x-4">
-                {/* View Mode */}
-                <div className="flex items-center space-x-1 border rounded-md">
-                  <Button
-                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('grid')}
-                    className="rounded-r-none"
-                  >
-                    <Grid3X3 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'list' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('list')}
-                    className="rounded-l-none"
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                </div>
+              {/* Model Type Filter */}
+              <Select
+                value={selectedModelType}
+                onValueChange={(value) => {
+                  if (value === 'all' || modelTypes.some(t => t.value === value)) {
+                    setSelectedModelType(value as ModelType | 'all');
+                  }
+                }}
+              >
+                <SelectTrigger className={showUploadZone ? "w-48" : "w-72"}>
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center space-x-1 border rounded-md">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className="rounded-r-none"
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="rounded-l-none"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
@@ -378,9 +372,6 @@ const ModelCard: React.FC<ModelCardProps> = ({
           aria-label={`Model: ${model.name}, Type: ${getModelTypeLabel(model.type)}`}
         >
           <div className="flex items-center space-x-4 flex-1 min-w-0">
-            <div className="flex-shrink-0">
-              <HardDrive className="h-8 w-8 text-muted-foreground" />
-            </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-medium truncate">{model.name}</h3>
               <p className="text-sm text-muted-foreground truncate">{model.filename}</p>
@@ -406,8 +397,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
       aria-label={`Model: ${model.name}, Type: ${getModelTypeLabel(model.type)}`}
     >
       <div className="space-y-3">
-        <div className="flex items-start justify-between">
-          <HardDrive className="h-8 w-8 text-muted-foreground" />
+        <div className="flex items-start justify-start">
           <Badge className={getModelTypeColor(model.type)}>
             {getModelTypeIcon(model.type)}
             <span className="ml-1">{getModelTypeLabel(model.type)}</span>
