@@ -72,7 +72,7 @@ const Slider = ({
           </div>
         )}
       </div>
-      <div className="py-2">
+      <div className="py-2 mt-1">
         <ShadcnSlider
           min={min}
           max={max}

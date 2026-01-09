@@ -361,6 +361,59 @@ def handle_get_lora_models():
         }), 500
 
 
+@app.route('/api/upload-lora', methods=['POST'])
+def upload_lora():
+    """
+    Endpoint to upload LoRA files to ComfyUI/models/loras
+    """
+    try:
+        if 'files' not in request.files:
+            return jsonify({
+                "status": "error",
+                "message": "No files provided"
+            }), 400
+
+        files = request.files.getlist('files')
+        if not files:
+            return jsonify({
+                "status": "error",
+                "message": "No files selected"
+            }), 400
+
+        # Get the loras directory path
+        loras_dir = os.path.join(comfyui_dir, 'models', 'loras')
+        os.makedirs(loras_dir, exist_ok=True)
+
+        uploaded_files = []
+        for file in files:
+            if file.filename == '':
+                continue
+
+            # Check file extension
+            if not (file.filename.endswith('.safetensors') or file.filename.endswith('.ckpt')):
+                return jsonify({
+                    "status": "error",
+                    "message": f"Invalid file type: {file.filename}. Only .safetensors and .ckpt files are allowed."
+                }), 400
+
+            # Save the file
+            filepath = os.path.join(loras_dir, file.filename)
+            file.save(filepath)
+            uploaded_files.append(file.filename)
+
+        return jsonify({
+            "status": "success",
+            "message": f"Successfully uploaded {len(uploaded_files)} file(s)",
+            "files": uploaded_files
+        })
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
 @app.route('/api/add-api-key', methods=['POST'])
 def add_api_key():
     """

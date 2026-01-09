@@ -88,10 +88,11 @@ const CustomWorkflowBrowser: React.FC<CustomWorkflowBrowserProps> = ({
                 Select a JSON file containing your ComfyUI workflow
               </p>
             </div>
-            <Button 
+            <Button
               onClick={handleRefreshClick}
               disabled={isUploading}
-              className="flex items-center gap-2"
+              variant="outline"
+              className="mt-4 flex items-center gap-2 mx-auto"
             >
               <RefreshCw className={`h-4 w-4 ${isUploading ? 'animate-spin' : ''}`} />
               {isUploading ? 'Uploading...' : 'Select Workflow File'}
