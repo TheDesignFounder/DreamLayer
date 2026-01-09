@@ -10,7 +10,7 @@ interface Img2TxtPageProps {}
 const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [customPrompt, setCustomPrompt] = useState<string>('');
+  const [customPrompt, setCustomPrompt] = useState<string>('Analyze and describe the image in detail including objects, scene, colors, mood, and composition');
   const [generatedText, setGeneratedText] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
@@ -117,13 +117,13 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
 
   return (
     <div className="flex justify-center">
-      <div className="w-full max-w-6xl space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Image to Text Analysis</h2>
-          <Button 
-            onClick={handleGenerateText} 
+      <div className="w-full max-w-6xl space-y-4">
+        <div className="flex items-center justify-between mb-[18px]">
+          <h3 className="text-base font-medium">Image to Text Analysis</h3>
+          <Button
+            onClick={handleGenerateText}
             disabled={!selectedImage || isGenerating}
-            className="min-w-[120px]"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             {isGenerating ? (
               <>
@@ -139,12 +139,11 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Image Upload Section */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ImageIcon className="w-5 h-5" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-foreground">
                 Image Input
               </CardTitle>
             </CardHeader>
@@ -152,13 +151,13 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
               <div className="space-y-4">
                 {/* Upload Area */}
                 <div
-                  className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                  className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   onClick={() => document.getElementById('image-upload')?.click()}
                 >
                   {imagePreview ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <img
                         src={imagePreview}
                         alt="Selected"
@@ -175,9 +174,9 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <Upload className="w-12 h-12 mx-auto text-muted-foreground" />
-                      <p className="text-lg font-medium">Drop an image here or click to browse</p>
-                      <p className="text-sm text-muted-foreground">
+                      <Upload className="w-10 h-10 mx-auto text-muted-foreground" />
+                      <p className="text-sm font-medium">Drop an image here or click to browse</p>
+                      <p className="text-xs text-muted-foreground">
                         Supports JPG, PNG, GIF and other image formats
                       </p>
                     </div>
@@ -194,18 +193,15 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
 
                 {/* Custom Prompt */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Custom Analysis Prompt (Optional)
+                  <label className="text-sm font-medium mb-1">
+                    Enter Prompt For Image Analysis
                   </label>
                   <Textarea
-                    placeholder="Enter custom instructions for image analysis (leave empty for default analysis)"
                     value={customPrompt}
                     onChange={(e) => setCustomPrompt(e.target.value)}
                     rows={3}
+                    className="mt-4"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Default: Analyze and describe the image in detail including objects, scene, colors, mood, and composition.
-                  </p>
                 </div>
               </div>
             </CardContent>
@@ -213,22 +209,21 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
 
           {/* Generated Text Section */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-foreground">
                 Generated Analysis
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {isGenerating ? (
-                  <div className="flex items-center justify-center p-8 text-muted-foreground">
-                    <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                  <div className="flex items-center justify-center p-6 text-muted-foreground text-sm">
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     Analyzing image with Gemini AI...
                   </div>
                 ) : generatedText ? (
                   <div className="space-y-4">
-                    <div className="p-4 bg-muted rounded-lg">
+                    <div className="p-3 bg-muted rounded-lg">
                       <pre className="whitespace-pre-wrap text-sm">{generatedText}</pre>
                     </div>
                     <div className="flex gap-2">
@@ -249,9 +244,9 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center p-8 text-muted-foreground">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Upload an image and click "Generate Text" to see the AI analysis</p>
+                  <div className="text-center p-6 text-muted-foreground">
+                    <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">Upload an image and click "Generate Text" to see the AI analysis</p>
                   </div>
                 )}
               </div>
@@ -261,23 +256,23 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
 
         {/* Info Section */}
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div>
-                <h4 className="font-semibold mb-2">How it works</h4>
-                <p className="text-muted-foreground">
+                <h4 className="font-medium mb-1 text-sm">How it works</h4>
+                <p className="text-muted-foreground text-xs">
                   Upload any image and our Gemini AI will analyze it, providing detailed descriptions of objects, scenes, composition, and artistic elements.
                 </p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Custom Prompts</h4>
-                <p className="text-muted-foreground">
+                <h4 className="font-medium mb-1 text-sm">Custom Prompts</h4>
+                <p className="text-muted-foreground text-xs">
                   Customize the analysis by providing specific instructions. Ask about style, colors, emotions, or technical aspects.
                 </p>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Powered by</h4>
-                <p className="text-muted-foreground">
+                <h4 className="font-medium mb-1 text-sm">Powered by</h4>
+                <p className="text-muted-foreground text-xs">
                   Google Gemini 2.5 Pro - Advanced multimodal AI with sophisticated visual understanding capabilities.
                 </p>
               </div>
