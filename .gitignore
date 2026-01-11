@@ -198,6 +198,7 @@ Dream_Layer_Resources/
 
 # DreamLayer Backend Generated Files
 dream_layer_backend/served_images/
+*.db
 
 # Model display names mapping
 model_display_names.json
