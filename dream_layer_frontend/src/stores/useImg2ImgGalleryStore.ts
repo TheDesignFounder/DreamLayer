@@ -9,6 +9,7 @@ interface InputImage {
 interface Img2ImgGalleryState {
   images: ImageResult[];
   isLoading: boolean;
+  currentImageIndex: number;
   inputImage: InputImage | null;
   coreSettings: CoreGenerationSettings;
   customWorkflow: any | null;
@@ -16,6 +17,7 @@ interface Img2ImgGalleryState {
   clearImages: () => void;
   removeImage: (id: string) => void;
   setLoading: (loading: boolean) => void;
+  setCurrentImageIndex: (index: number) => void;
   setInputImage: (image: InputImage | null) => void;
   setCustomWorkflow: (workflow: any | null) => void;
   updateCoreSettings: (updates: Partial<CoreGenerationSettings>) => void;
@@ -26,25 +28,30 @@ interface Img2ImgGalleryState {
   handleSeedChange: (seed: number, random?: boolean) => void;
   handleDenoisingStrengthChange: (strength: number) => void;
   handleAdvancedSettingsChange: (settings: Partial<CoreGenerationSettings>) => void;
+  loadFromDatabase: () => Promise<void>;
 }
 
 export const useImg2ImgGalleryStore = create<Img2ImgGalleryState>((set) => ({
   images: [],
   isLoading: false,
+  currentImageIndex: 0,
   inputImage: null,
   coreSettings: defaultCoreSettings,
   customWorkflow: null,
   addImages: (newImages) => set((state) => ({
-    images: [...newImages, ...state.images]
+    images: [...newImages, ...state.images],
+    currentImageIndex: 0  // Reset to show new generation
   })),
   clearImages: () => set((state) => ({
     images: [],
-    isLoading: state.isLoading // Preserve the current loading state
+    isLoading: state.isLoading, // Preserve the current loading state
+    currentImageIndex: 0
   })),
   removeImage: (id) => set((state) => ({
     images: state.images.filter(img => img.id !== id)
   })),
   setLoading: (loading) => set({ isLoading: loading }),
+  setCurrentImageIndex: (index) => set({ currentImageIndex: index }),
   setInputImage: (image) => set((state) => {
     if (image) {
       // When setting a new input image, also update the input_image field in coreSettings
@@ -112,5 +119,36 @@ export const useImg2ImgGalleryStore = create<Img2ImgGalleryState>((set) => ({
       ...state.coreSettings,
       ...settings
     }
-  }))
+  })),
+  loadFromDatabase: async () => {
+    try {
+      set({ isLoading: true });
+      const response = await fetch('http://localhost:5009/api/history/img2img');
+      const data = await response.json();
+
+      if (data.status === 'success' && data.generations) {
+        // Convert database format to ImageResult format
+        const images: ImageResult[] = data.generations.map((gen: any) => ({
+          id: gen.id,
+          url: gen.url,
+          prompt: gen.prompt || '',
+          negativePrompt: gen.negative_prompt || '',
+          timestamp: new Date(gen.created_at).getTime(),
+          settings: gen.settings
+        }));
+
+        set((state) => ({
+          images,
+          isLoading: false,
+          // Keep current index, but ensure it's valid
+          currentImageIndex: Math.min(state.currentImageIndex, Math.max(0, images.length - 1))
+        }));
+      } else {
+        set({ isLoading: false });
+      }
+    } catch (error) {
+      console.error('[Img2Img Store] Error loading from database:', error);
+      set({ isLoading: false });
+    }
+  }
 }));

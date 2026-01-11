@@ -25,13 +25,9 @@ const Index = () => {
     return "txt2img";
   });
   const [selectedModel, setSelectedModel] = useState<string>("v1-5-pruned-emaonly-fp16.safetensors");
-  const clearTxt2ImgImages = useTxt2ImgGalleryStore(state => state.clearImages);
-  const clearImg2ImgImages = useImg2ImgGalleryStore(state => state.clearImages);
 
   const handleTabChange = (tabId: string) => {
-    // Clear both stores when switching tabs
-    clearTxt2ImgImages();
-    clearImg2ImgImages();
+    // Don't clear images when switching tabs - they persist via database
     setActiveTab(tabId);
   };
 

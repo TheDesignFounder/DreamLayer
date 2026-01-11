@@ -17,13 +17,12 @@ const LoadingAnimation = () => (
 );
 
 const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
-  const { images, isLoading } = useImg2ImgGalleryStore();
+  const { images, isLoading, currentImageIndex, setCurrentImageIndex } = useImg2ImgGalleryStore();
   const [imageError, setImageError] = useState<string | null>(null);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [outputSettingsExpanded, setOutputSettingsExpanded] = useState(true);
   const [thumbnailStartIndex, setThumbnailStartIndex] = useState(0);
 
-  const currentImage = images[selectedImageIndex] || images[0];
+  const currentImage = images[currentImageIndex] || images[0];
   const maxThumbnails = 5;
   const totalPages = Math.ceil(images.length / maxThumbnails);
   const currentPage = Math.floor(thumbnailStartIndex / maxThumbnails) + 1;
@@ -204,7 +203,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
 
   const handleThumbnailClick = (index: number) => {
     const actualIndex = thumbnailStartIndex + index;
-    setSelectedImageIndex(actualIndex);
+    setCurrentImageIndex(actualIndex);
   };
 
   const formatSettingsDisplay = () => {
@@ -320,8 +319,8 @@ Time taken: 31.1 sec.`;
                     key={image.id}
                     onClick={() => handleThumbnailClick(index)}
                     className={`w-16 h-16 rounded border-2 transition-colors overflow-hidden ${
-                      actualIndex === selectedImageIndex 
-                        ? 'border-primary' 
+                      actualIndex === currentImageIndex
+                        ? 'border-primary'
                         : 'border-border hover:border-primary/50'
                     }`}
                   >

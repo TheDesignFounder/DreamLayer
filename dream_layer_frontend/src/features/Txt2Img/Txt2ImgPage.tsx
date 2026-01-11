@@ -46,6 +46,7 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   const { toast } = useToast();
   const addImages = useTxt2ImgGalleryStore(state => state.addImages);
   const setLoading = useTxt2ImgGalleryStore(state => state.setLoading);
+  const loadFromDatabase = useTxt2ImgGalleryStore(state => state.loadFromDatabase);
   const controlNetConfig = useControlNetStore(state => state.controlNetConfig);
   const { setControlNetConfig } = useControlNetStore();
   const loraConfig = useLoraStore(state => state.loraConfig);
@@ -54,6 +55,11 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
   useEffect(() => {
     updateCoreSettings({ model_name: selectedModel });
   }, [selectedModel]);
+
+  // Load generation history from database on mount
+  useEffect(() => {
+    loadFromDatabase();
+  }, [loadFromDatabase]);
 
   const updateCoreSettings = (updates: Partial<Txt2ImgCoreSettings>) => {
     setCoreSettings(prev => ({ ...prev, ...updates }));

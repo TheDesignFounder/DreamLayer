@@ -16,6 +16,9 @@ from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_model
 from run_registry import create_run_config_from_generation_data
 from dataclasses import asdict
 import requests
+from datetime import datetime
+import generation_history as gh
+import cleanup_scheduler
 
 # Configure logging
 logging.basicConfig(
@@ -222,7 +225,31 @@ def handle_img2img():
                             if isinstance(img_data, dict) and "filename" in img_data:
                                 generated_images.append(img_data["filename"])
                         all_generated_images.extend(comfy_response["all_images"])
-                    
+
+                    # Save each generated image to history database
+                    from dream_layer import get_directories
+                    output_dir, _ = get_directories()
+                    for img_data in comfy_response.get("all_images", []):
+                        if isinstance(img_data, dict) and "filename" in img_data:
+                            filename = img_data["filename"]
+                            file_path = os.path.join(output_dir, filename)
+
+                            # Create unique ID for this generation
+                            gen_id = f"img2img_{int(time.time() * 1000)}_{filename}"
+
+                            # Save to history
+                            gh.save_generation({
+                                'id': gen_id,
+                                'type': 'img2img',
+                                'filename': filename,
+                                'file_path': file_path,
+                                'url': img_data.get("url", f"http://localhost:5004/api/images/{filename}"),
+                                'prompt': iteration_data.get('prompt', ''),
+                                'negative_prompt': iteration_data.get('negative_prompt', ''),
+                                'settings': iteration_data,
+                                'created_at': datetime.now().isoformat()
+                            })
+
                     logger.info(f"Registering run for iteration {iteration + 1}")
                     # Register the completed run - each iteration gets unique run_id
                     try:
@@ -282,7 +309,31 @@ def handle_img2img():
                 for img_data in final_response["generated_images"]:
                     if isinstance(img_data, dict) and "filename" in img_data:
                         generated_images.append(img_data["filename"])
-            
+
+            # Save each generated image to history database for single execution
+            from dream_layer import get_directories
+            output_dir, _ = get_directories()
+            for img_data in final_response.get("generated_images", []):
+                if isinstance(img_data, dict) and "filename" in img_data:
+                    filename = img_data["filename"]
+                    file_path = os.path.join(output_dir, filename)
+
+                    # Create unique ID for this generation
+                    gen_id = f"img2img_{int(time.time() * 1000)}_{filename}"
+
+                    # Save to history
+                    gh.save_generation({
+                        'id': gen_id,
+                        'type': 'img2img',
+                        'filename': filename,
+                        'file_path': file_path,
+                        'url': img_data.get("url", f"http://localhost:5004/api/images/{filename}"),
+                        'prompt': data.get('prompt', ''),
+                        'negative_prompt': data.get('negative_prompt', ''),
+                        'settings': data,
+                        'created_at': datetime.now().isoformat()
+                    })
+
             # Register the completed run for single execution
             try:
                 from run_registry import registry
@@ -340,4 +391,8 @@ def serve_image_endpoint(filename):
         }), 500
 
 if __name__ == '__main__':
+    # Note: Cleanup scheduler is initialized in txt2img_server.py
+    # to avoid running multiple schedulers
+    print("\nStarting Img2Img Handler Server...")
+    print("Listening for requests at http://localhost:5004/api/img2img")
     app.run(host='0.0.0.0', port=5004, debug=True) 

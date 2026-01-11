@@ -43,20 +43,21 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   
   // ControlNet configuration will be managed by useControlNetStore
   
-  const { 
-    inputImage, 
-    setLoading, 
-    addImages, 
-    clearImages, 
-    coreSettings, 
+  const {
+    inputImage,
+    setLoading,
+    addImages,
+    clearImages,
+    coreSettings,
     customWorkflow,
     setCustomWorkflow,
-    handlePromptChange, 
-    handleSamplingSettingsChange, 
-    handleSizeSettingsChange, 
-    handleBatchSettingsChange, 
+    handlePromptChange,
+    handleSamplingSettingsChange,
+    handleSizeSettingsChange,
+    handleBatchSettingsChange,
     handleSeedChange,
-    updateCoreSettings
+    updateCoreSettings,
+    loadFromDatabase
   } = useImg2ImgGalleryStore();
   const selectedLora = useLoraStore(state => state.loraConfig);
   const { controlNetConfig, setControlNetConfig } = useControlNetStore();
@@ -64,7 +65,9 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
   useEffect(() => {
     setIsLoaded(true);
     console.log("Img2ImgPage component mounted");
-  }, []);
+    // Load generation history from database
+    loadFromDatabase();
+  }, [loadFromDatabase]);
 
   const handleSubTabChange = (tabId: string) => {
     setActiveSubTab(tabId);

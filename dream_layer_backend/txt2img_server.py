@@ -16,6 +16,9 @@ from run_registry import create_run_config_from_generation_data, registry
 from dataclasses import asdict
 import base64
 import google.generativeai as genai
+from datetime import datetime
+import generation_history as gh
+import cleanup_scheduler
 
 def call_banana_api_directly(data):
     """Call Gemini API directly for banana models, bypassing ComfyUI"""
@@ -168,7 +171,29 @@ def handle_txt2img():
                             if isinstance(img_data, dict) and "filename" in img_data:
                                 generated_images.append(img_data["filename"])
                         all_generated_images.extend(comfy_response["all_images"])
-                    
+
+                    # Save each generated image to history database
+                    for img_data in comfy_response.get("all_images", []):
+                        if isinstance(img_data, dict) and "filename" in img_data:
+                            filename = img_data["filename"]
+                            file_path = os.path.join(SERVED_IMAGES_DIR, filename)
+
+                            # Create unique ID for this generation
+                            gen_id = f"txt2img_{int(time.time() * 1000)}_{filename}"
+
+                            # Save to history
+                            gh.save_generation({
+                                'id': gen_id,
+                                'type': 'txt2img',
+                                'filename': filename,
+                                'file_path': file_path,
+                                'url': img_data.get("url", f"http://localhost:5001/api/images/{filename}"),
+                                'prompt': iteration_data.get('prompt', ''),
+                                'negative_prompt': iteration_data.get('negative_prompt', ''),
+                                'settings': iteration_data,
+                                'created_at': datetime.now().isoformat()
+                            })
+
                     print(f"Registering run for iteration {iteration + 1}")
                     # Register the completed run - each iteration gets unique run_id
                     try:
@@ -501,4 +526,13 @@ if __name__ == "__main__":
     print("  - GET /api/controlnet/models")
     print("  - POST /api/upload-controlnet-image")
     print("  - GET /api/images/<filename>")
+
+    # Initialize cleanup scheduler (runs every 3 hours)
+    print("\nInitializing cleanup scheduler...")
+    cleanup_scheduler.init_scheduler(
+        interval_hours=3,
+        image_retention_days=7,
+        video_retention_days=2
+    )
+
     socketio.run(app, host='127.0.0.1', port=5001, debug=True, allow_unsafe_werkzeug=True) 

@@ -186,6 +186,7 @@ main() {
     kill_port 5005  # Run registry server
     kill_port 5006  # Report bundle server
     kill_port 5007  # img2txt server
+    kill_port 5009  # History server
     kill_port 8080  # Vite dev server
     
     # Wait for ports to be freed
@@ -214,7 +215,10 @@ main() {
 
     # Start img2txt_server.py
     start_python_server "img2txt_server" "img2txt_server.py" 5007
-    
+
+    # Start history_server.py for generation history persistence
+    start_python_server "history_server" "history_server.py" 5009
+
     # Start localtunnel for external API access
     if command -v lt >/dev/null 2>&1; then
         lt --port 5002 > "logs/tunnel.log" 2>&1 &
@@ -258,6 +262,7 @@ main() {
     print_status "  - Run registry server: http://localhost:5005"
     print_status "  - Report bundle server: http://localhost:5006"
     print_status "  - img2txt server: http://localhost:5007"
+    print_status "  - History server: http://localhost:5009"
     print_status "  - Frontend: http://localhost:8080"
     print_status "  - ComfyUI: http://localhost:8188"
     
