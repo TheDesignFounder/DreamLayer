@@ -437,7 +437,7 @@ const Img2ImgPage: React.FC<Img2ImgPageProps> = ({ selectedModel, onTabChange })
             <Img2ImgToolsNavigation />
           )}
           
-          <Accordion type="multiple" className="space-y-4">
+          <Accordion type="multiple" defaultValue={["section-1"]} className="space-y-4">
             <AccordionItem value="section-1" className="border border-border rounded-md overflow-hidden bg-card">
               <AccordionTrigger className="px-4 py-3 font-medium bg-card hover:bg-accent">
                 <span className="flex items-center text-foreground">
