@@ -61,6 +61,15 @@ const Txt2ImgPage: React.FC<Txt2ImgPageProps> = ({ selectedModel, onTabChange })
     loadFromDatabase();
   }, [loadFromDatabase]);
 
+  // Check for prompt from session storage (from img2txt "Send to" button)
+  useEffect(() => {
+    const storedPrompt = window.sessionStorage.getItem('txt2imgPrompt');
+    if (storedPrompt) {
+      updateCoreSettings({ prompt: storedPrompt });
+      window.sessionStorage.removeItem('txt2imgPrompt');
+    }
+  }, []);
+
   const updateCoreSettings = (updates: Partial<Txt2ImgCoreSettings>) => {
     setCoreSettings(prev => ({ ...prev, ...updates }));
   };

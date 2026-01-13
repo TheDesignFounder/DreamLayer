@@ -98,9 +98,9 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange, grids = [] }) 
     }
   };
 
-  const handleSendTo = async (destination: 'img2img' | 'inpaint' | 'extras') => {
+  const handleSendTo = async (destination: 'img2img' | 'img2vid' | 'extras') => {
     if (!currentImage) return;
-    
+
     if (destination === 'img2img') {
       try {
         // Extract filename from URL (supports both old and new formats)
@@ -138,6 +138,30 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange, grids = [] }) 
         }
       } catch (error) {
         console.error('Error sending to img2img:', error);
+      }
+    } else if (destination === 'img2vid') {
+      try {
+        // Extract filename from URL (supports both old and new formats)
+        const url = new URL(currentImage.url);
+        let filename = url.searchParams.get('filename'); // Old ComfyUI format
+        if (!filename) {
+          // New format - extract from path
+          filename = url.pathname.split('/').pop(); // Gets "image123.png"
+        }
+
+        if (!filename) {
+          console.error('No filename found in URL:', currentImage.url);
+          return;
+        }
+
+        // Store image URL instead of base64 to avoid quota issues
+        const imageUrl = `http://localhost:5001/api/images/${filename}`;
+        window.sessionStorage.setItem('img2vidImageUrl', imageUrl);
+
+        // Switch to img2vid tab
+        onTabChange('img2vid');
+      } catch (error) {
+        console.error('Error sending to img2vid:', error);
       }
     } else if (destination === 'extras') {
       try {
@@ -399,13 +423,13 @@ Time taken: 31.1 sec.`;
               >
                 Img2Img
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs h-8"
-                onClick={() => handleSendTo('inpaint')}
+                onClick={() => handleSendTo('img2vid')}
               >
-                Inpaint
+                Img2Vid
               </Button>
               <Button 
                 variant="outline" 

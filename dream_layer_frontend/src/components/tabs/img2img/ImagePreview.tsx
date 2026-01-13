@@ -130,12 +130,29 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
     }
   };
 
-  const handleSendTo = async (destination: 'txt2img' | 'inpaint' | 'extras') => {
+  const handleSendTo = async (destination: 'img2vid' | 'extras') => {
     if (!currentImage) return;
-    
-    if (destination === 'txt2img') {
-      // TODO: Implement txt2img functionality
-      console.log(`Sending to ${destination}:`, currentImage);
+
+    if (destination === 'img2vid') {
+      try {
+        // Extract filename from URL path (it's the last part of the path)
+        const url = new URL(currentImage.url);
+        const filename = url.pathname.split('/').pop();
+
+        if (!filename) {
+          console.error('No filename found in URL:', currentImage.url);
+          return;
+        }
+
+        // Store image URL instead of base64 to avoid quota issues
+        const imageUrl = `http://localhost:5004/api/images/${filename}`;
+        window.sessionStorage.setItem('img2vidImageUrl', imageUrl);
+
+        // Switch to img2vid tab
+        onTabChange('img2vid');
+      } catch (error) {
+        console.error('Error sending to img2vid:', error);
+      }
     } else if (destination === 'extras') {
       try {
         // Extract filename from URL path (it's the last part of the path)
@@ -413,25 +430,17 @@ Time taken: 31.1 sec.`;
           <div>
             <div className="flex items-center flex-wrap gap-2">
               <span className="text-sm font-medium">Send To:</span>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs h-8"
-                onClick={() => handleSendTo('txt2img')}
+                onClick={() => handleSendTo('img2vid')}
               >
-                Txt2Img
+                Img2Vid
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-xs h-8"
-                onClick={() => handleSendTo('inpaint')}
-              >
-                Inpaint
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="text-xs h-8"
                 onClick={() => handleSendTo('extras')}
               >

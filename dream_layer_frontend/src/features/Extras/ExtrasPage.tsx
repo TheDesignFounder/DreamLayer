@@ -243,7 +243,7 @@ const ExtrasPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="p-4 border-2 border-dashed border-border rounded-md text-center flex flex-col items-center justify-center aspect-square bg-card">
+              <div className="p-4 border-2 border-dashed border-border rounded-md text-center flex flex-col items-center justify-center bg-card mx-auto" style={{ width: '330px', height: '330px' }}>
                 <p className="text-muted-foreground mb-2">Drag & drop an image here or click to browse</p>
                 <p className="text-xs text-muted-foreground mb-4">PNG, JPG, WEBP or GIF up to 10MB</p>
                 <ImageUploadButton onFileChange={handleImageUpload}>

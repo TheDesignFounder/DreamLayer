@@ -70,7 +70,7 @@ def get_generations(gen_type):
         limit = int(request.args.get('limit', 100))
 
         # Validate gen_type
-        valid_types = ['txt2img', 'img2img', 'txt2vid', 'img2txt', 'extras', 'all']
+        valid_types = ['txt2img', 'img2img', 'txt2vid', 'img2vid', 'img2txt', 'extras', 'all']
         if gen_type not in valid_types:
             return jsonify({
                 "status": "error",

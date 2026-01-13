@@ -140,4 +140,52 @@ export interface Txt2ImgCoreSettings extends CoreGenerationSettings {
 export const defaultTxt2ImgSettings: Txt2ImgCoreSettings = {
   ...defaultCoreSettings,
   // Override any default values specific to txt2img here
-}; 
+};
+
+// Type for txt2vid specific settings
+export interface Txt2VidCoreSettings {
+  // Basic Settings
+  prompt: string;
+  model: 'luma' | 'runway';
+
+  // Luma-specific settings
+  luma_model?: 'ray-2' | 'ray-flash-2';
+  aspect_ratio?: '16:9' | '9:16' | '4:3' | '3:4' | '21:9' | '9:21' | '1:1';
+  loop?: boolean;
+  resolution?: '180p' | '360p' | '540p' | '720p' | '1080p' | '4k';
+
+  // Runway-specific settings
+  runway_mode?: 'text2vid' | 'img2vid'; // Text-to-video or Image-to-video
+  runway_model?: 'veo3.1' | 'veo3.1_fast' | 'veo3' | 'gen4_turbo' | 'gen3a_turbo' | 'gen4_aleph';
+  ratio?: '1280:720' | '720:1280' | '1080:1920' | '1920:1080' | '1104:832' | '832:1104' | '960:960' | '1584:672';
+  duration?: 4 | 6 | 8; // Only 4, 6, or 8 seconds allowed
+  seed?: number;
+  audio?: boolean; // Enable audio generation (costs 2x credits) - only for veo models
+  input_image?: string; // Base64 encoded image for image-to-video
+}
+
+// Default values for txt2vid settings
+export const defaultTxt2VidSettings: Txt2VidCoreSettings = {
+  prompt: '',
+  model: 'luma',
+  luma_model: 'ray-2',
+  aspect_ratio: '16:9',
+  loop: true,
+  resolution: '1080p',
+  runway_mode: 'text2vid',
+  runway_model: 'veo3.1',
+  ratio: '1280:720',
+  duration: 4,
+  seed: -1,
+  audio: false // Default to false to save credits (20 vs 40 credits/sec)
+};
+
+// Type for video result
+export interface VideoResult {
+  id: string;
+  url: string;
+  filename: string;
+  prompt: string;
+  timestamp: number;
+  settings: Partial<Txt2VidCoreSettings>;
+}

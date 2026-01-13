@@ -7,12 +7,16 @@ import {
   HardDrive,
   History,
   Download,
-  MessageSquare
+  MessageSquare,
+  Video,
+  Film
 } from "lucide-react";
 
 const tabs = [
   { id: "txt2img", label: "Txt2Img", icon: FileText },
   { id: "img2img", label: "Img2Img", icon: ImageIcon },
+  { id: "txt2vid", label: "Txt2Vid", icon: Video },
+  { id: "img2vid", label: "Img2Vid", icon: Film },
   { id: "img2txt", label: "Img2Txt", icon: MessageSquare },
   { id: "extras", label: "Extras", icon: GalleryHorizontal },
   { id: "models", label: "Models", icon: HardDrive },

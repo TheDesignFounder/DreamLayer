@@ -6,9 +6,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 
-interface Img2TxtPageProps {}
+interface Img2TxtPageProps {
+  onTabChange: (tabId: string) => void;
+}
 
-const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
+const Img2TxtPage: React.FC<Img2TxtPageProps> = ({ onTabChange }) => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState<string>('Analyze and describe the image in detail including objects, scene, colors, mood, and composition');
@@ -172,6 +174,46 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
     }
   };
 
+  const handleSendToTxt2Img = () => {
+    if (!generatedText) {
+      toast({
+        title: "No Text",
+        description: "Please generate text first before sending to txt2img",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Store the generated text in session storage for txt2img page
+    window.sessionStorage.setItem('txt2imgPrompt', generatedText);
+    onTabChange('txt2img');
+
+    toast({
+      title: "Sent to Txt2Img",
+      description: "Prompt has been sent to the Txt2Img tab",
+    });
+  };
+
+  const handleSendToTxt2Vid = () => {
+    if (!generatedText) {
+      toast({
+        title: "No Text",
+        description: "Please generate text first before sending to txt2vid",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Store the generated text in session storage for txt2vid page
+    window.sessionStorage.setItem('txt2vidPrompt', generatedText);
+    onTabChange('txt2vid');
+
+    toast({
+      title: "Sent to Txt2Vid",
+      description: "Prompt has been sent to the Txt2Vid tab",
+    });
+  };
+
   return (
     <div className="flex justify-center">
       <div className="w-full max-w-6xl space-y-4">
@@ -281,7 +323,8 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
               <div className="space-y-4">
                 {/* Upload Area */}
                 <div
-                  className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer mt-1"
+                  className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer mt-1 flex flex-col items-center justify-center mx-auto"
+                  style={{ width: '330px', height: '330px' }}
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   onClick={() => document.getElementById('image-upload')?.click()}
@@ -370,6 +413,20 @@ const Img2TxtPage: React.FC<Img2TxtPageProps> = () => {
                         onClick={() => setGeneratedText('')}
                       >
                         Clear
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSendToTxt2Img}
+                      >
+                        Send to Txt2Img
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSendToTxt2Vid}
+                      >
+                        Send to Txt2Vid
                       </Button>
                     </div>
                   </div>

@@ -27,7 +27,10 @@ import {
   Target,
   TrendingUp,
   FileType,
-  Settings
+  Settings,
+  Video,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
 import ModelDropZone, { ModelType, UploadedModel } from '@/components/ModelDropZone';
 import {
@@ -48,6 +51,8 @@ const ModelManagerPage = () => {
   const [sortBy, setSortBy] = useState<'name' | 'type'>('type');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showUploadZone, setShowUploadZone] = useState(true);
+  const [apiProviders, setApiProviders] = useState<{ luma: boolean; runway: boolean }>({ luma: false, runway: false });
+  const [isLoadingProviders, setIsLoadingProviders] = useState(true);
 
   // Model type options with user-friendly labels
   const modelTypes: { value: ModelType | 'all'; label: string; description: string }[] = [
@@ -71,6 +76,23 @@ const ModelManagerPage = () => {
       toast.error('Failed to load models');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadApiProviders = async () => {
+    try {
+      setIsLoadingProviders(true);
+      const response = await fetch('http://localhost:5008/api/available-providers');
+      const data = await response.json();
+
+      if (data.status === 'success' && data.providers) {
+        setApiProviders(data.providers);
+      }
+    } catch (error) {
+      console.error('Error loading API providers:', error);
+      // Silently fail - API services section will show as not configured
+    } finally {
+      setIsLoadingProviders(false);
     }
   };
 
@@ -115,6 +137,7 @@ const ModelManagerPage = () => {
   // Setup WebSocket listener for auto-refresh
   useEffect(() => {
     loadModels();
+    loadApiProviders();
     ensureWebSocketConnection();
 
     return addModelRefreshListener(() => {
@@ -291,46 +314,133 @@ const ModelManagerPage = () => {
               </p>
             </div>
 
-            {/* Models Grid/List */}
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-muted-foreground">Loading models...</span>
+            {/* API Services Section */}
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Video className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-medium">API Services</h3>
               </div>
-            ) : filteredModels.length === 0 ? (
-              <div className="p-12 text-center">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-sm font-medium mb-2">No models found</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {models.length === 0
-                    ? "Upload a checkpoint model to get started with image generation"
-                    : "Try adjusting your search or filters"
-                  }
-                </p>
-                {models.length === 0 && (
-                  <Button onClick={() => setShowUploadZone(true)}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Model
-                  </Button>
-                )}
+
+              {isLoadingProviders ? (
+                <div className="flex items-center justify-center py-6">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">Checking API services...</span>
+                </div>
+              ) : (
+                <div className={viewMode === 'grid'
+                  ? "grid grid-cols-1 md:grid-cols-2 gap-4"
+                  : "space-y-2"
+                }>
+                  {/* Luma AI */}
+                  <Card className="p-4 bg-muted/30">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">Luma AI</h4>
+                        <p className="text-xs text-muted-foreground mt-1">Dream Machine - Text/Image to Video</p>
+                      </div>
+                      <Badge
+                        className={apiProviders.luma
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                        }
+                      >
+                        {apiProviders.luma ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Configured
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Not Configured
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                  </Card>
+
+                  {/* Runway ML */}
+                  <Card className="p-4 bg-muted/30">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">Runway ML</h4>
+                        <p className="text-xs text-muted-foreground mt-1">Gen-3/Veo3 - Text/Image to Video</p>
+                      </div>
+                      <Badge
+                        className={apiProviders.runway
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                        }
+                      >
+                        {apiProviders.runway ? (
+                          <>
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Configured
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Not Configured
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                API services are configured in your .env file. Configure API keys to enable video generation features.
+              </p>
+            </div>
+
+            {/* File-Based Models Section */}
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <HardDrive className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-medium">File-Based Models</h3>
               </div>
-            ) : (
-              <div className={viewMode === 'grid'
-                ? "grid grid-cols-1 md:grid-cols-2 gap-4"
-                : "space-y-2"
-              }>
-                {filteredModels.map((model) => (
-                  <ModelCard
-                    key={model.id}
-                    model={model}
-                    viewMode={viewMode}
-                    getModelTypeColor={getModelTypeColor}
-                    getModelTypeIcon={getModelTypeIcon}
-                    getModelTypeLabel={getModelTypeLabel}
-                  />
-                ))}
-              </div>
-            )}
+
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Loading models...</span>
+                </div>
+              ) : filteredModels.length === 0 ? (
+                <div className="p-12 text-center">
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-sm font-medium mb-2">No models found</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {models.length === 0
+                      ? "Upload a checkpoint model to get started with image generation"
+                      : "Try adjusting your search or filters"
+                    }
+                  </p>
+                  {models.length === 0 && (
+                    <Button onClick={() => setShowUploadZone(true)}>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Model
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className={viewMode === 'grid'
+                  ? "grid grid-cols-1 md:grid-cols-2 gap-4"
+                  : "space-y-2"
+                }>
+                  {filteredModels.map((model) => (
+                    <ModelCard
+                      key={model.id}
+                      model={model}
+                      viewMode={viewMode}
+                      getModelTypeColor={getModelTypeColor}
+                      getModelTypeIcon={getModelTypeIcon}
+                      getModelTypeLabel={getModelTypeLabel}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </Card>
       </div>
