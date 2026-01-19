@@ -121,15 +121,18 @@ chmod +x start_dream_layer.sh
 ./install_mac_dependencies.sh
 ```
 
-#### Windows
+#### Windows (PowerShell)
 
-```bash
+```powershell
 # Clone the repository
 git clone https://github.com/DreamLayer-AI/DreamLayer.git
 cd DreamLayer
 
+# If needed, allow script execution for this session:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
 # Run installation
-install_windows_dependencies.bat
+.\install_windows_dependencies.ps1
 ```
 
 ### Method 2: Manual Installation
@@ -143,7 +146,7 @@ cd DreamLayer
 
 #### 2. Install Python Dependencies
 
-> **Note:** For most users, we recommend using the automated install scripts (`install_mac_dependencies.sh`, `install_linux_dependencies.sh`, or `install_windows_dependencies.bat`) which handle all dependencies correctly.
+> **Note:** For most users, we recommend using the automated install scripts (`install_mac_dependencies.sh`, `install_linux_dependencies.sh`, or `install_windows_dependencies.ps1`) which handle all dependencies correctly.
 
 ```bash
 # Create virtual environment
@@ -375,7 +378,7 @@ kill -9 <PID>
 git pull origin main
 
 # Reinstall dependencies (if needed)
-./install_mac_dependencies.sh  # or install_windows_dependencies.bat
+./install_mac_dependencies.sh  # or .\install_windows_dependencies.ps1 on Windows
 ```
 
 ### Updating Models

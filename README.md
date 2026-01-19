@@ -74,10 +74,13 @@ Cursor will:
 ./install_mac_dependencies.sh
 ```
 
-**Windows:**
+**Windows (PowerShell):**
 
-```bash
-install_windows_dependencies.ps1
+```powershell
+# If needed, allow script execution for this session:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+.\install_windows_dependencies.ps1
 ```
 
 ### Start Application
@@ -155,6 +158,8 @@ No key = feature stays hidden.
 > Tip: Use symbolic links if your checkpoints live on another drive.
 
 _The installation scripts will automatically install all dependencies and set up the environment._
+
+> **Note:** The repository includes `yolov8n.pt` (~6MB) for out-of-the-box object detection metrics. This is intentional to enable evaluation features without additional downloads.
 
 ---
 
