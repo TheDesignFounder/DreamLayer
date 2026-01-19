@@ -24,11 +24,20 @@ interface EvalMetricsProps {
     rule_of_thirds_score?: number;
     symmetry_score?: number;
     balance_score?: number;
-    // Legacy composition fields
+    // Aesthetic Quality Metrics (Phase 5)
+    aesthetics_score?: number;  // LAION aesthetic score (1-10)
+    color_harmony_score?: number;
+    saturation_balance?: number;
+    value_contrast?: number;
+    technical_quality_score?: number;
+    sharpness_score?: number;
+    noise_level?: number;
+    artifact_score?: number;
+    overall_aesthetic_quality?: number;
+    // Legacy/additional metrics
     composition_precision?: number;
     composition_recall?: number;
     composition_f1?: number;
-    aesthetics_score?: number;
     lpips_score?: number;
     psnr_score?: number;
     ssim_score?: number;
@@ -49,7 +58,7 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(true);
 
-  const getScoreColor = (score: number | undefined, metricType: 'clip' | 'fid' | 'composition' | 'aesthetics' | 'visual') => {
+  const getScoreColor = (score: number | undefined, metricType: 'clip' | 'fid' | 'composition' | 'aesthetics' | 'visual' | 'technical' | 'noise' | 'lpips' | 'ssim' | 'psnr') => {
     if (score === undefined) return 'text-muted-foreground';
 
     switch (metricType) {
@@ -78,9 +87,39 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
         return 'text-red-600';
 
       case 'aesthetics':
-        // Aesthetics: 6+ good, 4-6 moderate, <4 poor (scale 0-10)
+        // Aesthetics: 6+ good, 4-6 moderate, <4 poor (scale 1-10)
         if (score >= 6) return 'text-green-600';
         if (score >= 4) return 'text-yellow-600';
+        return 'text-red-600';
+
+      case 'technical':
+        // Technical quality: 0.7+ good, 0.5-0.7 moderate, <0.5 poor
+        if (score >= 0.7) return 'text-green-600';
+        if (score >= 0.5) return 'text-yellow-600';
+        return 'text-red-600';
+
+      case 'noise':
+        // Noise/artifacts: lower is better. <0.3 good, 0.3-0.5 moderate, >0.5 poor
+        if (score < 0.3) return 'text-green-600';
+        if (score < 0.5) return 'text-yellow-600';
+        return 'text-red-600';
+
+      case 'lpips':
+        // LPIPS: lower is better (perceptual similarity). <0.3 good, 0.3-0.5 moderate, >0.5 poor
+        if (score < 0.3) return 'text-green-600';
+        if (score < 0.5) return 'text-yellow-600';
+        return 'text-red-600';
+
+      case 'ssim':
+        // SSIM: higher is better. >0.9 good, 0.7-0.9 moderate, <0.7 poor
+        if (score >= 0.9) return 'text-green-600';
+        if (score >= 0.7) return 'text-yellow-600';
+        return 'text-red-600';
+
+      case 'psnr':
+        // PSNR: higher is better. >30 good, 20-30 moderate, <20 poor
+        if (score >= 30) return 'text-green-600';
+        if (score >= 20) return 'text-yellow-600';
         return 'text-red-600';
     }
   };
@@ -240,40 +279,95 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
                 </div>
               )}
 
-              {/* Additional Metrics */}
+              {/* Aesthetic Quality Metrics */}
               {(metrics.aesthetics_score !== undefined ||
-                metrics.lpips_score !== undefined ||
-                metrics.psnr_score !== undefined ||
-                metrics.ssim_score !== undefined ||
-                metrics.nsfw_score !== undefined) && (
+                metrics.color_harmony_score !== undefined ||
+                metrics.technical_quality_score !== undefined ||
+                metrics.overall_aesthetic_quality !== undefined) && (
                 <div>
-                  <div className="font-semibold mb-1">Additional Metrics:</div>
+                  <div className="font-semibold mb-1">Aesthetic Quality:</div>
                   <div className="space-y-1">
                     {metrics.aesthetics_score !== undefined && (
                       <div className={getScoreColor(metrics.aesthetics_score, 'aesthetics')}>
-                        <strong>Aesthetics:</strong> {formatScore(metrics.aesthetics_score, 2)}
+                        <strong>LAION Aesthetic:</strong> {formatScore(metrics.aesthetics_score, 2)}/10
                       </div>
                     )}
-                    {metrics.lpips_score !== undefined && (
-                      <div className="text-muted-foreground">
-                        <strong>LPIPS:</strong> {formatScore(metrics.lpips_score)}
+                    {metrics.color_harmony_score !== undefined && (
+                      <div className={getScoreColor(metrics.color_harmony_score, 'visual')}>
+                        <strong>Color Harmony:</strong> {formatScore(metrics.color_harmony_score)}
+                      </div>
+                    )}
+                    {metrics.saturation_balance !== undefined && (
+                      <div className="text-muted-foreground pl-3">
+                        <strong>Saturation Balance:</strong> {formatScore(metrics.saturation_balance)}
+                      </div>
+                    )}
+                    {metrics.value_contrast !== undefined && (
+                      <div className="text-muted-foreground pl-3">
+                        <strong>Value Contrast:</strong> {formatScore(metrics.value_contrast)}
+                      </div>
+                    )}
+                    {metrics.technical_quality_score !== undefined && (
+                      <div className={getScoreColor(metrics.technical_quality_score, 'technical')}>
+                        <strong>Technical Quality:</strong> {formatScore(metrics.technical_quality_score)}
+                      </div>
+                    )}
+                    {metrics.sharpness_score !== undefined && (
+                      <div className="text-muted-foreground pl-3">
+                        <strong>Sharpness:</strong> {formatScore(metrics.sharpness_score)}
+                      </div>
+                    )}
+                    {metrics.noise_level !== undefined && (
+                      <div className={`pl-3 ${getScoreColor(metrics.noise_level, 'noise')}`}>
+                        <strong>Noise Level:</strong> {formatScore(metrics.noise_level)} (lower is better)
+                      </div>
+                    )}
+                    {metrics.artifact_score !== undefined && (
+                      <div className={`pl-3 ${getScoreColor(metrics.artifact_score, 'noise')}`}>
+                        <strong>Artifacts:</strong> {formatScore(metrics.artifact_score)} (lower is better)
+                      </div>
+                    )}
+                    {metrics.overall_aesthetic_quality !== undefined && (
+                      <div className={`${getScoreColor(metrics.overall_aesthetic_quality, 'visual')} font-medium pt-1 border-t border-border/50`}>
+                        <strong>Overall Aesthetic:</strong> {formatScore(metrics.overall_aesthetic_quality)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Reference Comparison Metrics (img2img only) */}
+              {(metrics.lpips_score !== undefined ||
+                metrics.psnr_score !== undefined ||
+                metrics.ssim_score !== undefined) && (
+                <div>
+                  <div className="font-semibold mb-1">Reference Comparison (img2img):</div>
+                  <div className="space-y-1">
+                    {metrics.ssim_score !== undefined && (
+                      <div className={getScoreColor(metrics.ssim_score, 'ssim')}>
+                        <strong>SSIM:</strong> {formatScore(metrics.ssim_score)} (higher is better)
                       </div>
                     )}
                     {metrics.psnr_score !== undefined && (
-                      <div className="text-muted-foreground">
-                        <strong>PSNR:</strong> {formatScore(metrics.psnr_score, 2)} dB
+                      <div className={getScoreColor(metrics.psnr_score, 'psnr')}>
+                        <strong>PSNR:</strong> {formatScore(metrics.psnr_score, 2)} dB (higher is better)
                       </div>
                     )}
-                    {metrics.ssim_score !== undefined && (
-                      <div className="text-muted-foreground">
-                        <strong>SSIM:</strong> {formatScore(metrics.ssim_score)}
+                    {metrics.lpips_score !== undefined && (
+                      <div className={getScoreColor(metrics.lpips_score, 'lpips')}>
+                        <strong>LPIPS:</strong> {formatScore(metrics.lpips_score)} (lower is better)
                       </div>
                     )}
-                    {metrics.nsfw_score !== undefined && (
-                      <div className="text-muted-foreground">
-                        <strong>NSFW:</strong> {formatScore(metrics.nsfw_score)}
-                      </div>
-                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* NSFW Score (if available) */}
+              {metrics.nsfw_score !== undefined && (
+                <div>
+                  <div className="font-semibold mb-1">Safety:</div>
+                  <div className="text-muted-foreground">
+                    <strong>NSFW Score:</strong> {formatScore(metrics.nsfw_score)}
                   </div>
                 </div>
               )}

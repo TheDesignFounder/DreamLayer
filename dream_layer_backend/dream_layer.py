@@ -900,6 +900,41 @@ def calculate_metrics():
                 import traceback
                 traceback.print_exc()
 
+            # Aesthetic Quality Metrics (LAION Aesthetic, Color Harmony, Technical Quality)
+            try:
+                from dream_layer_backend_utils.aesthetic_metrics import calculate_aesthetic_metrics
+
+                aesthetic_results = calculate_aesthetic_metrics(image_path)
+
+                # Add LAION aesthetic score
+                if aesthetic_results.get("aesthetics_score") is not None:
+                    metrics["aesthetics_score"] = aesthetic_results.get("aesthetics_score")
+
+                # Add color harmony metrics
+                if aesthetic_results.get("color_harmony_score") is not None:
+                    metrics["color_harmony_score"] = aesthetic_results.get("color_harmony_score")
+                    metrics["saturation_balance"] = aesthetic_results.get("saturation_balance")
+                    metrics["value_contrast"] = aesthetic_results.get("value_contrast")
+
+                # Add technical quality metrics
+                if aesthetic_results.get("technical_quality_score") is not None:
+                    metrics["technical_quality_score"] = aesthetic_results.get("technical_quality_score")
+                    metrics["sharpness_score"] = aesthetic_results.get("sharpness_score")
+                    metrics["noise_level"] = aesthetic_results.get("noise_level")
+                    metrics["artifact_score"] = aesthetic_results.get("artifact_score")
+
+                # Overall aesthetic quality
+                if aesthetic_results.get("overall_aesthetic_quality") is not None:
+                    metrics["overall_aesthetic_quality"] = aesthetic_results.get("overall_aesthetic_quality")
+
+                print(f"Aesthetic metrics calculated successfully")
+
+            except Exception as e:
+                errors.append(f"Aesthetic: {str(e)}")
+                print(f"Warning: Could not calculate aesthetic metrics: {e}")
+                import traceback
+                traceback.print_exc()
+
             # Add timestamp
             metrics["computed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
