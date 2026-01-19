@@ -1,5 +1,21 @@
 import json
-import os   
+import os
+from pathlib import Path
+
+# Project root directory (DreamLayer/)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Default ControlNet test image path - relative to project root
+# Can be overridden via DREAMLAYER_TEST_IMAGE_PATH environment variable
+DEFAULT_CONTROLNET_INPUT = PROJECT_ROOT / "ComfyUI" / "input" / "controlnet_input.png"
+
+
+def get_controlnet_test_image_path() -> str:
+    """Get the path to the ControlNet test image, with env var override support."""
+    env_path = os.environ.get("DREAMLAYER_TEST_IMAGE_PATH")
+    if env_path:
+        return env_path
+    return str(DEFAULT_CONTROLNET_INPUT)
 
 
 def increment_seed_in_workflow(workflow, increment):
@@ -217,9 +233,9 @@ def inject_controlnet_parameters(workflow, controlnet_data):
             print("🔍 Unit keys:", list(unit.keys()))
             print("🔍 Unit input_image value:", unit.get('input_image'))
             # Don't create a new test image if one already exists
-            test_image_path = "/Users/najeebkhan/dreamLayer/dream_layer_v1/ComfyUI/input/controlnet_input.png"
+            test_image_path = get_controlnet_test_image_path()
             if not os.path.exists(test_image_path):
-                print("📁 Test image not found, creating one...")
+                print(f"📁 Test image not found at {test_image_path}, creating one...")
                 create_test_controlnet_image()
             else:
                 print(f"✅ Test image exists: {test_image_path}")

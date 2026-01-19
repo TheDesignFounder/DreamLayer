@@ -499,7 +499,9 @@ def show_in_folder():
             subprocess.run(['open', '-R', image_path])
             return jsonify({"status": "success", "message": f"Opened {filename} in Finder"})
         elif system == "Windows":  # Windows
-            subprocess.run(['explorer', '/select,', image_path])
+            # Normalize to absolute path and pass /select,<path> as single argument
+            abs_path = os.path.abspath(image_path)
+            subprocess.run(['explorer', f'/select,{abs_path}'])
             return jsonify({"status": "success", "message": f"Opened {filename} in File Explorer"})
         elif system == "Linux":  # Linux
             # Open the directory containing the file (can't highlight specific file reliably)

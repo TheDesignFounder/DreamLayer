@@ -123,7 +123,7 @@ DreamLayer can also call external APIs (OpenAI DALL·E, Flux, Ideogram).
 
 To enable them:
 
-Edit your `.env` file at `dream_layer/.env`:
+Edit your `.env` file in the repository root (`./.env`):
 
 ```bash
 OPENAI_API_KEY=sk-...

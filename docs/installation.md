@@ -143,6 +143,8 @@ cd DreamLayer
 
 #### 2. Install Python Dependencies
 
+> **Note:** For most users, we recommend using the automated install scripts (`install_mac_dependencies.sh`, `install_linux_dependencies.sh`, or `install_windows_dependencies.bat`) which handle all dependencies correctly.
+
 ```bash
 # Create virtual environment
 python -m venv venv
@@ -153,8 +155,20 @@ venv\Scripts\activate
 # macOS/Linux:
 source venv/bin/activate
 
-# Install Python packages
-pip install -r requirements.txt
+# Install PyTorch first (choose based on your system)
+# For CUDA (NVIDIA GPU):
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# For CPU only:
+pip install torch torchvision torchaudio
+
+# Install backend dependencies
+pip install -r dream_layer_backend/requirements.txt
+
+# Install ComfyUI dependencies
+pip install -r ComfyUI/requirements.txt
+
+# (Optional) Install test dependencies
+pip install -r tests/requirements.txt
 ```
 
 #### 3. Install Node.js Dependencies
@@ -308,8 +322,11 @@ Open your browser and navigate to:
 #### Python Import Errors
 
 ```bash
-# Reinstall packages
-pip install --force-reinstall -r requirements.txt
+# Reinstall backend packages
+pip install --force-reinstall -r dream_layer_backend/requirements.txt
+
+# Reinstall ComfyUI packages
+pip install --force-reinstall -r ComfyUI/requirements.txt
 ```
 
 #### CUDA Issues
