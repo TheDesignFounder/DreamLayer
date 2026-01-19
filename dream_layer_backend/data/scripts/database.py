@@ -138,7 +138,17 @@ class DreamLayerDB:
             if not cursor.fetchone():
                 logger.info("Creating missing composition_metrics table")
                 self.create_composition_metrics_table()
-            
+
+            # Check if embedding_cache table exists
+            cursor = conn.execute("""
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='embedding_cache'
+            """)
+
+            if not cursor.fetchone():
+                logger.info("Creating missing embedding_cache table")
+                self.create_embedding_cache_table()
+
             # Add more table checks here as needed in the future
             # Example: if not self.table_exists('future_table'): self.create_future_table()
     
@@ -181,7 +191,79 @@ class DreamLayerDB:
             
             conn.commit()
             logger.info("composition_metrics table created successfully")
-    
+
+    def create_embedding_cache_table(self):
+        """Create the embedding_cache table for storing CLIP and Inception embeddings"""
+        with self.get_connection() as conn:
+            # Create embedding_cache table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS embedding_cache (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source_type TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    embedding_type TEXT NOT NULL,
+                    model_name TEXT NOT NULL,
+                    embedding_data BLOB NOT NULL,
+                    embedding_dim INTEGER NOT NULL,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    UNIQUE(source_type, source_id, embedding_type, model_name)
+                )
+            """)
+
+            # Create indexes for embedding_cache table
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_embedding_cache_source ON embedding_cache(source_type, source_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_embedding_cache_type ON embedding_cache(embedding_type)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_embedding_cache_model ON embedding_cache(model_name)")
+
+            conn.commit()
+            logger.info("embedding_cache table created successfully")
+
+    def save_embedding(self, source_type: str, source_id: str, embedding_type: str,
+                       model_name: str, embedding_data: bytes, embedding_dim: int) -> bool:
+        """Save an embedding to the cache"""
+        try:
+            with self.get_connection() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO embedding_cache
+                    (source_type, source_id, embedding_type, model_name, embedding_data, embedding_dim)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (source_type, source_id, embedding_type, model_name, embedding_data, embedding_dim))
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error saving embedding: {e}")
+            return False
+
+    def get_embedding(self, source_type: str, source_id: str, embedding_type: str,
+                      model_name: str) -> Optional[bytes]:
+        """Retrieve an embedding from the cache"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT embedding_data FROM embedding_cache
+                    WHERE source_type=? AND source_id=? AND embedding_type=? AND model_name=?
+                """, (source_type, source_id, embedding_type, model_name))
+                result = cursor.fetchone()
+                return result[0] if result else None
+        except Exception as e:
+            logger.error(f"Error retrieving embedding: {e}")
+            return None
+
+    def embedding_exists(self, source_type: str, source_id: str, embedding_type: str,
+                        model_name: str) -> bool:
+        """Check if an embedding exists in the cache"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT 1 FROM embedding_cache
+                    WHERE source_type=? AND source_id=? AND embedding_type=? AND model_name=?
+                    LIMIT 1
+                """, (source_type, source_id, embedding_type, model_name))
+                return cursor.fetchone() is not None
+        except Exception as e:
+            logger.error(f"Error checking embedding existence: {e}")
+            return False
+
     def insert_run(self, run_data: Dict[str, Any]) -> bool:
         """Insert a single run into the database"""
         try:

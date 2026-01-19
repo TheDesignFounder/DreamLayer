@@ -291,6 +291,27 @@ install_python_dependencies() {
     print_step "Installing additional ML/AI dependencies..."
     python3 -m pip install --upgrade torch torchvision torchaudio
 
+    # Download NLTK data for composition metrics
+    print_step "Downloading NLTK data for composition metrics..."
+    python3 -c "
+import nltk
+import ssl
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+for package in ['punkt', 'punkt_tab', 'averaged_perceptron_tagger', 'averaged_perceptron_tagger_eng', 'wordnet']:
+    try:
+        nltk.download(package, quiet=True)
+        print(f'  Downloaded {package}')
+    except Exception as e:
+        print(f'  Warning: Could not download {package}: {e}')
+print('NLTK data download complete')
+" 2>/dev/null || print_warning "NLTK data will be downloaded on first use"
+
     print_success "✅ Dependencies installed inside virtual environment: $DLVENV_PATH"
 }
 

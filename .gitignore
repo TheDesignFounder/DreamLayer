@@ -220,3 +220,9 @@ dream_layer_backend/*.csv
 dream_layer_backend/temp_*.json
 dream_layer_backend/datasets/*.npz
 dream_layer_backend/datasets/cifar-10-batches-py/
+
+# YOLO model (auto-downloads on first use)
+dream_layer_backend/dream_layer_backend_utils/yolov8n.pt
+
+# Local Claude settings
+.claude/settings.local.json

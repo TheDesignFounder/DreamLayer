@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 import { Download, FolderOpen, Copy, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import JSZip from 'jszip';
+import EvalMetrics from '@/components/EvalMetrics';
 
 interface ImagePreviewProps {
   onTabChange: (tabId: string) => void;
@@ -16,11 +17,27 @@ const LoadingAnimation = () => (
   </div>
 );
 
+interface EvalMetricsData {
+  clip_score_mean?: number;
+  clip_score_median?: number;
+  clip_score_std?: number;
+  clip_score_max?: number;
+  clip_score_min?: number;
+  fid_score?: number;
+  composition_precision?: number;
+  composition_recall?: number;
+  composition_f1?: number;
+  aesthetics_score?: number;
+  computed_at?: string;
+}
+
 const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
-  const { images, isLoading, currentImageIndex, setCurrentImageIndex } = useImg2ImgGalleryStore();
+  const { images, isLoading, currentImageIndex, setCurrentImageIndex, inputImage } = useImg2ImgGalleryStore();
   const [imageError, setImageError] = useState<string | null>(null);
   const [outputSettingsExpanded, setOutputSettingsExpanded] = useState(true);
   const [thumbnailStartIndex, setThumbnailStartIndex] = useState(0);
+  const [currentMetrics, setCurrentMetrics] = useState<EvalMetricsData | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   const currentImage = images[currentImageIndex] || images[0];
   const maxThumbnails = 5;
@@ -41,6 +58,11 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
     // Reset error state when images change
     setImageError(null);
   }, [images, isLoading]);
+
+  // Clear metrics when switching to a different image
+  useEffect(() => {
+    setCurrentMetrics(null);
+  }, [currentImageIndex]);
 
   const handleImageError = (error: React.SyntheticEvent<HTMLImageElement, Event>) => {
     console.error('Error loading generated image:', error);
@@ -505,6 +527,52 @@ Time taken: 31.1 sec.`;
               </div>
             )}
           </div>
+
+          {/* Divider before Eval Metrics */}
+          <div className="border-t border-border"></div>
+
+          {/* Evaluation Metrics Section */}
+          <EvalMetrics
+            imageId={currentImage.id}
+            imagePath={currentImage.url}
+            prompt={currentImage.prompt}
+            metrics={currentMetrics || undefined}
+            isLoading={metricsLoading}
+            onCalculateMetrics={async () => {
+              setMetricsLoading(true);
+              try {
+                // Prepare request body
+                const requestBody: any = {
+                  image_url: currentImage.url,
+                  prompt: currentImage.prompt || ''
+                };
+
+                // Add input image URL for img2img reference-based metrics
+                if (inputImage?.url) {
+                  requestBody.input_image_url = inputImage.url;
+                  console.log('Including reference image for metrics:', inputImage.url);
+                }
+
+                const response = await fetch('http://localhost:5002/api/calculate-metrics', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(requestBody)
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                  setCurrentMetrics(result.metrics);
+                } else {
+                  console.error('Metrics calculation failed:', result.message);
+                  alert(`Failed to calculate metrics: ${result.message}`);
+                }
+              } catch (error) {
+                console.error('Error calculating metrics:', error);
+                alert('Error calculating metrics. Check console for details.');
+              } finally {
+                setMetricsLoading(false);
+              }
+            }}
+          />
         </div>
       )}
     </div>

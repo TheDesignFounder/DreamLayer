@@ -208,6 +208,27 @@ install_python_dependencies() {
     # Install additional ML/AI dependencies that might be needed
     print_step "Installing additional ML/AI dependencies..."
     $PYTHON_PATH -m pip install --user --upgrade torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu --break-system-packages
+
+    # Download NLTK data for composition metrics
+    print_step "Downloading NLTK data for composition metrics..."
+    $PYTHON_PATH -c "
+import nltk
+import ssl
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+for package in ['punkt', 'punkt_tab', 'averaged_perceptron_tagger', 'averaged_perceptron_tagger_eng', 'wordnet']:
+    try:
+        nltk.download(package, quiet=True)
+        print(f'  Downloaded {package}')
+    except Exception as e:
+        print(f'  Warning: Could not download {package}: {e}')
+print('NLTK data download complete')
+" 2>/dev/null || print_warning "NLTK data will be downloaded on first use"
 }
 
 # Function to install frontend dependencies

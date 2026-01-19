@@ -399,7 +399,35 @@ function Install-PythonDependencies {
             return $false
         }
     }
-    
+
+    # Download NLTK data for composition metrics
+    Write-Step "Downloading NLTK data for composition metrics..."
+    try {
+        $nltkScript = @"
+import nltk
+import ssl
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+for package in ['punkt', 'punkt_tab', 'averaged_perceptron_tagger', 'averaged_perceptron_tagger_eng', 'wordnet']:
+    try:
+        nltk.download(package, quiet=True)
+        print(f'  Downloaded {package}')
+    except Exception as e:
+        print(f'  Warning: Could not download {package}: {e}')
+print('NLTK data download complete')
+"@
+        python -c $nltkScript
+        Write-Success "NLTK data downloaded successfully"
+    }
+    catch {
+        Write-Warning "NLTK data will be downloaded on first use"
+    }
+
     return $true
 }
 

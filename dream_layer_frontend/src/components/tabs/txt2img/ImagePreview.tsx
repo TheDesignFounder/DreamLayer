@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
 import { useTxt2ImgGalleryStore } from '@/stores/useTxt2ImgGalleryStore';
 import { useImg2ImgGalleryStore } from '@/stores/useImg2ImgGalleryStore';
 import { Download, FolderOpen, Copy, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import JSZip from 'jszip';
+import EvalMetrics from '@/components/EvalMetrics';
 
 interface ImagePreviewProps {
   onTabChange: (tabId: string) => void;
@@ -19,16 +20,37 @@ const LoadingAnimation = () => (
   </div>
 );
 
+interface EvalMetricsData {
+  clip_score_mean?: number;
+  clip_score_median?: number;
+  clip_score_std?: number;
+  clip_score_max?: number;
+  clip_score_min?: number;
+  fid_score?: number;
+  composition_precision?: number;
+  composition_recall?: number;
+  composition_f1?: number;
+  aesthetics_score?: number;
+  computed_at?: string;
+}
+
 const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange, grids = [] }) => {
   const { images, isLoading, currentImageIndex, setCurrentImageIndex } = useTxt2ImgGalleryStore();
   const setInputImage = useImg2ImgGalleryStore(state => state.setInputImage);
   const [outputSettingsExpanded, setOutputSettingsExpanded] = useState(true);
   const [thumbnailStartIndex, setThumbnailStartIndex] = useState(0);
+  const [currentMetrics, setCurrentMetrics] = useState<EvalMetricsData | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   const currentImage = images[currentImageIndex] || images[0];
   const maxThumbnails = 5;
   const totalPages = Math.ceil(images.length / maxThumbnails);
   const currentPage = Math.floor(thumbnailStartIndex / maxThumbnails) + 1;
+
+  // Clear metrics when switching to a different image
+  useEffect(() => {
+    setCurrentMetrics(null);
+  }, [currentImageIndex]);
 
   const handleDownload = async (format: 'png' | 'zip') => {
     if (!currentImage) return;
@@ -498,6 +520,43 @@ Time taken: 31.1 sec.`;
               </div>
             )}
           </div>
+
+          {/* Divider before Eval Metrics */}
+          <div className="border-t border-border"></div>
+
+          {/* Evaluation Metrics Section */}
+          <EvalMetrics
+            imageId={currentImage.id}
+            imagePath={currentImage.url}
+            prompt={currentImage.prompt}
+            metrics={currentMetrics || undefined}
+            isLoading={metricsLoading}
+            onCalculateMetrics={async () => {
+              setMetricsLoading(true);
+              try {
+                const response = await fetch('http://localhost:5002/api/calculate-metrics', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    image_url: currentImage.url,
+                    prompt: currentImage.prompt || ''
+                  })
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                  setCurrentMetrics(result.metrics);
+                } else {
+                  console.error('Metrics calculation failed:', result.message);
+                  alert(`Failed to calculate metrics: ${result.message}`);
+                }
+              } catch (error) {
+                console.error('Error calculating metrics:', error);
+                alert('Error calculating metrics. Check console for details.');
+              } finally {
+                setMetricsLoading(false);
+              }
+            }}
+          />
         </div>
       )}
 

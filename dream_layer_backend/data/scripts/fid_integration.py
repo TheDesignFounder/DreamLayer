@@ -101,52 +101,107 @@ class DatabaseFidCalculator:
             logger.error(f"Error preprocessing image {image_path}: {e}")
             return None
     
-    def _compute_fid_from_images(self, image_paths: List[str]) -> Optional[float]:
-        """Compute FID score from list of image paths"""
+    def _compute_fid_from_images(self, image_paths: List[str], batch_size: int = 32) -> Optional[float]:
+        """
+        Compute FID score from list of image paths with batched processing.
+
+        Args:
+            image_paths: List of image file paths
+            batch_size: Number of images to process at once (default 32)
+
+        Returns:
+            FID score or None if computation fails
+        """
         try:
             import torch
-            
+
             if not self.dataset_stats:
                 logger.error("No dataset statistics available")
                 return None
-            
+
             mu_real, sigma_real = self.dataset_stats
-            
-            # Process all images
-            image_tensors = []
-            for image_path in image_paths:
-                tensor = self._preprocess_image(image_path)
-                if tensor is not None:
-                    image_tensors.append(tensor)
-            
-            if len(image_tensors) == 0:
+
+            # Process images in batches for better memory efficiency
+            all_features = []
+
+            for batch_start in range(0, len(image_paths), batch_size):
+                batch_end = min(batch_start + batch_size, len(image_paths))
+                batch_paths = image_paths[batch_start:batch_end]
+
+                # Process batch of images
+                image_tensors = []
+                for image_path in batch_paths:
+                    tensor = self._preprocess_image(image_path)
+                    if tensor is not None:
+                        image_tensors.append(tensor)
+
+                if len(image_tensors) == 0:
+                    continue
+
+                # Concatenate batch
+                batch_tensor = torch.cat(image_tensors, dim=0)
+
+                # Move to GPU if available
+                if torch.cuda.is_available():
+                    batch_tensor = batch_tensor.cuda()
+                    if hasattr(self.fid_metric, 'inception'):
+                        self.fid_metric.inception = self.fid_metric.inception.cuda()
+
+                # Extract features
+                with torch.no_grad():
+                    features = self.fid_metric.inception(batch_tensor)
+                    all_features.append(features.cpu().numpy())
+
+            if len(all_features) == 0:
                 return -1.0
-            
-            # Concatenate all images
-            batch_tensor = torch.cat(image_tensors, dim=0)
-            
-            # Extract features using FID metric's inception model
-            with torch.no_grad():
-                features = self.fid_metric.inception(batch_tensor)
-                features = features.cpu().numpy()
-            
+
+            # Concatenate all batch features
+            features = np.concatenate(all_features, axis=0)
+
             # Compute statistics for generated images
             mu_fake = np.mean(features, axis=0)
-            
+
             # Handle single image case for covariance
             if features.shape[0] == 1:
                 # For single image, use identity matrix scaled by small value
                 sigma_fake = np.eye(features.shape[1]) * 1e-6
             else:
                 sigma_fake = np.cov(features, rowvar=False)
-            
+
             # Compute FID score
             fid_score = self._calculate_fid(mu_real, sigma_real, mu_fake, sigma_fake)
-            
+
             return float(fid_score)
-            
+
         except Exception as e:
             logger.error(f"Error computing FID from images: {e}")
+            return None
+
+    def get_inception_features(self, image_path: str) -> Optional[np.ndarray]:
+        """
+        Get Inception-V3 features for an image.
+        Returns feature vector that can be cached.
+        """
+        try:
+            import torch
+
+            tensor = self._preprocess_image(image_path)
+            if tensor is None:
+                return None
+
+            # Move to GPU if available
+            if torch.cuda.is_available():
+                tensor = tensor.cuda()
+                if hasattr(self.fid_metric, 'inception'):
+                    self.fid_metric.inception = self.fid_metric.inception.cuda()
+
+            with torch.no_grad():
+                features = self.fid_metric.inception(tensor)
+
+            return features.cpu().numpy()
+
+        except Exception as e:
+            logger.error(f"Error getting inception features for {image_path}: {e}")
             return None
     
     def _calculate_fid(self, mu1, sigma1, mu2, sigma2, eps=1e-6):

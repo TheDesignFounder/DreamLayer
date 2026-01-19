@@ -672,6 +672,258 @@ def get_controlnet_models_endpoint():
         }), 500
 
 
+@app.route('/api/calculate-metrics', methods=['POST', 'OPTIONS'])
+def calculate_metrics():
+    """Calculate evaluation metrics (CLIP score, etc.) for an image"""
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
+
+    try:
+        data = request.json
+        image_url = data.get('image_url')
+        input_image_url = data.get('input_image_url')  # For img2img reference
+        prompt = data.get('prompt', '')
+
+        if not image_url:
+            return jsonify({"status": "error", "message": "No image_url provided"}), 400
+
+        # Extract filename from URL and find the actual file path
+        from urllib.parse import urlparse
+        parsed_url = urlparse(image_url)
+        filename = os.path.basename(parsed_url.path)
+
+        # Find the image in output directory
+        output_dir, _ = get_directories()
+        image_path = os.path.join(output_dir, filename)
+
+        # Also check served_images directory
+        if not os.path.exists(image_path):
+            served_images_dir = os.path.join(current_dir, 'served_images')
+            image_path = os.path.join(served_images_dir, filename)
+
+        if not os.path.exists(image_path):
+            return jsonify({"status": "error", "message": f"Image file not found: {filename}"}), 404
+
+        # Handle reference/input image for img2img
+        input_image_path = None
+        if input_image_url:
+            parsed_input_url = urlparse(input_image_url)
+            input_filename = os.path.basename(parsed_input_url.path)
+
+            # Check multiple directories for input image
+            possible_dirs = [
+                output_dir,
+                os.path.join(current_dir, 'served_images'),
+                os.path.join(current_dir, '..', 'ComfyUI', 'input'),
+                os.path.join(current_dir, '..', 'Dream_Layer_Resources', 'input'),
+            ]
+
+            for dir_path in possible_dirs:
+                potential_path = os.path.join(dir_path, input_filename)
+                if os.path.exists(potential_path):
+                    input_image_path = potential_path
+                    break
+
+            if not input_image_path:
+                print(f"Warning: Input image not found: {input_filename}, will skip reference-based metrics")
+
+        # Calculate all available metrics
+        metrics = {}
+        errors = []
+
+        try:
+            import torch
+            from PIL import Image
+            import numpy as np
+
+            # Load the output image
+            image_pil = Image.open(image_path).convert('RGB')
+
+            # Load input/reference image if available
+            input_image_pil = None
+            if input_image_path:
+                try:
+                    input_image_pil = Image.open(input_image_path).convert('RGB')
+                    print(f"Loaded reference image for comparison: {input_image_path}")
+                except Exception as e:
+                    print(f"Warning: Could not load reference image: {e}")
+                    input_image_pil = None
+
+            # CLIP Score
+            try:
+                from dream_layer_backend_utils.clip_score_metrics import get_clip_calculator
+                clip_calc = get_clip_calculator()
+                clip_score = clip_calc.compute_clip_score(prompt, image_path)
+
+                metrics.update({
+                    "clip_score_mean": clip_score,
+                    "clip_score_median": clip_score,
+                    "clip_score_std": 0.0,
+                    "clip_score_max": clip_score,
+                    "clip_score_min": clip_score,
+                })
+            except Exception as e:
+                errors.append(f"CLIP: {str(e)}")
+                print(f"Warning: Could not calculate CLIP score: {e}")
+
+            # Reference-based metrics (only if input image available)
+            if input_image_pil:
+                # LPIPS (Learned Perceptual Image Patch Similarity)
+                try:
+                    from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
+                    # Convert images to tensors
+                    output_tensor = torch.from_numpy(np.array(image_pil)).permute(2, 0, 1).unsqueeze(0).float() / 255.0
+                    input_tensor = torch.from_numpy(np.array(input_image_pil)).permute(2, 0, 1).unsqueeze(0).float() / 255.0
+
+                    # Resize if dimensions don't match
+                    if output_tensor.shape != input_tensor.shape:
+                        from torchvision.transforms import Resize
+                        target_size = output_tensor.shape[2:]
+                        input_tensor = torch.nn.functional.interpolate(input_tensor, size=target_size, mode='bilinear', align_corners=False)
+
+                    lpips_metric = LearnedPerceptualImagePatchSimilarity(net_type='alex')
+                    lpips_score = lpips_metric(output_tensor, input_tensor).item()
+
+                    metrics["lpips_score"] = lpips_score
+
+                except Exception as e:
+                    errors.append(f"LPIPS: {str(e)}")
+                    print(f"Warning: Could not calculate LPIPS: {e}")
+
+                # SSIM (Structural Similarity Index)
+                try:
+                    from torchmetrics.image import StructuralSimilarityIndexMeasure
+
+                    # Convert images to tensors if not already done
+                    if 'output_tensor' not in locals():
+                        output_tensor = torch.from_numpy(np.array(image_pil)).permute(2, 0, 1).unsqueeze(0).float() / 255.0
+                        input_tensor = torch.from_numpy(np.array(input_image_pil)).permute(2, 0, 1).unsqueeze(0).float() / 255.0
+
+                    # Resize if dimensions don't match
+                    if output_tensor.shape != input_tensor.shape:
+                        target_size = output_tensor.shape[2:]
+                        input_tensor = torch.nn.functional.interpolate(input_tensor, size=target_size, mode='bilinear', align_corners=False)
+
+                    ssim_metric = StructuralSimilarityIndexMeasure(data_range=1.0)
+                    ssim_score = ssim_metric(output_tensor, input_tensor).item()
+
+                    metrics["ssim_score"] = ssim_score
+
+                except Exception as e:
+                    errors.append(f"SSIM: {str(e)}")
+                    print(f"Warning: Could not calculate SSIM: {e}")
+
+                # PSNR (Peak Signal-to-Noise Ratio)
+                try:
+                    from torchmetrics.image import PeakSignalNoiseRatio
+
+                    # Convert images to tensors if not already done
+                    if 'output_tensor' not in locals():
+                        output_tensor = torch.from_numpy(np.array(image_pil)).permute(2, 0, 1).unsqueeze(0).float() / 255.0
+                        input_tensor = torch.from_numpy(np.array(input_image_pil)).permute(2, 0, 1).unsqueeze(0).float() / 255.0
+
+                    # Resize if dimensions don't match
+                    if output_tensor.shape != input_tensor.shape:
+                        target_size = output_tensor.shape[2:]
+                        input_tensor = torch.nn.functional.interpolate(input_tensor, size=target_size, mode='bilinear', align_corners=False)
+
+                    psnr_metric = PeakSignalNoiseRatio(data_range=1.0)
+                    psnr_score = psnr_metric(output_tensor, input_tensor).item()
+
+                    # Cap at reasonable value if infinity
+                    if np.isinf(psnr_score) or psnr_score > 100:
+                        psnr_score = 100.0
+
+                    metrics["psnr_score"] = psnr_score
+
+                except Exception as e:
+                    errors.append(f"PSNR: {str(e)}")
+                    print(f"Warning: Could not calculate PSNR: {e}")
+
+            # FID Score (Fréchet Inception Distance) - compares against CIFAR-10 dataset
+            try:
+                import sys
+                sys.path.append(os.path.join(os.path.dirname(__file__), 'data', 'scripts'))
+                from fid_integration import DatabaseFidCalculator
+
+                fid_calc = DatabaseFidCalculator()
+                if fid_calc.fid_calculator:
+                    # FID requires a list of images, pass single image
+                    fid_score = fid_calc._compute_fid_from_images([image_path])
+
+                    if fid_score is not None and fid_score >= 0:
+                        metrics["fid_score"] = fid_score
+                        print(f"FID score calculated: {fid_score:.2f}")
+                    else:
+                        print("FID calculation returned invalid score")
+                else:
+                    print("FID calculator not initialized (CIFAR-10 stats may be missing)")
+
+            except Exception as e:
+                errors.append(f"FID: {str(e)}")
+                print(f"Warning: Could not calculate FID score: {e}")
+                import traceback
+                traceback.print_exc()
+
+            # Composition Metrics (Object Detection + Visual Composition)
+            try:
+                from dream_layer_backend_utils.composition_metrics import calculate_composition_metrics
+
+                composition_results = calculate_composition_metrics(prompt, image_path)
+
+                # Add object detection metrics
+                if composition_results.get("object_f1") is not None:
+                    metrics["object_precision"] = composition_results.get("object_precision")
+                    metrics["object_recall"] = composition_results.get("object_recall")
+                    metrics["object_f1"] = composition_results.get("object_f1")
+                    metrics["detected_objects"] = composition_results.get("detected_objects", {})
+                    metrics["missing_objects"] = composition_results.get("missing_objects", {})
+
+                # Add visual composition metrics
+                if composition_results.get("composition_score") is not None:
+                    metrics["composition_score"] = composition_results.get("composition_score")
+                    metrics["rule_of_thirds_score"] = composition_results.get("rule_of_thirds_score")
+                    metrics["symmetry_score"] = composition_results.get("symmetry_score")
+                    metrics["balance_score"] = composition_results.get("balance_score")
+
+                print(f"Composition metrics calculated successfully")
+
+            except Exception as e:
+                errors.append(f"Composition: {str(e)}")
+                print(f"Warning: Could not calculate composition metrics: {e}")
+                import traceback
+                traceback.print_exc()
+
+            # Add timestamp
+            metrics["computed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+            # Add any errors to response for debugging
+            if errors:
+                metrics["_errors"] = errors
+
+            return jsonify({
+                "status": "success",
+                "metrics": metrics
+            })
+
+        except ImportError as e:
+            print(f"Warning: Metrics modules not available: {e}")
+            return jsonify({
+                "status": "error",
+                "message": f"Metrics modules not available: {str(e)}"
+            }), 500
+
+    except Exception as e:
+        print(f"Error calculating metrics: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 if __name__ == "__main__":
     print("Starting Dream Layer backend services...")
     if start_comfy_server():
