@@ -3,7 +3,7 @@ from dream_layer_backend_utils.update_custom_workflow import update_custom_workf
 from dream_layer_backend_utils.update_custom_workflow import update_image_paths_in_workflow
 from dream_layer_backend_utils.update_custom_workflow import validate_custom_workflow
 from dream_layer_backend_utils.img2img_controlnet_processor import process_controlnet_images, inject_controlnet_into_workflow, validate_controlnet_config
-from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow, read_api_keys_from_env
+from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow, read_api_keys_from_env, redact_secrets, _DEBUG
 from dream_layer_backend_utils.workflow_loader import load_workflow
 from dream_layer_backend_utils.shared_workflow_parameters import (
     inject_face_restoration_parameters,
@@ -164,9 +164,10 @@ def transform_to_img2img_workflow(data):
             workflow, os.path.join(COMFY_INPUT_DIR, input_image))
         logger.info("No valid custom workflow provided, using default workflow")
 
-    # Log the generated workflow
-    logger.info("Generated workflow:")
-    logger.info(json.dumps(workflow, indent=2))
+    # Log the generated workflow (redacted, debug mode only)
+    if _DEBUG:
+        logger.info("Generated workflow:")
+        logger.info(json.dumps(redact_secrets(workflow), indent=2))
 
     # Inject ControlNet into the workflow if present
     if controlnet_data:

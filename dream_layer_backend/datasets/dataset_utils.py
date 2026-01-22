@@ -201,12 +201,18 @@ def get_dataset_stats(dataset_name: str = 'cifar10') -> Optional[Tuple[np.ndarra
 def ensure_cifar10_stats() -> bool:
     """
     Ensure CIFAR-10 statistics are available, downloading and creating if necessary
-    
+
     Returns:
         bool: True if stats are available, False otherwise
     """
     loader = CIFAR10StatsLoader()
     stats = loader.get_stats()
+
+    if stats is None:
+        logger.error(
+            "CIFAR-10 statistics not available. FID scoring will be disabled.\n"
+            "To enable FID scoring, run: python scripts/fetch_datasets.py"
+        )
     return stats is not None
 
 

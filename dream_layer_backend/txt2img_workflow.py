@@ -3,7 +3,7 @@ import random
 import os
 import json
 from dream_layer_backend_utils.workflow_loader import load_workflow
-from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow, read_api_keys_from_env
+from dream_layer_backend_utils.api_key_injector import inject_api_keys_into_workflow, read_api_keys_from_env, redact_secrets, _DEBUG
 from dream_layer_backend_utils.update_custom_workflow import override_workflow
 from dream_layer_backend_utils.update_custom_workflow import update_custom_workflow, validate_custom_workflow
 from dream_layer_backend_utils.shared_workflow_parameters import (
@@ -244,7 +244,9 @@ def transform_to_txt2img_workflow(data):
             workflow = inject_refiner_parameters(workflow, refiner_data)
 
         print(f"✅ Workflow transformation complete")
-        print(f"📋 Generated workflow: {json.dumps(workflow, indent=2)}")
+        if _DEBUG:
+            # Redact sensitive data before logging
+            print(f"📋 Generated workflow: {json.dumps(redact_secrets(workflow), indent=2)}")
         return workflow
 
     except Exception as e:

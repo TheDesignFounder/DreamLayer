@@ -9,6 +9,7 @@ import tempfile
 import shutil
 from dream_layer import get_directories
 from grid_exporter import LabeledGridExporter
+from dream_layer_backend_utils.api_key_injector import redact_secrets, _DEBUG
 
 # Create Flask app
 app = Flask(__name__)
@@ -258,10 +259,11 @@ def construct_upscale_workflow(image_path: str, params: dict) -> dict:
         }
     }
     
-    # Print the workflow
-    print("\nConstructed Workflow:")
-    print(json.dumps(workflow, indent=2))
-    
+    # Print the workflow (redacted, debug mode only)
+    if _DEBUG:
+        print("\nConstructed Workflow:")
+        print(json.dumps(redact_secrets(workflow), indent=2))
+
     return workflow
 
 @app.route('/api/extras/upscale', methods=['POST'])

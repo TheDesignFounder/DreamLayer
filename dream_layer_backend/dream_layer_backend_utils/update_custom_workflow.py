@@ -1,8 +1,12 @@
 import json
 import logging
 import copy
+import os
 
 logger = logging.getLogger(__name__)
+
+# Debug mode - set DREAMLAYER_DEBUG=1 to enable verbose logging
+_DEBUG = os.environ.get("DREAMLAYER_DEBUG", "").lower() in ("1", "true", "yes")
 
 def update_custom_workflow(original_workflow, custom_workflow):
     """
@@ -29,8 +33,11 @@ def update_custom_workflow(original_workflow, custom_workflow):
         updated_workflow = inject_hardcoded_values(updated_workflow, original_workflow)
         
         logger.info("Custom workflow updated successfully")
-        logger.info("Updated workflow is:")
-        logger.info(json.dumps(updated_workflow, indent=2))
+        if _DEBUG:
+            # Import here to avoid circular imports
+            from dream_layer_backend_utils.api_key_injector import redact_secrets
+            logger.info("Updated workflow is:")
+            logger.info(json.dumps(redact_secrets(updated_workflow), indent=2))
         
         return updated_workflow
         

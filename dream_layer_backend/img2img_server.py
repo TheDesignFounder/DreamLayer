@@ -13,6 +13,7 @@ from shared_utils import send_to_comfyui
 from img2img_workflow import transform_to_img2img_workflow
 from shared_utils import COMFY_API_URL
 from dream_layer_backend_utils.fetch_advanced_models import get_controlnet_models
+from dream_layer_backend_utils.api_key_injector import redact_secrets, _DEBUG
 from run_registry import create_run_config_from_generation_data
 from dataclasses import asdict
 import requests
@@ -276,9 +277,10 @@ def handle_img2img():
             # Single execution case - use regular img2img workflow
             workflow = transform_to_img2img_workflow(data)
             
-            # Log the workflow for debugging
-            logger.info("Generated workflow:")
-            logger.info(json.dumps(workflow, indent=2))
+            # Log the workflow for debugging (redacted, debug mode only)
+            if _DEBUG:
+                logger.info("Generated workflow:")
+                logger.info(json.dumps(redact_secrets(workflow), indent=2))
             
             # Send to ComfyUI
             comfy_response = send_to_comfyui(workflow)

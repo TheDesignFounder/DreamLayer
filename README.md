@@ -159,7 +159,15 @@ No key = feature stays hidden.
 
 _The installation scripts will automatically install all dependencies and set up the environment._
 
-> **Note:** The repository includes `yolov8n.pt` (~6MB) for out-of-the-box object detection metrics. This is intentional to enable evaluation features without additional downloads.
+### Optional: Download Evaluation Datasets
+
+For FID scoring, download the CIFAR-10 reference dataset:
+
+```bash
+python scripts/fetch_datasets.py
+```
+
+> **Note:** The YOLO model (`yolov8n.pt`, ~6MB) for object detection metrics auto-downloads on first use.
 
 ---
 
