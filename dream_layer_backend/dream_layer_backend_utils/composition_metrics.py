@@ -233,6 +233,75 @@ class CompositionMetricsCalculator:
             logger.error(f"Error detecting objects: {e}")
             return []
 
+    def detect_objects_batch(self, image_paths: List[str], batch_size: int = 16) -> List[List[Dict[str, Any]]]:
+        """
+        Detect objects in multiple images using YOLO batch inference.
+
+        Args:
+            image_paths: List of image file paths
+            batch_size: Number of images to process at once (default: 16)
+
+        Returns:
+            List of detection lists, one per image
+        """
+        if not _ensure_yolo(self.config):
+            return [[] for _ in image_paths]
+
+        # Filter valid paths
+        valid_paths = []
+        valid_indices = []
+        for i, path in enumerate(image_paths):
+            if os.path.exists(path):
+                valid_paths.append(path)
+                valid_indices.append(i)
+            else:
+                logger.warning(f"Image not found: {path}")
+
+        if not valid_paths:
+            return [[] for _ in image_paths]
+
+        all_detections = [[] for _ in image_paths]
+
+        try:
+            # Process in batches
+            for batch_start in range(0, len(valid_paths), batch_size):
+                batch_paths = valid_paths[batch_start:batch_start + batch_size]
+                batch_indices = valid_indices[batch_start:batch_start + batch_size]
+
+                # YOLO supports batch inference natively
+                results = _yolo_model(
+                    batch_paths,
+                    conf=self.config["yolo"]["conf_threshold"],
+                    iou=self.config["yolo"]["iou_threshold"],
+                    max_det=self.config["yolo"]["max_detections"],
+                    verbose=False
+                )
+
+                # Parse results for each image in batch
+                for result, orig_idx in zip(results, batch_indices):
+                    detections = []
+                    if result.boxes is not None:
+                        for box in result.boxes:
+                            class_id = int(box.cls[0])
+                            confidence = float(box.conf[0])
+                            class_name = _yolo_model.names[class_id]
+                            bbox = box.xyxy[0].tolist()
+
+                            detections.append({
+                                "class_name": class_name,
+                                "confidence": confidence,
+                                "class_id": class_id,
+                                "bbox": bbox
+                            })
+                    all_detections[orig_idx] = detections
+
+            logger.info(f"Batch detected objects in {len(valid_paths)} images")
+            return all_detections
+
+        except Exception as e:
+            logger.error(f"Error in batch object detection: {e}")
+            return [[] for _ in image_paths]
+
     def calculate_object_metrics(self, prompt: str, image_path: str) -> Dict[str, Any]:
         """Calculate object detection accuracy metrics"""
         target_data = self.extract_target_objects(prompt)
@@ -571,6 +640,128 @@ class CompositionMetricsCalculator:
             **visual_metrics
         }
 
+    def calculate_all_metrics_batch(
+        self,
+        prompts: List[str],
+        image_paths: List[str],
+        batch_size: int = 16
+    ) -> List[Dict[str, Any]]:
+        """
+        Calculate all metrics for multiple images using batch processing.
+
+        Args:
+            prompts: List of prompts (one per image)
+            image_paths: List of image file paths
+            batch_size: Batch size for YOLO inference (default: 16)
+
+        Returns:
+            List of metric dictionaries, one per image
+        """
+        if len(prompts) != len(image_paths):
+            raise ValueError("prompts and image_paths must have the same length")
+
+        n_images = len(image_paths)
+        if n_images == 0:
+            return []
+
+        logger.info(f"Calculating composition metrics for {n_images} images (batch_size={batch_size})")
+
+        # Step 1: Batch YOLO detection (the slow part)
+        all_detections = self.detect_objects_batch(image_paths, batch_size=batch_size)
+
+        # Step 2: Extract target objects from prompts (fast, no batching needed)
+        all_targets = [self.extract_target_objects(p) for p in prompts]
+
+        # Step 3: Calculate metrics for each image
+        results = []
+        for i, (prompt, image_path) in enumerate(zip(prompts, image_paths)):
+            # Object metrics using pre-computed detections
+            target_data = all_targets[i]
+            target_objects = target_data["mapped_objects"]
+            detections = all_detections[i]
+
+            object_metrics = self._compute_object_metrics_from_detections(
+                target_objects, detections
+            )
+
+            # Visual composition (OpenCV, fast enough without batching)
+            visual_metrics = self.calculate_visual_composition(image_path)
+
+            results.append({
+                **object_metrics,
+                **visual_metrics
+            })
+
+        logger.info(f"Completed composition metrics for {n_images} images")
+        return results
+
+    def _compute_object_metrics_from_detections(
+        self,
+        target_objects: Dict[str, int],
+        detections: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Compute object metrics from pre-computed detections"""
+        if not target_objects:
+            return {
+                "object_precision": None,
+                "object_recall": None,
+                "object_f1": None,
+                "detected_objects": {},
+                "missing_objects": {},
+                "target_objects": {}
+            }
+
+        # Count detected objects
+        detected_counts = {}
+        for detection in detections:
+            class_name = detection["class_name"]
+            detected_counts[class_name] = detected_counts.get(class_name, 0) + 1
+
+        # Calculate per-class metrics
+        per_class_metrics = {}
+        all_classes = set(target_objects.keys()) | set(detected_counts.keys())
+
+        for class_name in all_classes:
+            target_count = target_objects.get(class_name, 0)
+            detected_count = detected_counts.get(class_name, 0)
+
+            if detected_count > 0:
+                precision = min(target_count, detected_count) / detected_count
+            else:
+                precision = 1.0 if target_count == 0 else 0.0
+
+            if target_count > 0:
+                recall = min(target_count, detected_count) / target_count
+            else:
+                recall = 1.0 if detected_count == 0 else 0.0
+
+            f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+
+            per_class_metrics[class_name] = {
+                "precision": precision, "recall": recall, "f1": f1,
+                "target": target_count, "detected": detected_count
+            }
+
+        # Macro metrics
+        if per_class_metrics:
+            macro_precision = statistics.mean([m["precision"] for m in per_class_metrics.values()])
+            macro_recall = statistics.mean([m["recall"] for m in per_class_metrics.values()])
+            macro_f1 = statistics.mean([m["f1"] for m in per_class_metrics.values()])
+        else:
+            macro_precision = macro_recall = macro_f1 = 0.0
+
+        missing = {k: v for k, v in target_objects.items() if k not in detected_counts}
+
+        return {
+            "object_precision": macro_precision,
+            "object_recall": macro_recall,
+            "object_f1": macro_f1,
+            "detected_objects": detected_counts,
+            "missing_objects": missing,
+            "target_objects": target_objects,
+            "per_class_metrics": per_class_metrics
+        }
+
 
 # Singleton instance
 _calculator = None
@@ -587,3 +778,23 @@ def calculate_composition_metrics(prompt: str, image_path: str) -> Dict[str, Any
     """Convenience function to calculate all composition metrics"""
     calculator = get_composition_calculator()
     return calculator.calculate_all_metrics(prompt, image_path)
+
+
+def calculate_composition_metrics_batch(
+    prompts: List[str],
+    image_paths: List[str],
+    batch_size: int = 16
+) -> List[Dict[str, Any]]:
+    """
+    Convenience function to calculate composition metrics for multiple images.
+
+    Args:
+        prompts: List of prompts (one per image)
+        image_paths: List of image file paths
+        batch_size: Batch size for YOLO inference (default: 16)
+
+    Returns:
+        List of metric dictionaries, one per image
+    """
+    calculator = get_composition_calculator()
+    return calculator.calculate_all_metrics_batch(prompts, image_paths, batch_size)

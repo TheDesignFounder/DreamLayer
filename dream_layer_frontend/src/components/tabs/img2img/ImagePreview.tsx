@@ -59,9 +59,20 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ onTabChange }) => {
     setImageError(null);
   }, [images, isLoading]);
 
-  // Clear metrics when switching to a different image
+  // Auto-load cached metrics when switching images
   useEffect(() => {
     setCurrentMetrics(null);
+    if (!currentImage) return;
+    const filename = currentImage.url?.split('/').pop();
+    if (!filename) return;
+    fetch(`http://localhost:5002/api/image-metrics-cache/${encodeURIComponent(filename)}`)
+      .then(res => res.json())
+      .then(result => {
+        if (result.status === 'success' && result.metrics) {
+          setCurrentMetrics(result.metrics);
+        }
+      })
+      .catch(() => {});
   }, [currentImageIndex]);
 
   const handleImageError = (error: React.SyntheticEvent<HTMLImageElement, Event>) => {

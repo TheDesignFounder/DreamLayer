@@ -188,4 +188,5 @@ export interface VideoResult {
   prompt: string;
   timestamp: number;
   settings: Partial<Txt2VidCoreSettings>;
+  run_id?: string;
 }

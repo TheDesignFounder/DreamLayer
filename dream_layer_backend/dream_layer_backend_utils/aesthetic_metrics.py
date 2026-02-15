@@ -132,6 +132,88 @@ class AestheticMetricsCalculator:
             logger.error(f"Error calculating aesthetic score: {e}")
             return None
 
+    def calculate_aesthetic_score_batch(
+        self,
+        image_paths: List[str],
+        batch_size: int = 16
+    ) -> List[Optional[float]]:
+        """
+        Calculate LAION aesthetic scores for multiple images using batch inference.
+
+        Args:
+            image_paths: List of image file paths
+            batch_size: Number of images to process at once (default: 16)
+
+        Returns:
+            List of aesthetic scores (1-10 scale), None for failed images
+        """
+        if not _ensure_aesthetic_model():
+            logger.warning("Aesthetic model not available")
+            return [None] * len(image_paths)
+
+        n_images = len(image_paths)
+        if n_images == 0:
+            return []
+
+        results = [None] * n_images
+        logger.info(f"Calculating aesthetic scores for {n_images} images (batch_size={batch_size})")
+
+        try:
+            # Process in batches
+            for batch_start in range(0, n_images, batch_size):
+                batch_end = min(batch_start + batch_size, n_images)
+                batch_paths = image_paths[batch_start:batch_end]
+
+                # Load images, track which ones succeeded
+                images = []
+                valid_indices = []
+                for i, path in enumerate(batch_paths):
+                    if os.path.exists(path):
+                        try:
+                            img = Image.open(path).convert('RGB')
+                            images.append(img)
+                            valid_indices.append(batch_start + i)
+                        except Exception as e:
+                            logger.warning(f"Failed to load image {path}: {e}")
+                    else:
+                        logger.warning(f"Image not found: {path}")
+
+                if not images:
+                    continue
+
+                # Process batch through CLIP
+                inputs = _clip_processor(images=images, return_tensors="pt")
+
+                # Move to correct device
+                if self.device == "cuda" and next(_clip_model.parameters()).is_cuda:
+                    inputs = {k: v.cuda() if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
+
+                # Get CLIP embeddings and aesthetic scores
+                with torch.no_grad():
+                    image_features = _clip_model.get_image_features(**inputs)
+                    # Normalize features (L2 norm)
+                    image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+                    # Get aesthetic scores for batch
+                    scores = _aesthetic_model(image_features.float()).squeeze(-1)
+
+                    # Handle single image case
+                    if scores.dim() == 0:
+                        scores = scores.unsqueeze(0)
+
+                    scores = scores.cpu().tolist()
+
+                # Store results
+                for idx, score in zip(valid_indices, scores):
+                    # Clamp to 1-10 range
+                    results[idx] = max(1.0, min(10.0, score))
+
+            logger.info(f"Completed aesthetic scores for {sum(1 for r in results if r is not None)} images")
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in batch aesthetic scoring: {e}")
+            return [None] * n_images
+
     # ==================== COLOR HARMONY ANALYSIS ====================
 
     def calculate_color_harmony(self, image_path: str) -> Dict[str, Any]:
@@ -613,6 +695,75 @@ class AestheticMetricsCalculator:
 
         return results
 
+    def calculate_all_aesthetic_metrics_batch(
+        self,
+        image_paths: List[str],
+        batch_size: int = 16
+    ) -> List[Dict[str, Any]]:
+        """
+        Calculate all aesthetic metrics for multiple images using batch processing.
+
+        Args:
+            image_paths: List of image file paths
+            batch_size: Batch size for CLIP inference (default: 16)
+
+        Returns:
+            List of metric dictionaries, one per image
+        """
+        n_images = len(image_paths)
+        if n_images == 0:
+            return []
+
+        logger.info(f"Calculating aesthetic metrics for {n_images} images (batch_size={batch_size})")
+
+        # Step 1: Batch LAION aesthetic scores (the GPU-bound part)
+        aesthetic_scores = self.calculate_aesthetic_score_batch(image_paths, batch_size=batch_size)
+
+        # Step 2: Calculate color and technical metrics (CPU-bound, fast)
+        results = []
+        for i, image_path in enumerate(image_paths):
+            metrics = {}
+
+            # Add aesthetic score
+            if aesthetic_scores[i] is not None:
+                metrics["aesthetics_score"] = aesthetic_scores[i]
+
+            # Color Harmony (OpenCV, ~30ms per image)
+            color_metrics = self.calculate_color_harmony(image_path)
+            metrics.update(color_metrics)
+
+            # Technical Quality (OpenCV, ~20ms per image)
+            technical_metrics = self.calculate_technical_quality(image_path)
+            metrics.update(technical_metrics)
+
+            # Calculate overall aesthetic quality
+            component_scores = []
+            weights = []
+
+            if aesthetic_scores[i] is not None:
+                component_scores.append((aesthetic_scores[i] - 1) / 9)
+                weights.append(0.4)
+
+            if color_metrics.get("color_harmony_score") is not None:
+                component_scores.append(color_metrics["color_harmony_score"])
+                weights.append(0.3)
+
+            if technical_metrics.get("technical_quality_score") is not None:
+                component_scores.append(technical_metrics["technical_quality_score"])
+                weights.append(0.3)
+
+            if component_scores and weights:
+                total_weight = sum(weights)
+                overall = sum(s * w for s, w in zip(component_scores, weights)) / total_weight
+                metrics["overall_aesthetic_quality"] = overall
+            else:
+                metrics["overall_aesthetic_quality"] = None
+
+            results.append(metrics)
+
+        logger.info(f"Completed aesthetic metrics for {n_images} images")
+        return results
+
 
 # Singleton instance
 _calculator = None
@@ -630,3 +781,21 @@ def calculate_aesthetic_metrics(image_path: str) -> Dict[str, Any]:
     """Convenience function to calculate all aesthetic metrics"""
     calculator = get_aesthetic_calculator()
     return calculator.calculate_all_aesthetic_metrics(image_path)
+
+
+def calculate_aesthetic_metrics_batch(
+    image_paths: List[str],
+    batch_size: int = 16
+) -> List[Dict[str, Any]]:
+    """
+    Convenience function to calculate aesthetic metrics for multiple images.
+
+    Args:
+        image_paths: List of image file paths
+        batch_size: Batch size for CLIP inference (default: 16)
+
+    Returns:
+        List of metric dictionaries, one per image
+    """
+    calculator = get_aesthetic_calculator()
+    return calculator.calculate_all_aesthetic_metrics_batch(image_paths, batch_size)

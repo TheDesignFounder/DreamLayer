@@ -85,7 +85,16 @@ class ReportBundleGenerator:
         columns = [
             'run_id', 'timestamp', 'model', 'prompt', 'negative_prompt',
             'seed', 'steps', 'cfg_scale', 'width', 'height',
-            'image_count', 'filenames', 'clip_score_mean', 'fid_score', 'macro_precision', 'macro_recall', 'macro_f1'
+            'generation_type', 'image_count', 'filenames',
+            'clip_score_mean', 'fid_score', 'macro_precision', 'macro_recall', 'macro_f1',
+            'composition_score', 'rule_of_thirds_score', 'symmetry_score', 'balance_score',
+            'aesthetics_score', 'color_harmony_score', 'saturation_balance', 'value_contrast',
+            'technical_quality_score', 'sharpness_score', 'noise_level', 'artifact_score',
+            'overall_aesthetic_quality',
+            'fvd_score', 'video_ssim_mean', 'video_psnr_mean', 'video_lpips_mean',
+            'temporal_flickering_score', 'subject_consistency_score',
+            'background_consistency_score', 'motion_smoothness_score',
+            'video_aesthetic_mean'
         ]
         
         # Write CSV
@@ -131,7 +140,12 @@ class ReportBundleGenerator:
                     'run_id', 'timestamp', 'model', 'vae', 'prompt', 'negative_prompt',
                     'seed', 'sampler', 'steps', 'cfg_scale', 'width', 'height',
                     'batch_size', 'batch_count', 'generation_type', 'loras', 'controlnets',
-                    'generated_images', 'workflow', 'version'
+                    'generated_images', 'workflow', 'version',
+                    'clip_score_mean', 'fid_score', 'macro_precision', 'macro_recall', 'macro_f1',
+                    'fvd_score', 'video_ssim_mean', 'video_psnr_mean', 'video_lpips_mean',
+                    'temporal_flickering_score', 'subject_consistency_score',
+                    'background_consistency_score', 'motion_smoothness_score',
+                    'video_aesthetic_mean'
                 ]
             }
             config_data["runs"].append(run_config)

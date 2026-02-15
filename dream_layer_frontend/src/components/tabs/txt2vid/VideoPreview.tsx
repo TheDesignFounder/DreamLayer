@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
 import { useTxt2VidGalleryStore } from '@/stores/useTxt2VidGalleryStore';
 import { Download, FolderOpen, Copy, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import VideoEvalMetrics from '@/components/VideoEvalMetrics';
 
 interface VideoPreviewProps {
   onTabChange?: (tabId: string) => void;
@@ -20,8 +21,26 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ onTabChange }) => {
   const { videos, isLoading, currentVideoIndex, setCurrentVideoIndex } = useTxt2VidGalleryStore();
   const [outputSettingsExpanded, setOutputSettingsExpanded] = useState(true);
   const [thumbnailStartIndex, setThumbnailStartIndex] = useState(0);
+  const [videoMetrics, setVideoMetrics] = useState<Record<string, any>>({});
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   const currentVideo = videos[currentVideoIndex] || videos[0];
+
+  // Auto-load cached metrics when video changes
+  useEffect(() => {
+    if (!currentVideo || videoMetrics[currentVideo.id]) return;
+    const filename = currentVideo.filename;
+    if (!filename) return;
+    fetch(`http://localhost:5008/api/video-metrics-cache/${encodeURIComponent(filename)}`)
+      .then(res => res.json())
+      .then(result => {
+        if (result.status === 'success' && result.metrics) {
+          setVideoMetrics(prev => ({ ...prev, [currentVideo.id]: result.metrics }));
+        }
+      })
+      .catch(() => {});
+  }, [currentVideo?.id]);
+
   const maxThumbnails = 5;
   const totalPages = Math.ceil(videos.length / maxThumbnails);
   const currentPage = Math.floor(thumbnailStartIndex / maxThumbnails) + 1;
@@ -75,6 +94,30 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ onTabChange }) => {
   const handleThumbnailClick = (index: number) => {
     const actualIndex = thumbnailStartIndex + index;
     setCurrentVideoIndex(actualIndex);
+  };
+
+  const handleCalculateVideoMetrics = async () => {
+    if (!currentVideo) return;
+    setMetricsLoading(true);
+    try {
+      const response = await fetch('http://localhost:5008/api/calculate-video-metrics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_url: currentVideo.filename,
+          prompt: currentVideo.prompt || '',
+          run_id: currentVideo.run_id || '',
+        }),
+      });
+      const result = await response.json();
+      if (result.status === 'success' && result.metrics) {
+        setVideoMetrics(prev => ({ ...prev, [currentVideo.id]: result.metrics }));
+      }
+    } catch (error) {
+      console.error('Error calculating video metrics:', error);
+    } finally {
+      setMetricsLoading(false);
+    }
   };
 
   return (
@@ -282,6 +325,19 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ onTabChange }) => {
               </div>
             )}
           </div>
+
+          {/* Divider */}
+          <div className="border-t border-border"></div>
+
+          {/* Video Evaluation Metrics */}
+          <VideoEvalMetrics
+            videoId={currentVideo.id}
+            videoPath={currentVideo.url}
+            prompt={currentVideo.prompt}
+            metrics={videoMetrics[currentVideo.id]}
+            isLoading={metricsLoading}
+            onCalculateMetrics={handleCalculateVideoMetrics}
+          />
         </div>
       )}
     </div>

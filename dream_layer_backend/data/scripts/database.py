@@ -149,8 +149,15 @@ class DreamLayerDB:
                 logger.info("Creating missing embedding_cache table")
                 self.create_embedding_cache_table()
 
-            # Add more table checks here as needed in the future
-            # Example: if not self.table_exists('future_table'): self.create_future_table()
+            # Check if video_metrics table exists
+            cursor = conn.execute("""
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='video_metrics'
+            """)
+
+            if not cursor.fetchone():
+                logger.info("Creating missing video_metrics table")
+                self.create_video_metrics_table()
     
     def table_exists(self, table_name: str) -> bool:
         """Check if a table exists in the database"""
@@ -217,6 +224,127 @@ class DreamLayerDB:
 
             conn.commit()
             logger.info("embedding_cache table created successfully")
+
+    def create_video_metrics_table(self):
+        """Create the video_metrics table for storing video evaluation metrics"""
+        with self.get_connection() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS video_metrics (
+                    run_id TEXT PRIMARY KEY,
+                    timestamp TEXT NOT NULL,
+                    fvd_score REAL,
+                    video_ssim_mean REAL,
+                    video_ssim_std REAL,
+                    video_psnr_mean REAL,
+                    video_psnr_std REAL,
+                    video_lpips_mean REAL,
+                    video_lpips_std REAL,
+                    per_frame_data TEXT,
+                    computed_at TEXT DEFAULT (datetime('now')),
+                    metadata TEXT,
+                    FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE
+                )
+            """)
+
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_video_metrics_run_id ON video_metrics(run_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_video_metrics_timestamp ON video_metrics(timestamp)")
+
+            conn.commit()
+            logger.info("video_metrics table created successfully")
+
+    def upsert_video_metrics(self, run_id: str, timestamp: str,
+                             fvd_score: float = None, video_ssim_mean: float = None,
+                             video_ssim_std: float = None, video_psnr_mean: float = None,
+                             video_psnr_std: float = None, video_lpips_mean: float = None,
+                             video_lpips_std: float = None, per_frame_data: Dict = None,
+                             metadata: Dict = None) -> bool:
+        """Insert or update video metrics for a run"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.execute("SELECT run_id FROM video_metrics WHERE run_id = ?", (run_id,))
+                exists = cursor.fetchone() is not None
+
+                if exists:
+                    updates = []
+                    params = []
+                    field_map = {
+                        'fvd_score': fvd_score,
+                        'video_ssim_mean': video_ssim_mean,
+                        'video_ssim_std': video_ssim_std,
+                        'video_psnr_mean': video_psnr_mean,
+                        'video_psnr_std': video_psnr_std,
+                        'video_lpips_mean': video_lpips_mean,
+                        'video_lpips_std': video_lpips_std,
+                    }
+                    for field, value in field_map.items():
+                        if value is not None:
+                            updates.append(f"{field} = ?")
+                            params.append(value)
+                    if per_frame_data is not None:
+                        updates.append("per_frame_data = ?")
+                        params.append(json.dumps(per_frame_data))
+                    if metadata is not None:
+                        updates.append("metadata = ?")
+                        params.append(json.dumps(metadata))
+                    if updates:
+                        params.append(run_id)
+                        query = f"UPDATE video_metrics SET {', '.join(updates)} WHERE run_id = ?"
+                        conn.execute(query, params)
+                else:
+                    conn.execute("""
+                        INSERT INTO video_metrics (
+                            run_id, timestamp, fvd_score, video_ssim_mean, video_ssim_std,
+                            video_psnr_mean, video_psnr_std, video_lpips_mean, video_lpips_std,
+                            per_frame_data, metadata
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        run_id, timestamp, fvd_score, video_ssim_mean, video_ssim_std,
+                        video_psnr_mean, video_psnr_std, video_lpips_mean, video_lpips_std,
+                        json.dumps(per_frame_data) if per_frame_data else None,
+                        json.dumps(metadata) if metadata else None
+                    ))
+
+                conn.commit()
+                return True
+
+        except Exception as e:
+            logger.error(f"Error upserting video metrics for run {run_id}: {e}")
+            return False
+
+    def get_video_metrics(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Get video metrics for a run, or None if not found"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.execute("SELECT * FROM video_metrics WHERE run_id = ?", (run_id,))
+                row = cursor.fetchone()
+                if row is None:
+                    return None
+                result = dict(row)
+                # Parse JSON fields
+                if result.get('per_frame_data'):
+                    result['per_frame_data'] = json.loads(result['per_frame_data'])
+                if result.get('metadata'):
+                    result['metadata'] = json.loads(result['metadata'])
+                return result
+        except Exception as e:
+            logger.error(f"Error getting video metrics for run {run_id}: {e}")
+            return None
+
+    def get_video_runs_without_metrics(self) -> List[Dict[str, Any]]:
+        """Get video runs that don't have metrics calculated yet"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT r.* FROM runs r
+                    LEFT JOIN video_metrics vm ON r.run_id = vm.run_id
+                    WHERE r.generation_type IN ('txt2vid', 'img2vid')
+                    AND vm.run_id IS NULL
+                    ORDER BY r.timestamp DESC
+                """)
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error getting video runs without metrics: {e}")
+            return []
 
     def save_embedding(self, source_type: str, source_id: str, embedding_type: str,
                        model_name: str, embedding_data: bytes, embedding_dim: int) -> bool:

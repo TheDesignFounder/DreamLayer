@@ -191,6 +191,107 @@ def ensure_composition_metrics_calculated_with_progress():
             return {"error": str(e)}
     return {"error": "Database not available"}
 
+def calculate_missing_video_metrics():
+    """Calculate video metrics for all video runs that don't have metrics yet"""
+    if not db_integration.is_database_enabled():
+        return {"error": "Database not available"}
+
+    try:
+        from data.scripts.database import DreamLayerDB
+        db = DreamLayerDB()
+        unscored_runs = db.get_video_runs_without_metrics()
+
+        if not unscored_runs:
+            return {"success": 0, "failed": 0, "total": 0}
+
+        import json
+        from datetime import datetime
+        from dream_layer_backend_utils.video_metrics import get_video_calculator
+
+        calculator = get_video_calculator()
+        success = 0
+        failed = 0
+
+        # Resolve video output directory
+        import os
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        video_dir = os.path.join(project_root, '..', 'Dream_Layer_Resources', 'output', 'videos')
+
+        for run in unscored_runs:
+            try:
+                # Get video filename from generated_images
+                gen_images = run.get('generated_images', '[]')
+                if isinstance(gen_images, str):
+                    gen_images = json.loads(gen_images)
+                if not gen_images:
+                    failed += 1
+                    continue
+
+                video_filename = gen_images[0]
+                video_path = os.path.join(video_dir, video_filename)
+
+                if not os.path.exists(video_path):
+                    failed += 1
+                    continue
+
+                metrics = calculator.compute_all(video_path=video_path, per_frame=True)
+
+                # Split metrics for DB storage
+                per_frame_data = {}
+                metadata = {}
+                phase1_keys = {'fvd_score', 'video_ssim_mean', 'video_ssim_std',
+                               'video_psnr_mean', 'video_psnr_std',
+                               'video_lpips_mean', 'video_lpips_std'}
+                skip_keys = {'computed_at', '_errors', '_cached'}
+                per_frame_keys = {k for k in metrics if 'per_frame' in k}
+
+                for k, v in metrics.items():
+                    if k in phase1_keys or k in skip_keys:
+                        continue
+                    elif k in per_frame_keys:
+                        per_frame_data[k] = v
+                    else:
+                        metadata[k] = v
+
+                db.upsert_video_metrics(
+                    run_id=run['run_id'],
+                    timestamp=datetime.now().isoformat(),
+                    fvd_score=metrics.get('fvd_score'),
+                    video_ssim_mean=metrics.get('video_ssim_mean'),
+                    video_ssim_std=metrics.get('video_ssim_std'),
+                    video_psnr_mean=metrics.get('video_psnr_mean'),
+                    video_psnr_std=metrics.get('video_psnr_std'),
+                    video_lpips_mean=metrics.get('video_lpips_mean'),
+                    video_lpips_std=metrics.get('video_lpips_std'),
+                    per_frame_data=per_frame_data if per_frame_data else None,
+                    metadata=metadata if metadata else None,
+                )
+                success += 1
+                print(f"  Video metrics calculated for run {run['run_id']}")
+            except Exception as e:
+                print(f"  Failed to calculate video metrics for run {run.get('run_id')}: {e}")
+                failed += 1
+
+        return {"success": success, "failed": failed, "total": len(unscored_runs)}
+
+    except Exception as e:
+        print(f"Error in calculate_missing_video_metrics: {e}")
+        return {"error": str(e)}
+
+def ensure_video_metrics_calculated_with_progress():
+    """Calculate video metrics with WebSocket progress updates"""
+    if db_integration.is_database_enabled():
+        try:
+            from run_registry import socketio
+            socketio.emit('metrics_progress', {'type': 'video', 'status': 'starting'})
+            stats = calculate_missing_video_metrics()
+            socketio.emit('metrics_progress', {'type': 'video', 'status': 'completed', 'stats': stats})
+            return stats
+        except Exception as e:
+            print(f"Error calculating video metrics: {e}")
+            return {"error": str(e)}
+    return {"error": "Database not available"}
+
 if __name__ == "__main__":
     # Test the integration
     integration = DatabaseIntegration()

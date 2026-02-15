@@ -132,22 +132,29 @@ def get_all_runs_with_metrics() -> List[Dict[str, Any]]:
         with db.get_connection() as conn:
             # Single unified query that joins runs with all metrics tables
             cursor = conn.execute("""
-                SELECT 
+                SELECT
                     r.*,
                     m.clip_score_mean,
                     m.fid_score,
+                    m.metadata as metrics_metadata,
                     cm.macro_precision,
                     cm.macro_recall,
                     cm.macro_f1,
                     cm.per_class_metrics,
                     cm.detected_objects,
-                    cm.missing_objects
+                    cm.missing_objects,
+                    vm.fvd_score,
+                    vm.video_ssim_mean,
+                    vm.video_psnr_mean,
+                    vm.video_lpips_mean,
+                    vm.metadata as video_metadata
                 FROM runs r
                 LEFT JOIN metrics m ON r.run_id = m.run_id
                 LEFT JOIN composition_metrics cm ON r.run_id = cm.run_id
+                LEFT JOIN video_metrics vm ON r.run_id = vm.run_id
                 ORDER BY r.timestamp DESC
             """)
-            
+
             runs = []
             for row in cursor.fetchall():
                 run_dict = dict(row)
@@ -161,7 +168,7 @@ def get_all_runs_with_metrics() -> List[Dict[str, Any]]:
                             run_dict[field] = [] if field != 'workflow' else {}
                     else:
                         run_dict[field] = [] if field != 'workflow' else {}
-                
+
                 # Ensure generated_images is an array
                 if not run_dict.get('generated_images'):
                     run_dict['generated_images'] = []
@@ -172,11 +179,11 @@ def get_all_runs_with_metrics() -> List[Dict[str, Any]]:
                     except (json.JSONDecodeError, TypeError):
                         # If it's a single filename string, convert to array
                         run_dict['generated_images'] = [run_dict['generated_images']] if run_dict['generated_images'] else []
-                
+
                 # Ensure it's always a list
                 if not isinstance(run_dict['generated_images'], list):
                     run_dict['generated_images'] = []
-                
+
                 # Parse composition metrics JSON fields
                 for field in ['per_class_metrics', 'detected_objects', 'missing_objects']:
                     if run_dict.get(field):
@@ -187,7 +194,36 @@ def get_all_runs_with_metrics() -> List[Dict[str, Any]]:
                             run_dict[field] = {}
                     else:
                         run_dict[field] = {}
-                
+
+                # Parse image metrics metadata JSON (composition + aesthetic scores)
+                if run_dict.get('metrics_metadata'):
+                    try:
+                        import json
+                        mm = json.loads(run_dict['metrics_metadata'])
+                        for key in ['composition_score', 'rule_of_thirds_score', 'symmetry_score', 'balance_score',
+                                    'aesthetics_score', 'color_harmony_score', 'saturation_balance', 'value_contrast',
+                                    'technical_quality_score', 'sharpness_score', 'noise_level', 'artifact_score',
+                                    'overall_aesthetic_quality']:
+                            if key in mm:
+                                run_dict[key] = mm[key]
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                run_dict.pop('metrics_metadata', None)
+
+                # Parse video quality metrics from metadata JSON
+                if run_dict.get('video_metadata'):
+                    try:
+                        import json
+                        vm = json.loads(run_dict['video_metadata'])
+                        for key in ['temporal_flickering_score', 'subject_consistency_score',
+                                    'background_consistency_score', 'motion_smoothness_score',
+                                    'video_aesthetic_mean', 'video_aesthetic_min', 'video_aesthetic_std']:
+                            if key in vm:
+                                run_dict[key] = vm[key]
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                run_dict.pop('video_metadata', None)
+
                 runs.append(run_dict)
             
             return runs
@@ -206,26 +242,33 @@ def get_single_run_with_metrics(run_id: str) -> Optional[Dict[str, Any]]:
         
         with db.get_connection() as conn:
             cursor = conn.execute("""
-                SELECT 
+                SELECT
                     r.*,
                     m.clip_score_mean,
                     m.fid_score,
+                    m.metadata as metrics_metadata,
                     cm.macro_precision,
                     cm.macro_recall,
                     cm.macro_f1,
                     cm.per_class_metrics,
                     cm.detected_objects,
-                    cm.missing_objects
+                    cm.missing_objects,
+                    vm.fvd_score,
+                    vm.video_ssim_mean,
+                    vm.video_psnr_mean,
+                    vm.video_lpips_mean,
+                    vm.metadata as video_metadata
                 FROM runs r
                 LEFT JOIN metrics m ON r.run_id = m.run_id
                 LEFT JOIN composition_metrics cm ON r.run_id = cm.run_id
+                LEFT JOIN video_metrics vm ON r.run_id = vm.run_id
                 WHERE r.run_id = ?
             """, (run_id,))
-            
+
             row = cursor.fetchone()
             if not row:
                 return None
-            
+
             run_dict = dict(row)
             # Convert JSON strings back to objects and ensure arrays exist
             for field in ['loras', 'controlnets', 'workflow']:
@@ -237,7 +280,7 @@ def get_single_run_with_metrics(run_id: str) -> Optional[Dict[str, Any]]:
                         run_dict[field] = [] if field != 'workflow' else {}
                 else:
                     run_dict[field] = [] if field != 'workflow' else {}
-            
+
             # Ensure generated_images is an array
             if not run_dict.get('generated_images'):
                 run_dict['generated_images'] = []
@@ -247,7 +290,7 @@ def get_single_run_with_metrics(run_id: str) -> Optional[Dict[str, Any]]:
                     run_dict['generated_images'] = json.loads(run_dict['generated_images'])
                 except (json.JSONDecodeError, TypeError):
                     run_dict['generated_images'] = [run_dict['generated_images']] if run_dict['generated_images'] else []
-            
+
             # Parse composition metrics JSON fields
             for field in ['per_class_metrics', 'detected_objects', 'missing_objects']:
                 if run_dict.get(field):
@@ -258,7 +301,36 @@ def get_single_run_with_metrics(run_id: str) -> Optional[Dict[str, Any]]:
                         run_dict[field] = {}
                 else:
                     run_dict[field] = {}
-            
+
+            # Parse image metrics metadata JSON (composition + aesthetic scores)
+            if run_dict.get('metrics_metadata'):
+                try:
+                    import json
+                    mm = json.loads(run_dict['metrics_metadata'])
+                    for key in ['composition_score', 'rule_of_thirds_score', 'symmetry_score', 'balance_score',
+                                'aesthetics_score', 'color_harmony_score', 'saturation_balance', 'value_contrast',
+                                'technical_quality_score', 'sharpness_score', 'noise_level', 'artifact_score',
+                                'overall_aesthetic_quality']:
+                        if key in mm:
+                            run_dict[key] = mm[key]
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            run_dict.pop('metrics_metadata', None)
+
+            # Parse video quality metrics from metadata JSON
+            if run_dict.get('video_metadata'):
+                try:
+                    import json
+                    vm = json.loads(run_dict['video_metadata'])
+                    for key in ['temporal_flickering_score', 'subject_consistency_score',
+                                'background_consistency_score', 'motion_smoothness_score',
+                                'video_aesthetic_mean', 'video_aesthetic_min', 'video_aesthetic_std']:
+                        if key in vm:
+                            run_dict[key] = vm[key]
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            run_dict.pop('video_metadata', None)
+
             return run_dict
             
     except Exception as e:

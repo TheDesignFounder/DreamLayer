@@ -9,6 +9,7 @@ from dream_layer import get_directories
 from dream_layer_backend_utils.native_dream_layer_workflows.txt2vid.luma_api import generate_luma_video
 from dream_layer_backend_utils.native_dream_layer_workflows.txt2vid.runway_api import generate_runway_video
 import generation_history as gh
+from run_registry import create_run_config_from_generation_data, registry
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -130,10 +131,26 @@ def handle_txt2vid():
             logging.error(f"Failed to save to history: {str(e)}")
             # Don't fail the request if history save fails
 
+        # Register in run registry for metrics tracking
+        generated_run_id = None
+        try:
+            run_config = create_run_config_from_generation_data(
+                data,
+                [result['filename']],
+                generation_type
+            )
+            registry.add_run(run_config)
+            generated_run_id = run_config.run_id
+            logging.info(f"✅ Video run registered with run_id: {generated_run_id}")
+        except Exception as e:
+            logging.error(f"Failed to register video run: {str(e)}")
+            # Don't fail the request if registry fails
+
         response = {
             "status": "success",
             "message": "Video generated successfully",
-            "filename": result["filename"]
+            "filename": result["filename"],
+            "run_id": generated_run_id
         }
         logging.info(f"Returning success response: {response}")
         return jsonify(response)
@@ -213,6 +230,334 @@ def get_available_providers():
     except Exception as e:
         logging.error(f"Error checking available providers: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/calculate-video-metrics', methods=['POST', 'OPTIONS'])
+def calculate_video_metrics():
+    """Calculate evaluation metrics for a generated video."""
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
+
+    try:
+        data = request.json
+        video_url = data.get('video_url', '')
+        reference_video_url = data.get('reference_video_url', '')
+        prompt = data.get('prompt', '')
+        run_id = data.get('run_id', '')
+        force_recalculate = data.get('force_recalculate', False)
+
+        if not video_url:
+            return jsonify({"status": "error", "message": "Missing video_url"}), 400
+
+        # Check DB cache first
+        if run_id and not force_recalculate:
+            try:
+                from data.scripts.database import DreamLayerDB
+                db = DreamLayerDB()
+                cached = db.get_video_metrics(run_id)
+                if cached:
+                    # Reconstruct full metrics dict from DB row
+                    metrics = {}
+                    for key in ['fvd_score', 'video_ssim_mean', 'video_ssim_std',
+                                'video_psnr_mean', 'video_psnr_std',
+                                'video_lpips_mean', 'video_lpips_std']:
+                        if cached.get(key) is not None:
+                            metrics[key] = cached[key]
+                    # Phase 2 quality metrics + per-frame data stored in metadata
+                    if cached.get('metadata'):
+                        metrics.update(cached['metadata'])
+                    if cached.get('per_frame_data'):
+                        metrics.update(cached['per_frame_data'])
+                    metrics['computed_at'] = cached.get('computed_at', '')
+                    metrics['_cached'] = True
+                    logging.info(f"Returning cached video metrics for run_id: {run_id}")
+                    return jsonify({"status": "success", "metrics": metrics})
+            except Exception as e:
+                logging.warning(f"DB cache lookup failed, computing fresh: {e}")
+
+        # Resolve filename to full path
+        video_filename = video_url.split('/')[-1] if '/' in video_url else video_url
+        video_path = os.path.join(VIDEO_OUTPUT_DIR, video_filename)
+
+        if not os.path.exists(video_path):
+            return jsonify({"status": "error", "message": f"Video not found: {video_filename}"}), 404
+
+        reference_path = None
+        if reference_video_url:
+            ref_filename = reference_video_url.split('/')[-1] if '/' in reference_video_url else reference_video_url
+            ref_path = os.path.join(VIDEO_OUTPUT_DIR, ref_filename)
+            if os.path.exists(ref_path):
+                reference_path = ref_path
+
+        logging.info(f"Calculating video metrics for: {video_filename}")
+
+        from dream_layer_backend_utils.video_metrics import get_video_calculator
+        calculator = get_video_calculator()
+        metrics = calculator.compute_all(
+            video_path=video_path,
+            reference_path=reference_path,
+            per_frame=True
+        )
+
+        from datetime import datetime
+        metrics['computed_at'] = datetime.now().isoformat()
+
+        # Save to DB if we have a run_id
+        if run_id:
+            try:
+                from data.scripts.database import DreamLayerDB
+                db = DreamLayerDB()
+                # Separate per-frame data and quality metrics into JSON columns
+                per_frame_data = {}
+                metadata = {}
+                phase1_keys = {'fvd_score', 'video_ssim_mean', 'video_ssim_std',
+                               'video_psnr_mean', 'video_psnr_std',
+                               'video_lpips_mean', 'video_lpips_std'}
+                skip_keys = {'computed_at', '_errors', '_cached'}
+                per_frame_keys = {k for k in metrics if 'per_frame' in k}
+
+                for k, v in metrics.items():
+                    if k in phase1_keys or k in skip_keys:
+                        continue
+                    elif k in per_frame_keys:
+                        per_frame_data[k] = v
+                    else:
+                        metadata[k] = v
+
+                db.upsert_video_metrics(
+                    run_id=run_id,
+                    timestamp=datetime.now().isoformat(),
+                    fvd_score=metrics.get('fvd_score'),
+                    video_ssim_mean=metrics.get('video_ssim_mean'),
+                    video_ssim_std=metrics.get('video_ssim_std'),
+                    video_psnr_mean=metrics.get('video_psnr_mean'),
+                    video_psnr_std=metrics.get('video_psnr_std'),
+                    video_lpips_mean=metrics.get('video_lpips_mean'),
+                    video_lpips_std=metrics.get('video_lpips_std'),
+                    per_frame_data=per_frame_data if per_frame_data else None,
+                    metadata=metadata if metadata else None,
+                )
+                logging.info(f"Video metrics saved to DB for run_id: {run_id}")
+            except Exception as e:
+                logging.error(f"Failed to save video metrics to DB: {e}")
+
+        logging.info(f"Video metrics computed: {list(k for k in metrics.keys() if not k.startswith('video_') or 'per_frame' not in k)}")
+
+        return jsonify({
+            "status": "success",
+            "metrics": metrics
+        })
+
+    except Exception as e:
+        logging.error(f"Error calculating video metrics: {str(e)}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/video-metrics-cache/<filename>', methods=['GET'])
+def get_video_metrics_cache(filename):
+    """Look up cached video metrics by filename (no computation)."""
+    try:
+        from data.scripts.database import DreamLayerDB
+        import json as json_lib
+        db = DreamLayerDB()
+
+        # Find run_id by filename
+        with db.get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT r.run_id FROM runs r
+                WHERE r.generation_type IN ('txt2vid', 'img2vid')
+                AND r.generated_images LIKE ?
+                ORDER BY r.timestamp DESC LIMIT 1
+            """, (f'%{filename}%',))
+            row = cursor.fetchone()
+
+        if not row:
+            return jsonify({"status": "not_found"}), 404
+
+        cached = db.get_video_metrics(row['run_id'])
+        if not cached:
+            return jsonify({"status": "not_found"}), 404
+
+        # Reconstruct full metrics dict
+        metrics = {}
+        for key in ['fvd_score', 'video_ssim_mean', 'video_ssim_std',
+                     'video_psnr_mean', 'video_psnr_std',
+                     'video_lpips_mean', 'video_lpips_std']:
+            if cached.get(key) is not None:
+                metrics[key] = cached[key]
+        if cached.get('metadata'):
+            metrics.update(cached['metadata'])
+        if cached.get('per_frame_data'):
+            metrics.update(cached['per_frame_data'])
+        metrics['computed_at'] = cached.get('computed_at', '')
+        metrics['_cached'] = True
+
+        return jsonify({"status": "success", "metrics": metrics, "run_id": row['run_id']})
+
+    except Exception as e:
+        logging.error(f"Error looking up cached video metrics: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/calculate-all-video-metrics', methods=['POST', 'OPTIONS'])
+def calculate_all_video_metrics():
+    """Batch calculate video metrics for all unscored video runs."""
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
+
+    try:
+        from database_integration import ensure_video_metrics_calculated_with_progress
+        stats = ensure_video_metrics_calculated_with_progress()
+        return jsonify({"status": "success", "stats": stats})
+    except Exception as e:
+        logging.error(f"Error in batch video metrics: {str(e)}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/export-video-metrics', methods=['GET'])
+def export_video_metrics():
+    """Export all video metrics as CSV."""
+    try:
+        import csv
+        import io
+        from data.scripts.database import DreamLayerDB
+
+        db = DreamLayerDB()
+        with db.get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT r.run_id, r.timestamp, r.model, r.prompt, r.generation_type,
+                       r.generated_images,
+                       vm.fvd_score, vm.video_ssim_mean, vm.video_ssim_std,
+                       vm.video_psnr_mean, vm.video_psnr_std,
+                       vm.video_lpips_mean, vm.video_lpips_std,
+                       vm.metadata, vm.computed_at
+                FROM video_metrics vm
+                JOIN runs r ON r.run_id = vm.run_id
+                ORDER BY r.timestamp DESC
+            """)
+            rows = [dict(row) for row in cursor.fetchall()]
+
+        if not rows:
+            return jsonify({"status": "error", "message": "No video metrics found"}), 404
+
+        # Build CSV
+        output = io.StringIO()
+        columns = [
+            'run_id', 'timestamp', 'model', 'prompt', 'generation_type', 'filename',
+            'fvd_score', 'video_ssim_mean', 'video_ssim_std',
+            'video_psnr_mean', 'video_psnr_std',
+            'video_lpips_mean', 'video_lpips_std',
+            'temporal_flickering_score', 'subject_consistency_score',
+            'background_consistency_score', 'motion_smoothness_score',
+            'video_aesthetic_mean', 'video_aesthetic_min', 'video_aesthetic_std',
+            'computed_at'
+        ]
+        writer = csv.DictWriter(output, fieldnames=columns)
+        writer.writeheader()
+
+        import json as json_lib
+        for row in rows:
+            csv_row = {k: row.get(k, '') for k in columns}
+            # Extract filename from generated_images
+            gen_images = row.get('generated_images', '[]')
+            if isinstance(gen_images, str):
+                gen_images = json_lib.loads(gen_images)
+            csv_row['filename'] = gen_images[0] if gen_images else ''
+            # Extract quality metrics from metadata JSON
+            metadata = row.get('metadata')
+            if metadata:
+                if isinstance(metadata, str):
+                    metadata = json_lib.loads(metadata)
+                for key in ['temporal_flickering_score', 'subject_consistency_score',
+                            'background_consistency_score', 'motion_smoothness_score',
+                            'video_aesthetic_mean', 'video_aesthetic_min', 'video_aesthetic_std']:
+                    csv_row[key] = metadata.get(key, '')
+            writer.writerow(csv_row)
+
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=video_metrics.csv'}
+        )
+
+    except Exception as e:
+        logging.error(f"Error exporting video metrics: {str(e)}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/compare-video-metrics', methods=['POST', 'OPTIONS'])
+def compare_video_metrics():
+    """Compare metrics between two videos."""
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
+
+    try:
+        data = request.json
+        run_id_1 = data.get('run_id_1', '')
+        run_id_2 = data.get('run_id_2', '')
+
+        if not run_id_1 or not run_id_2:
+            return jsonify({"status": "error", "message": "Both run_id_1 and run_id_2 required"}), 400
+
+        from data.scripts.database import DreamLayerDB
+        db = DreamLayerDB()
+
+        metrics1 = db.get_video_metrics(run_id_1)
+        metrics2 = db.get_video_metrics(run_id_2)
+
+        if not metrics1 or not metrics2:
+            missing = []
+            if not metrics1:
+                missing.append(run_id_1)
+            if not metrics2:
+                missing.append(run_id_2)
+            return jsonify({"status": "error", "message": f"Metrics not found for: {', '.join(missing)}"}), 404
+
+        # Compute deltas for numeric fields
+        compare_keys = [
+            'fvd_score', 'video_ssim_mean', 'video_psnr_mean', 'video_lpips_mean'
+        ]
+        # Also compare quality metrics from metadata
+        quality_keys = [
+            'temporal_flickering_score', 'subject_consistency_score',
+            'background_consistency_score', 'motion_smoothness_score',
+            'video_aesthetic_mean'
+        ]
+
+        def get_metric_value(metrics_row, key):
+            if key in metrics_row and metrics_row[key] is not None:
+                return metrics_row[key]
+            if metrics_row.get('metadata') and key in metrics_row['metadata']:
+                return metrics_row['metadata'][key]
+            return None
+
+        deltas = {}
+        for key in compare_keys + quality_keys:
+            v1 = get_metric_value(metrics1, key)
+            v2 = get_metric_value(metrics2, key)
+            if v1 is not None and v2 is not None:
+                deltas[key] = round(v1 - v2, 6)
+
+        return jsonify({
+            "status": "success",
+            "video_1": {"run_id": run_id_1, "metrics": metrics1},
+            "video_2": {"run_id": run_id_2, "metrics": metrics2},
+            "deltas": deltas
+        })
+
+    except Exception as e:
+        logging.error(f"Error comparing video metrics: {str(e)}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 if __name__ == '__main__':
     logging.info("Starting Txt2Vid server on port 5008...")

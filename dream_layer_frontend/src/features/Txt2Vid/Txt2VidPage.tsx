@@ -166,7 +166,8 @@ const Txt2VidPage: React.FC<Txt2VidPageProps> = ({ selectedModel, onTabChange })
           timestamp: Date.now(),
           settings: {
             ...coreSettings
-          }
+          },
+          run_id: data.run_id || undefined
         };
 
         console.log('Adding video to gallery:', newVideo);

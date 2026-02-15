@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Copy, ChevronDown, Calculator } from 'lucide-react';
+import { Copy, ChevronDown, Calculator, PlayCircle } from 'lucide-react';
 
 interface EvalMetricsProps {
   imageId: string;
@@ -57,70 +57,25 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
   onCalculateMetrics
 }) => {
   const [expanded, setExpanded] = useState(true);
+  const [batchLoading, setBatchLoading] = useState(false);
 
-  const getScoreColor = (score: number | undefined, metricType: 'clip' | 'fid' | 'composition' | 'aesthetics' | 'visual' | 'technical' | 'noise' | 'lpips' | 'ssim' | 'psnr') => {
-    if (score === undefined) return 'text-muted-foreground';
-
-    switch (metricType) {
-      case 'clip':
-        // CLIP score: 0.3+ good, 0.2-0.3 moderate, <0.2 poor
-        if (score >= 0.3) return 'text-green-600';
-        if (score >= 0.2) return 'text-yellow-600';
-        return 'text-red-600';
-
-      case 'fid':
-        // FID: lower is better. <50 good, 50-100 moderate, >100 poor
-        if (score < 50) return 'text-green-600';
-        if (score < 100) return 'text-yellow-600';
-        return 'text-red-600';
-
-      case 'composition':
-        // Object detection F1: 0.7+ good, 0.5-0.7 moderate, <0.5 poor
-        if (score >= 0.7) return 'text-green-600';
-        if (score >= 0.5) return 'text-yellow-600';
-        return 'text-red-600';
-
-      case 'visual':
-        // Visual composition: 0.6+ good, 0.4-0.6 moderate, <0.4 poor
-        if (score >= 0.6) return 'text-green-600';
-        if (score >= 0.4) return 'text-yellow-600';
-        return 'text-red-600';
-
-      case 'aesthetics':
-        // Aesthetics: 6+ good, 4-6 moderate, <4 poor (scale 1-10)
-        if (score >= 6) return 'text-green-600';
-        if (score >= 4) return 'text-yellow-600';
-        return 'text-red-600';
-
-      case 'technical':
-        // Technical quality: 0.7+ good, 0.5-0.7 moderate, <0.5 poor
-        if (score >= 0.7) return 'text-green-600';
-        if (score >= 0.5) return 'text-yellow-600';
-        return 'text-red-600';
-
-      case 'noise':
-        // Noise/artifacts: lower is better. <0.3 good, 0.3-0.5 moderate, >0.5 poor
-        if (score < 0.3) return 'text-green-600';
-        if (score < 0.5) return 'text-yellow-600';
-        return 'text-red-600';
-
-      case 'lpips':
-        // LPIPS: lower is better (perceptual similarity). <0.3 good, 0.3-0.5 moderate, >0.5 poor
-        if (score < 0.3) return 'text-green-600';
-        if (score < 0.5) return 'text-yellow-600';
-        return 'text-red-600';
-
-      case 'ssim':
-        // SSIM: higher is better. >0.9 good, 0.7-0.9 moderate, <0.7 poor
-        if (score >= 0.9) return 'text-green-600';
-        if (score >= 0.7) return 'text-yellow-600';
-        return 'text-red-600';
-
-      case 'psnr':
-        // PSNR: higher is better. >30 good, 20-30 moderate, <20 poor
-        if (score >= 30) return 'text-green-600';
-        if (score >= 20) return 'text-yellow-600';
-        return 'text-red-600';
+  const handleCalculateAll = async () => {
+    setBatchLoading(true);
+    try {
+      const response = await fetch('http://localhost:5005/api/runs/calculate-metrics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const result = await response.json();
+      console.log('Batch image metrics:', result);
+      // Auto-refresh current image metrics from cache
+      if (onCalculateMetrics) {
+        await onCalculateMetrics();
+      }
+    } catch (error) {
+      console.error('Error in batch image metrics:', error);
+    } finally {
+      setBatchLoading(false);
     }
   };
 
@@ -157,11 +112,21 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
             variant="outline"
             size="sm"
             className="text-xs h-8"
+            onClick={handleCalculateAll}
+            disabled={batchLoading}
+          >
+            <PlayCircle className="w-3 h-3 mr-1" />
+            {batchLoading ? 'Scoring...' : 'Calculate All'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-8"
             onClick={handleCopyMetrics}
             disabled={!metrics}
           >
             <Copy className="w-3 h-3 mr-1" />
-            Copy Metrics
+            Copy
           </Button>
           <Button
             variant="ghost"
@@ -193,10 +158,8 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
               {metrics.clip_score_mean !== undefined && (
                 <div>
                   <div className="font-semibold mb-1">CLIP Score (Text-Image Alignment):</div>
-                  <div className="space-y-1">
-                    <div className={getScoreColor(metrics.clip_score_mean, 'clip')}>
-                      <strong>Mean:</strong> {formatScore(metrics.clip_score_mean)}
-                    </div>
+                  <div className="text-muted-foreground">
+                    <strong>Mean:</strong> {formatScore(metrics.clip_score_mean)}
                   </div>
                 </div>
               )}
@@ -205,8 +168,8 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
               {metrics.fid_score !== undefined && (
                 <div>
                   <div className="font-semibold mb-1">FID Score (Image Quality):</div>
-                  <div className={getScoreColor(metrics.fid_score, 'fid')}>
-                    {formatScore(metrics.fid_score, 2)} (lower is better)
+                  <div className="text-muted-foreground">
+                    {formatScore(metrics.fid_score, 2)} <span className="opacity-60">(lower is better)</span>
                   </div>
                 </div>
               )}
@@ -217,29 +180,29 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
                 metrics.object_f1 !== undefined) && (
                 <div>
                   <div className="font-semibold mb-1">Object Detection (Prompt Accuracy):</div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-muted-foreground">
                     {metrics.object_f1 !== undefined && (
-                      <div className={getScoreColor(metrics.object_f1, 'composition')}>
+                      <div>
                         <strong>F1 Score:</strong> {formatScore(metrics.object_f1)}
                       </div>
                     )}
                     {metrics.object_precision !== undefined && (
-                      <div className="text-muted-foreground">
+                      <div>
                         <strong>Precision:</strong> {formatScore(metrics.object_precision)}
                       </div>
                     )}
                     {metrics.object_recall !== undefined && (
-                      <div className="text-muted-foreground">
+                      <div>
                         <strong>Recall:</strong> {formatScore(metrics.object_recall)}
                       </div>
                     )}
                     {metrics.detected_objects && Object.keys(metrics.detected_objects).length > 0 && (
-                      <div className="text-muted-foreground text-xs">
+                      <div className="text-xs">
                         <strong>Detected:</strong> {Object.entries(metrics.detected_objects).map(([k, v]) => `${k}(${v})`).join(', ')}
                       </div>
                     )}
                     {metrics.missing_objects && Object.keys(metrics.missing_objects).length > 0 && (
-                      <div className="text-red-500 text-xs">
+                      <div className="text-xs">
                         <strong>Missing:</strong> {Object.entries(metrics.missing_objects).map(([k, v]) => `${k}(${v})`).join(', ')}
                       </div>
                     )}
@@ -254,24 +217,24 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
                 metrics.balance_score !== undefined) && (
                 <div>
                   <div className="font-semibold mb-1">Visual Composition:</div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-muted-foreground">
                     {metrics.composition_score !== undefined && (
-                      <div className={getScoreColor(metrics.composition_score, 'visual')}>
+                      <div>
                         <strong>Overall:</strong> {formatScore(metrics.composition_score)}
                       </div>
                     )}
                     {metrics.rule_of_thirds_score !== undefined && (
-                      <div className="text-muted-foreground">
+                      <div>
                         <strong>Rule of Thirds:</strong> {formatScore(metrics.rule_of_thirds_score)}
                       </div>
                     )}
                     {metrics.symmetry_score !== undefined && (
-                      <div className="text-muted-foreground">
+                      <div>
                         <strong>Symmetry:</strong> {formatScore(metrics.symmetry_score)}
                       </div>
                     )}
                     {metrics.balance_score !== undefined && (
-                      <div className="text-muted-foreground">
+                      <div>
                         <strong>Balance:</strong> {formatScore(metrics.balance_score)}
                       </div>
                     )}
@@ -286,49 +249,49 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
                 metrics.overall_aesthetic_quality !== undefined) && (
                 <div>
                   <div className="font-semibold mb-1">Aesthetic Quality:</div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-muted-foreground">
                     {metrics.aesthetics_score !== undefined && (
-                      <div className={getScoreColor(metrics.aesthetics_score, 'aesthetics')}>
+                      <div>
                         <strong>LAION Aesthetic:</strong> {formatScore(metrics.aesthetics_score, 2)}/10
                       </div>
                     )}
                     {metrics.color_harmony_score !== undefined && (
-                      <div className={getScoreColor(metrics.color_harmony_score, 'visual')}>
+                      <div>
                         <strong>Color Harmony:</strong> {formatScore(metrics.color_harmony_score)}
                       </div>
                     )}
                     {metrics.saturation_balance !== undefined && (
-                      <div className="text-muted-foreground pl-3">
+                      <div className="pl-3">
                         <strong>Saturation Balance:</strong> {formatScore(metrics.saturation_balance)}
                       </div>
                     )}
                     {metrics.value_contrast !== undefined && (
-                      <div className="text-muted-foreground pl-3">
+                      <div className="pl-3">
                         <strong>Value Contrast:</strong> {formatScore(metrics.value_contrast)}
                       </div>
                     )}
                     {metrics.technical_quality_score !== undefined && (
-                      <div className={getScoreColor(metrics.technical_quality_score, 'technical')}>
+                      <div>
                         <strong>Technical Quality:</strong> {formatScore(metrics.technical_quality_score)}
                       </div>
                     )}
                     {metrics.sharpness_score !== undefined && (
-                      <div className="text-muted-foreground pl-3">
+                      <div className="pl-3">
                         <strong>Sharpness:</strong> {formatScore(metrics.sharpness_score)}
                       </div>
                     )}
                     {metrics.noise_level !== undefined && (
-                      <div className={`pl-3 ${getScoreColor(metrics.noise_level, 'noise')}`}>
-                        <strong>Noise Level:</strong> {formatScore(metrics.noise_level)} (lower is better)
+                      <div className="pl-3">
+                        <strong>Noise Level:</strong> {formatScore(metrics.noise_level)} <span className="opacity-60">(lower is better)</span>
                       </div>
                     )}
                     {metrics.artifact_score !== undefined && (
-                      <div className={`pl-3 ${getScoreColor(metrics.artifact_score, 'noise')}`}>
-                        <strong>Artifacts:</strong> {formatScore(metrics.artifact_score)} (lower is better)
+                      <div className="pl-3">
+                        <strong>Artifacts:</strong> {formatScore(metrics.artifact_score)} <span className="opacity-60">(lower is better)</span>
                       </div>
                     )}
                     {metrics.overall_aesthetic_quality !== undefined && (
-                      <div className={`${getScoreColor(metrics.overall_aesthetic_quality, 'visual')} font-medium pt-1 border-t border-border/50`}>
+                      <div className="font-medium pt-1 border-t border-border/50">
                         <strong>Overall Aesthetic:</strong> {formatScore(metrics.overall_aesthetic_quality)}
                       </div>
                     )}
@@ -342,20 +305,20 @@ const EvalMetrics: React.FC<EvalMetricsProps> = ({
                 metrics.ssim_score !== undefined) && (
                 <div>
                   <div className="font-semibold mb-1">Reference Comparison (img2img):</div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-muted-foreground">
                     {metrics.ssim_score !== undefined && (
-                      <div className={getScoreColor(metrics.ssim_score, 'ssim')}>
-                        <strong>SSIM:</strong> {formatScore(metrics.ssim_score)} (higher is better)
+                      <div>
+                        <strong>SSIM:</strong> {formatScore(metrics.ssim_score)} <span className="opacity-60">(higher is better)</span>
                       </div>
                     )}
                     {metrics.psnr_score !== undefined && (
-                      <div className={getScoreColor(metrics.psnr_score, 'psnr')}>
-                        <strong>PSNR:</strong> {formatScore(metrics.psnr_score, 2)} dB (higher is better)
+                      <div>
+                        <strong>PSNR:</strong> {formatScore(metrics.psnr_score, 2)} dB <span className="opacity-60">(higher is better)</span>
                       </div>
                     )}
                     {metrics.lpips_score !== undefined && (
-                      <div className={getScoreColor(metrics.lpips_score, 'lpips')}>
-                        <strong>LPIPS:</strong> {formatScore(metrics.lpips_score)} (lower is better)
+                      <div>
+                        <strong>LPIPS:</strong> {formatScore(metrics.lpips_score)} <span className="opacity-60">(lower is better)</span>
                       </div>
                     )}
                   </div>

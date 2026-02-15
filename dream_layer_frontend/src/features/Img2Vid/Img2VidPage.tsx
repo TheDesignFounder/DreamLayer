@@ -241,7 +241,8 @@ const Img2VidPage: React.FC<Img2VidPageProps> = ({ selectedModel, onTabChange })
           filename: data.filename,
           prompt: coreSettings.prompt || '',
           timestamp: Date.now(),
-          settings: { ...coreSettings }
+          settings: { ...coreSettings },
+          run_id: data.run_id || undefined
         };
 
         addVideos([newVideo]);

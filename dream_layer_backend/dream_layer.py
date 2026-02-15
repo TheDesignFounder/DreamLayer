@@ -942,6 +942,66 @@ def calculate_metrics():
             if errors:
                 metrics["_errors"] = errors
 
+            # Save all metrics to DB for caching
+            try:
+                from data.scripts.database import DreamLayerDB
+                import json as json_lib
+                db = DreamLayerDB()
+
+                # Find run_id by filename
+                with db.get_connection() as conn:
+                    cursor = conn.execute("""
+                        SELECT run_id, timestamp FROM runs
+                        WHERE generation_type IN ('txt2img', 'img2img')
+                        AND generated_images LIKE ?
+                        ORDER BY timestamp DESC LIMIT 1
+                    """, (f'%{filename}%',))
+                    run_row = cursor.fetchone()
+
+                if run_row:
+                    run_id = run_row['run_id']
+                    run_ts = run_row['timestamp']
+
+                    # Build metadata with all extra scores (composition + aesthetic)
+                    extra_metadata = {}
+                    for key in ['composition_score', 'rule_of_thirds_score', 'symmetry_score', 'balance_score',
+                                'aesthetics_score', 'color_harmony_score', 'saturation_balance', 'value_contrast',
+                                'technical_quality_score', 'sharpness_score', 'noise_level', 'artifact_score',
+                                'overall_aesthetic_quality']:
+                        if metrics.get(key) is not None:
+                            extra_metadata[key] = metrics[key]
+
+                    # Save CLIP/FID + metadata
+                    db.upsert_metric(
+                        run_id=run_id,
+                        timestamp=run_ts,
+                        clip_score_mean=metrics.get('clip_score_mean'),
+                        fid_score=metrics.get('fid_score'),
+                        metadata=extra_metadata if extra_metadata else None
+                    )
+
+                    # Save composition metrics (object detection)
+                    if metrics.get('object_f1') is not None:
+                        comp_metrics = {
+                            'macro_precision': metrics.get('object_precision', 0.0),
+                            'macro_recall': metrics.get('object_recall', 0.0),
+                            'macro_f1': metrics.get('object_f1', 0.0),
+                            'detected_objects': metrics.get('detected_objects', {}),
+                            'missing_objects': metrics.get('missing_objects', {}),
+                            'per_class_metrics': {},
+                        }
+                        db.upsert_composition_metrics(
+                            run_id=run_id,
+                            timestamp=run_ts,
+                            prompt_text=prompt,
+                            image_path=image_path,
+                            metrics=comp_metrics
+                        )
+
+                    print(f"Saved image metrics to DB for run {run_id}")
+            except Exception as e:
+                print(f"Warning: Could not save metrics to DB: {e}")
+
             return jsonify({
                 "status": "success",
                 "metrics": metrics
@@ -958,6 +1018,93 @@ def calculate_metrics():
         print(f"Error calculating metrics: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/image-metrics-cache/<filename>', methods=['GET'])
+def get_image_metrics_cache(filename):
+    """Look up cached image metrics by filename (no computation)."""
+    try:
+        from data.scripts.database import DreamLayerDB
+        import json as json_lib
+        db = DreamLayerDB()
+
+        # Find run_id by filename
+        with db.get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT r.run_id FROM runs r
+                WHERE r.generation_type IN ('txt2img', 'img2img')
+                AND r.generated_images LIKE ?
+                ORDER BY r.timestamp DESC LIMIT 1
+            """, (f'%{filename}%',))
+            row = cursor.fetchone()
+
+        if not row:
+            return jsonify({"status": "not_found"}), 404
+
+        run_id = row['run_id']
+        metrics = {}
+
+        # Get CLIP/FID metrics
+        with db.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM metrics WHERE run_id = ?", (run_id,))
+            m_row = cursor.fetchone()
+            if m_row:
+                m = dict(m_row)
+                if m.get('clip_score_mean') is not None:
+                    metrics['clip_score_mean'] = m['clip_score_mean']
+                if m.get('fid_score') is not None:
+                    metrics['fid_score'] = m['fid_score']
+                # Parse metadata for additional scores
+                if m.get('metadata'):
+                    try:
+                        meta = json_lib.loads(m['metadata'])
+                        metrics.update(meta)
+                    except:
+                        pass
+
+        # Get composition metrics
+        with db.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM composition_metrics WHERE run_id = ?", (run_id,))
+            c_row = cursor.fetchone()
+            if c_row:
+                c = dict(c_row)
+                for key in ['macro_precision', 'macro_recall', 'macro_f1']:
+                    if c.get(key) is not None:
+                        metrics[key] = c[key]
+                # Map to frontend field names
+                if c.get('macro_precision') is not None:
+                    metrics['object_precision'] = c['macro_precision']
+                    metrics['object_recall'] = c['macro_recall']
+                    metrics['object_f1'] = c['macro_f1']
+                for json_field in ['detected_objects', 'missing_objects']:
+                    if c.get(json_field):
+                        try:
+                            metrics[json_field] = json_lib.loads(c[json_field])
+                        except:
+                            pass
+                if c.get('metadata'):
+                    try:
+                        meta = json_lib.loads(c['metadata'])
+                        metrics.update(meta)
+                    except:
+                        pass
+
+        if not metrics:
+            return jsonify({"status": "not_found"}), 404
+
+        # Use the actual timestamp from metrics table if available
+        if m_row and dict(m_row).get('timestamp'):
+            metrics['computed_at'] = dict(m_row)['timestamp']
+        else:
+            from datetime import datetime as dt
+            metrics['computed_at'] = dt.now().isoformat()
+        metrics['_cached'] = True
+
+        return jsonify({"status": "success", "metrics": metrics, "run_id": run_id})
+
+    except Exception as e:
+        print(f"Error looking up cached image metrics: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 

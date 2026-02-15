@@ -26,3 +26,5 @@ nltk>=3.8
 torchmetrics[image]>=1.0.0
 # Google Gemini API for banana nano model
 google-generativeai>=0.8.0
+# DINO ViT for video quality metrics (subject/background consistency)
+timm>=1.0.0
