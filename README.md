@@ -1,15 +1,11 @@
-<h1 align="center">DreamLayer AI</h1>
+<h1 align="center">DreamLayer AI: Open-Source Benchmarking for Image and Video Diffusion Models</h1>
 <p align="center">
-  <strong>The Fastest Way to Benchmark Diffusion Models.</strong><br>
-  Built for AI researchers, labs, and developers. Automates prompts, seeds, and metrics so benchmarks that take weeks now run reproducibly in hours.
+  <strong>Automate prompts, seeds, metrics, and reproducible run logging.</strong><br>
+  Built for AI researchers, labs, and developers to evaluate image and video diffusion models faster and compare results consistently.
 </p>
 
 <p align="center">
-  <b>⭐ Star to Get Early-Supporter Perks ⭐</b> 
-</p>
-
-<p align="center">
-  <a href="https://dreamlayer-ai.github.io/DreamLayer/">&nbsp;DreamLayer AI - Documentation</a>
+  <b>⭐ Star the repo for updates ⭐</b> 
 </p>
 
 <p align="center">
@@ -24,17 +20,29 @@
 
 ## What is DreamLayer AI?
 
-DreamLayer AI is an open source platform for benchmarking and evaluating diffusion models. It currently supports image generation, with video and audio model benchmarking coming soon. It automates the full workflow from prompts and seeds to metrics and logging, making experiments reproducible by default.
+DreamLayer AI is an open-source benchmarking and evaluation platform for image generation models and video generation models. It automates prompts, seeds, metrics, configs, and reproducible run logging so researchers and developers can compare model quality faster and more consistently. It runs locally with a React frontend, Flask-based services, SQLite run storage, and ComfyUI integration for image workflows.
 
-No custom scripts, no manual logging, no wasted compute. A streamlined workflow for:
+Compare model outputs across prompts, seeds, configs, and metrics with reproducible run logging.
 
-- **AI researchers** benchmarking models, datasets, and samplers
-- **Labs and teams** running reproducible evaluations across multiple seeds and configs
+## Who is this for?
+DreamLayer AI is built for:
+- **AI researchers** comparing diffusion models across prompts, seeds, and metrics
+- **ML Engineers** evaluating image and video generation quality
+- **Labs and teams** building internal benchmarking workflows for generative models
+- **Open-source model creators** testing checkpoints, LoRAs, and workflows
 - **Developers** integrating custom metrics and evaluation pipelines
 
-> **Status:** ✨ **Now live: Beta V1**
+## What can DreamLayer benchmark?
+DreamLayer can benchmark:
+- Image generation model outputs
+- Video generation model outputs
+- Prompt-to-image alignment
+- Image quality and aesthetic quality
+- Object-level prompt adherence
+- Temporal video consistency
+- Reference-based image and video similarity metrics
 
-> ⭐ Star the repo for updates & to get early-supporter perks
+> **Status:** ✨ **Now live**
 
 ---
 
@@ -42,7 +50,7 @@ No custom scripts, no manual logging, no wasted compute. A streamlined workflow 
 
 ### ⭐️ Run with Cursor (Smooth Setup with a Few Clicks)
 
-Easiest way to run DreamLayer 😃 Best for non-technical users
+Easiest way to run DreamLayer 😃
 
 1. **Download this repo**
 2. **Open the folder in [Cursor](https://www.cursor.so/)** (an AI-native code editor)
@@ -171,15 +179,57 @@ python scripts/fetch_datasets.py
 
 ---
 
-## Why DreamLayer AI?
+## Why DreamLayer AI?                                                                                                                              
+                                                                                                                                                     
+  | 🔍 Feature | 🚀 How it's better |                                                                                                                
+  | --- | --- |
+  | **Automated Benchmarking** | One run sweeps N prompts by M seeds by K samplers. Metrics compute live during generation, so a 1 to 2 week manual benchmark finishes in 3 to 5 hours per model. |                                                                               
+  | **Reproducibility by Default** | Every run persists to SQLite with prompt, negative prompt, seed, sampler, steps, CFG, model hash, LoRA stack, ControlNet config, and all computed metrics. Replay any run by `run_id`. |                                                                         
+  | **Image and Video Metrics, Built In** | Image: CLIPScore (ViT-L/14), FID, LAION aesthetic, color harmony, sharpness, YOLOv8 composition F1. Video: FVD (I3D), SSIM, PSNR, LPIPS, temporal flickering, subject and background consistency (DINO), motion smoothness. Custom metrics pluggable. |                    
+  | **Multi-Modal Today** | Image and video evaluation are available out of the box. Audio benchmarking is on the roadmap. See the Metrics section below for the exact call graph and storage schema. |                                                                                         
+  | **Reference-Free and Reference-Based** | Works without a ground-truth image or video for CLIPScore, aesthetics, YOLO composition, temporal flickering, and DINO consistency. Add a reference video to unlock SSIM, PSNR, LPIPS. FID operates on a reference set. |                            
+  | **Cached, Incremental, Comparable** | Metrics persist per run in a dedicated SQLite table and return instantly on re-fetch. Batch backfill endpoints recompute missing metrics across the full history. Compare any two runs side by side via the comparison API. |                           
+  | **Researcher-Friendly Exports** | Run locally on your own GPU (CUDA, MPS, or CPU fallback). Export to CSV per run or a ZIP report bundle with images, metadata, and metrics for leaderboard submission or paper appendices. |
 
-| 🔍 Feature                      | 🚀 How it’s better                                                                                          |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| **Automated Benchmarking**             | Turn a 1–2 week manual benchmarking task into 3–5 hours per model                              |
-| **Reproducibility**                   | Every run is logged with prompts, seeds, configs, and metrics for exact replay           |
-| **Metrics Built In**       | CLIP Score, FID, Precision, Recall, F1 with support for custom metrics |
-| **Multi Modal Ready** | Benchmark image, video, and audio models with one pipeline                             |
-| **Researcher Friendly**                 | Runs locally or on your GPUs with CSV exports, reports, and leaderboard ready outputs       |
+---
+
+## Metrics 
+
+DreamLayer supports a working set of common image and video evaluation metrics, including CLIPScore, FID, aesthetic scoring, LPIPS, SSIM, PSNR, composition precision/recall/F1, temporal flickering, subject consistency, background consistency, and motion smoothness. These metrics run either automatically during generation or on demand per run, are exposed through live HTTP routes, and persist to SQLite for reproducible benchmarking and comparison.
+
+### Image metrics
+- CLIPScore: prompt-to-image alignment using cosine similarity between CLIP text and image embeddings. Higher is better (0 to 1). No reference needed. Backbone: CLIP ViT-L/14.
+- FID (Fréchet Inception Distance): distribution distance between generated images and a reference image set. CIFAR-10 ships as the default reference. Lower is better. Reference required. Backbone: Inception-V3.
+- LAION Aesthetic Score: learned aesthetic quality prediction from CLIP embeddings. Higher is better (0 to 10). No reference needed. Backbone: LAION linear predictor on CLIP ViT-L/14.
+- Color Harmony, Saturation Balance, Value Contrast: HSV-space color theory analysis using k-means clustering. Higher is better (0 to 1). No reference needed. Backbone: OpenCV.
+- Technical Quality: sharpness, noise level, and artifact detection per image. Higher is better (0 to 1). No reference needed. Backbone: Laplacian variance plus heuristics.
+- Composition Precision, Recall, F1: object-level prompt adherence, comparing detected objects against a prompt-derived object list. Higher is better (0 to 1). No reference needed. Backbone: YOLOv8n.
+
+### Video metrics
+- FVD (Fréchet Video Distance): distribution distance between two sets of videos in I3D feature space. Lower is better. Reference required.
+- Video SSIM: per-frame structural similarity, reported as mean and standard deviation across frames. Higher is better (0 to 1). Reference required.
+- Video PSNR: per-frame peak signal-to-noise ratio, reported as mean and standard deviation. Higher is better (dB). Reference required.
+- Video LPIPS: per-frame learned perceptual similarity between generated and reference frames. Lower is better. Reference required. Backbone: LPIPS with AlexNet.
+- Temporal Flickering: frame-to-frame stability using mean absolute error between consecutive frames. Higher is better (0 to 1). No reference needed.
+- Subject Consistency: how stable the main subject’s appearance is across frames. Higher is better (0 to 1). No reference needed. Backbone: DINO feature similarity.
+- Background Consistency: how stable the background is across frames. Higher is better (0 to 1). No reference needed. Backbone: DINO feature similarity.
+- Motion Smoothness: smoothness of optical flow between consecutive frames. Higher is better (0 to 1). No reference needed. Backbone: OpenCV optical flow.
+- Per-Frame Aesthetic: LAION aesthetic score applied to each frame, reported as a mean. Higher is better (0 to 10). No reference needed. Backbone: LAION predictor on CLIP ViT-L/14.
+
+_Temporal Flickering, Subject Consistency, Background Consistency, and Motion Smoothness are adapted from [VBench](https://github.com/Vchitect/VBench) (CVPR 2024)._
+
+### When metrics compute
+- Live during image generation: CLIPScore, LAION aesthetic, color metrics, technical quality, and YOLO composition. Results are written to the metrics table as soon as the image is saved.
+- On demand for images: FID. Requires the CIFAR-10 reference stats (run `python scripts/fetch_datasets.py` once), then a POST /api/runs/calculate-metrics call, or the batch backfill script for historical runs.
+- On demand for video: all video metrics. Trigger per video with POST /api/calculate-video-metrics, or batch across all unscored videos with POST /api/calculate-all-video-metrics. Results are cached to the video_metrics table and return instantly on re-fetch.
+
+### Storage and export
+Metrics persist across three dedicated SQLite tables:
+- metrics: image scalar metrics and aesthetic sub-scores
+- composition_metrics: YOLO precision, recall, F1, detected objects, missing objects
+- video_metrics: FVD, SSIM, PSNR, LPIPS, plus a JSON blob of per-frame arrays and VBench-style quality metrics
+
+You can export any run or slice of runs to CSV through the report bundle endpoint, or download a ZIP containing images, prompts, configs, and every computed metric for leaderboard submissions or paper appendices.
 
 ---
 
@@ -191,28 +241,10 @@ python scripts/fetch_datasets.py
 
 ---
 
-## ⭐ Why Star This Repo Now?
-
-Starring helps us trend on GitHub which brings more contributors and faster features.  
-Early stargazers get perks:
-
-- **GitHub Hall of Fame**: Your handle listed forever in the README under Founding Supporter
-- **Early Builds**: Download private binaries before everyone else
-- **Community first hiring**: We prioritize contributors and stargazers for all freelance, full-time, and AI artist or engineering roles.
-- **Closed Beta Invites**: Give feedback that shapes 1.0
-- **Discord badge**: Exclusive Founding Supporter role
-
-> ⭐ **Hit the star button right now** and join us at the ground floor ☺️
-
----
-
 ## Get Involved Today
 
-1. **Star** this repository.
-2. **Watch** releases for the July code drop.
-3. **Join** the Discord (link coming soon) and say hi.
-4. **Open issues** for ideas or feedback & Submit PRs once the code is live
-5. **Share** the screenshot on X ⁄ Twitter with `#DreamLayerAI` to spread the word.
+- **Star** this repository.
+- **Share** the screenshot on X ⁄ Twitter with `#DreamLayerAI` to spread the word.
 
 All contributions code, docs, art, tutorials—are welcome!
 
@@ -223,24 +255,10 @@ All contributions code, docs, art, tutorials—are welcome!
 
 ---
 
-## 📚 Documentation
-
-Full docs will ship with the first code release.
-
-[DreamLayer AI - Documentation](https://dreamlayer-ai.github.io/DreamLayer/)
-
----
-
 ## License
 
 DreamLayer AI will ship under the GPL-3.0 license when the code is released.  
 All trademarks and closed-source models referenced belong to their respective owners.
-
----
-
-<p align="center">### Made with ❤️ by builders, for builders • See you in July 2025!</p>
-
----
 
 ## 🧪 Testing
 
@@ -308,6 +326,62 @@ The test suite requires these additional dependencies:
 - `requests-mock` - HTTP request mocking
 
 Install with: `pip install -r tests/requirements.txt`
+
+## FAQ
+
+### Does DreamLayer support CLIPScore, FID, LPIPS, SSIM, and PSNR?
+Yes. All five are fully implemented and persisted to SQLite. CLIPScore computes live during image generation. FID runs on demand against a reference image set. Video SSIM, Video PSNR, and Video LPIPS run on demand against a reference video. Batch backfill endpoints recompute missing metrics across the full run history.
+
+### How is DreamLayer different from ComfyUI?
+ComfyUI is a node-based generation interface. DreamLayer is a benchmarking workbench built on top of ComfyUI for image workflows, paired with dedicated Flask services for run logging, metric computation, comparison APIs, and CSV or ZIP exports. ComfyUI handles "make this image." DreamLayer handles "benchmark these models across these prompts and seeds, log everything, and let me compare results."
+
+### How is DreamLayer different from Automatic1111, InvokeAI, or Forge?
+Automatic1111, InvokeAI, and Forge are excellent generation UIs. DreamLayer is also a great generation UIs, but it adds benchmarking infrastructure on top: persistent SQLite logging with full prompt, seed, sampler, and config metadata; built-in image and video quality metrics; side-by-side run comparison; batch metric backfills; and CSV or ZIP exports for leaderboard submission. None of those generation UIs ship with end-to-end evaluation tooling.
+
+### How is DreamLayer different from VBench, EvalCrafter, and other diffusion evaluation frameworks?
+VBench, EvalCrafter, HEIM, and similar evaluation frameworks are standardized benchmark suites: they define fixed prompts, tasks, and scoring methods so you can report comparable benchmark results. DreamLayer is benchmarking infrastructure: you bring your own prompts, models, and configs, then run generation, scoring, run logging, and comparison workflows in one place. The two are complementary. DreamLayer’s evaluation stack also draws on HELM-style benchmarking concepts and includes video quality metrics inspired by VBench, such as temporal flickering, subject consistency, background consistency, and motion smoothness.
+
+### Can I benchmark Stable Diffusion, Flux, DALL·E, Gemini, Runway, Luma, Ideogram, and Stability AI models with DreamLayer?
+Yes. DreamLayer can benchmark both local open-source models and supported API-based models. For local workflows, that includes models like Stable Diffusion 1.5, SDXL, Flux, and custom checkpoints. For API-based workflows, DreamLayer supports models shown in the UI such as Luma Labs Photon, Black Forest Labs Flux Pro, OpenAI DALL·E 3, Google Gemini Nano Banana, Runway Gen 4, Ideogram V3, and Stability AI SD Turbo. Add local model files to the Checkpoints/, Lora/, ControlNet/, and VAE/ folders, or add API keys to .env, and supported models appear in the UI for benchmarking.
+
+### Can DreamLayer benchmark text-to-video models like Sora, Runway, Luma, or Veo3?
+Yes for Luma AI, Runway ML, and Google's Veo3. DreamLayer integrates with their video APIs out of the box via the `txt2vid_server` — just add the API key to `.env`. Sora support depends on OpenAI exposing a public video generation API. For local open-source video models that run through ComfyUI, drop the checkpoint into the appropriate folder and refresh the model list.
+
+### Can I benchmark outputs across prompts, seeds, and configs?
+Yes, this is a core use case. Every run persists to SQLite with the full prompt, negative prompt, seed, sampler, steps, CFG, model hash, LoRA stack, ControlNet config, and all computed metrics. You can replay any run by `run_id`, sweep across multiple seeds or samplers in one batch, and compare any two runs side by side via the comparison API.
+
+### How does DreamLayer calculate CLIPScore?
+DreamLayer computes CLIPScore as the cosine similarity between CLIP text and image embeddings using the `openai/clip-vit-large-patch14` backbone. The score lands in the 0 to 1 range, where higher values indicate stronger prompt-to-image alignment. No reference image is needed. CLIPScore computes live during image generation and writes directly to the `metrics` table, surfaced via the run registry API and included in CSV exports.
+
+### How does DreamLayer calculate FID, and which reference dataset does it use?
+DreamLayer calculates FID using `torchmetrics.image.fid.FrechetInceptionDistance` with Inception-V3 features at 2048 dimensions. The default reference set is CIFAR-10, which you fetch once with `python scripts/fetch_datasets.py`. Lower FID indicates a closer distributional match to the reference. FID is on-demand: trigger per run via `POST /api/runs/calculate-metrics`, or batch-backfill across historical runs.
+
+### Can I add my own custom metrics?
+Yes. The metric pipeline is modular. Each metric is implemented as a standalone calculator in `dream_layer_backend_utils/`, registered with the database layer, and surfaced through the existing `metrics`, `composition_metrics`, or `video_metrics` tables. Add your computation in the same pattern as the existing calculators and register it with the database queries module to flow through the registry, comparison API, CSV export, and ZIP report bundle.
+
+### Does DreamLayer support LoRAs, ControlNets, and custom VAEs?
+Yes. Drop `.safetensors` files into the auto-created `Lora/`, `ControlNet/`, and `VAE/` folders, then refresh the model list in Settings. The full stack of active LoRAs (with weights), ControlNet config, and VAE choice persists with every run, so you can replay an exact LoRA and ControlNet combination by `run_id` or compare results across LoRA variants in a single batch.
+
+### Can I sweep across multiple seeds, samplers, and CFG values in one batch?
+Yes. A single benchmark run sweeps N prompts across M seeds across K samplers, and you can vary CFG, steps, and resolution per cell. Every cell becomes a row in the `runs` table with its own `run_id` and metrics. The comparison API lets you slice the resulting matrix any way you need: by sampler, by CFG value, by seed, or any combination.
+
+### Does DreamLayer run on Mac?
+Yes, on both Intel and Apple Silicon Macs. The install script `./install_mac_dependencies.sh` handles PyTorch and dependency setup on either architecture. On Apple Silicon (M1, M2, M3), DreamLayer uses the MPS (Metal Performance Shaders) backend automatically for GPU-accelerated metric computation. On Intel Macs or when MPS is unavailable, DreamLayer falls back to CPU, which works for every metric but runs slower.
+
+### What is a "run" in DreamLayer, and what gets logged?
+A run is one image or video generation event tied to a unique `run_id`. DreamLayer logs the prompt, negative prompt, seed, sampler, steps, CFG, model hash, LoRA stack, ControlNet config, VAE, batch size, generation type (txt2img, img2img, txt2vid, img2vid), the workflow JSON, the output filename, and every metric computed for that output. Runs persist to SQLite indefinitely and can be replayed, exported, or compared at any time.
+
+### How do I reproduce a previous run?
+Every run is assigned a `run_id` that links to its full configuration in SQLite: prompt, negative prompt, seed, sampler, steps, CFG, model hash, LoRA stack, and ControlNet config. Replay by `run_id` from the run registry to regenerate the exact image with the exact metrics, or fork a run by changing one parameter (such as the sampler or seed) for a controlled comparison.
+
+### Does DreamLayer send my prompts or images to any server?
+No. DreamLayer runs locally on your machine, and prompts, generated images, configs, and metrics stay in your local filesystem and SQLite database by default. The only exception is when you choose to use an API-based model such as DALL·E, Flux, Ideogram, Stability AI, Runway, Luma, or Gemini, in which case the relevant request data is sent to that provider for generation. DreamLayer does not perform telemetry, analytics, or background uploads on its own.
+
+### Can I integrate DreamLayer into a CI/CD pipeline for regression testing?
+Yes. Every Flask service exposes HTTP endpoints (txt2img, img2img, video metrics, run registry, report bundle) that you can call from a CI job. A typical pattern: trigger a fixed prompt set against a candidate model, fetch CLIPScore and aesthetic metrics from the run registry, compare against a baseline `run_id` from the previous release, and fail the build if any metric regresses beyond a defined threshold.
+
+### How long does a benchmark run take?
+Benchmark runtime depends on the model, hardware, batch size, and selected metrics. In one representative image benchmark, DreamLayer processed 200 prompts in 45 minutes per model on an Intel MacBook Pro across API-based models including Photon, Flux Pro, DALL·E 3, Nano Banana, Runway Gen 4, Ideogram V3, and Stability SD Turbo. Using the same prompts, seeds, and configs across runs, DreamLayer handled generation, scoring, and output aggregation automatically. Larger batches and heavier metrics increase total runtime, but DreamLayer still makes reproducible benchmarking much faster than running the workflow manually.
 
 -----
 
